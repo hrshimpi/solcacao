@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Page } from "../types";
+import { Page } from "../../types";
 
 interface StudioProps {
   setPage: (p: Page) => void;
@@ -21,7 +21,7 @@ const PACKAGING = [
   { id: "sleeve", label: "Paper sleeve", sub: "Recycled board, minimal print" },
 ];
 
-export default function Studio({ setPage }: StudioProps) {
+export default function StudioPage({ setPage }: StudioProps) {
   const [step, setStep] = useState(0);
   const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
   const [selectedPackaging, setSelectedPackaging] = useState<string | null>(null);

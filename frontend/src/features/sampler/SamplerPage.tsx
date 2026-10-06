@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Product } from "../types";
+import { Product } from "../../types";
 
 interface SamplerProps {
   products: Product[];
@@ -16,7 +16,7 @@ const TRAY_POSITIONS = [
   { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 },
 ];
 
-export default function Sampler({ products, onAddToCart }: SamplerProps) {
+export default function SamplerPage({ products, onAddToCart }: SamplerProps) {
   const [selected, setSelected] = useState<Product[]>([]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);

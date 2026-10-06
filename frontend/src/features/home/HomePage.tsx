@@ -1,4 +1,4 @@
-import { Page, Product } from "../types";
+import { Page, Product } from "../../types";
 
 interface HomeProps {
   setPage: (p: Page) => void;
@@ -6,7 +6,7 @@ interface HomeProps {
   products: Product[];
 }
 
-export default function Home({ setPage, setSelectedProduct, products }: HomeProps) {
+export default function HomePage({ setPage, setSelectedProduct, products }: HomeProps) {
   const showcase = products.slice(0, 5);
 
   return (

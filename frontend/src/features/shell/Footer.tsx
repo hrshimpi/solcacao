@@ -1,4 +1,4 @@
-import { Page } from "../types";
+import { Page } from "../../types";
 
 interface FooterProps {
   setPage: (p: Page) => void;

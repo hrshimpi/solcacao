@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Product, Page } from "../types";
+import { Product, Page } from "../../types";
 
 interface ProductDetailProps {
   product: Product;
@@ -55,7 +55,7 @@ function OriginMap() {
   );
 }
 
-export default function ProductDetail({ product, onAddToCart, setPage }: ProductDetailProps) {
+export default function ProductDetailPage({ product, onAddToCart, setPage }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 

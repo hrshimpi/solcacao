@@ -1,10 +1,10 @@
-import { Page } from "../types";
+import { Page } from "../../types";
 
 interface WholesaleProps {
   setPage: (p: Page) => void;
 }
 
-export default function Wholesale({ setPage }: WholesaleProps) {
+export default function WholesalePage({ setPage }: WholesaleProps) {
   const features = [
     {
       icon: (

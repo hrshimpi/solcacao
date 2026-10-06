@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Product, CartItem, Page } from "../types";
+import { Product, CartItem, Page } from "../../types";
 
 interface CatalogProps {
   products: Product[];
@@ -102,7 +102,7 @@ function FlavorCompass({
   );
 }
 
-export default function Catalog({
+export default function CatalogPage({
   products,
   cart,
   setPage,

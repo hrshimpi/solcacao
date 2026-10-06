@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Page } from "../types";
+import { Page } from "../../types";
 
 interface AuthProps {
   setPage: (p: Page) => void;
 }
 
-export default function Auth({ setPage }: AuthProps) {
+export default function AuthPage({ setPage }: AuthProps) {
   const [accountType, setAccountType] = useState<"retail" | "business">("retail");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [formData, setFormData] = useState({

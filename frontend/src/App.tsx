@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Page, Product, CartItem } from "./types";
 import { products } from "./data/products";
-import Nav from "./components/Nav";
-import Footer from "./components/Footer";
-import Home from "./components/Home";
-import Catalog from "./components/Catalog";
-import ProductDetail from "./components/ProductDetail";
-import Wholesale from "./components/Wholesale";
-import Studio from "./components/Studio";
-import Auth from "./components/Auth";
-import Sampler from "./components/Sampler";
+import Nav from "./features/shell/Nav";
+import Footer from "./features/shell/Footer";
+import HomePage from "./features/home/HomePage";
+import CatalogPage from "./features/catalog/CatalogPage";
+import ProductDetailPage from "./features/product/ProductDetailPage";
+import WholesalePage from "./features/wholesale/WholesalePage";
+import StudioPage from "./features/studio/StudioPage";
+import AuthPage from "./features/auth/AuthPage";
+import SamplerPage from "./features/sampler/SamplerPage";
 
 export default function App() {
   const [page, setPage] = useState<Page>("home");
@@ -64,7 +64,7 @@ export default function App() {
       />
 
       {page === "home" && (
-        <Home
+        <HomePage
           setPage={setPage}
           setSelectedProduct={setSelectedProduct}
           products={products}
@@ -72,7 +72,7 @@ export default function App() {
       )}
 
       {page === "catalog" && (
-        <Catalog
+        <CatalogPage
           products={products}
           cart={cart}
           setPage={setPage}
@@ -85,21 +85,21 @@ export default function App() {
       )}
 
       {page === "product" && (
-        <ProductDetail
+        <ProductDetailPage
           product={selectedProduct}
           onAddToCart={addToCart}
           setPage={setPage}
         />
       )}
 
-      {page === "wholesale" && <Wholesale setPage={setPage} />}
+      {page === "wholesale" && <WholesalePage setPage={setPage} />}
 
-      {page === "studio" && <Studio setPage={setPage} />}
+      {page === "studio" && <StudioPage setPage={setPage} />}
 
-      {page === "auth" && <Auth setPage={setPage} />}
+      {page === "auth" && <AuthPage setPage={setPage} />}
 
       {page === "sampler" && (
-        <Sampler products={products} onAddToCart={addToCart} />
+        <SamplerPage products={products} onAddToCart={addToCart} />
       )}
 
       {showFooter && <Footer setPage={setPage} />}
