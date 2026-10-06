@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-ink-cacao: #1C1310;
+  --color-pod-wine: #6B1F2E;
+  --color-sun-gold: #EFA836;
+  --color-canopy-green: #2B4531;
+  --color-stone-paper: #F0EDE4;
+  --color-clay-surface: #E3D9C6;
+  --color-paper-text: #F3ECDD;
+
+  --font-spectral: 'Spectral', Georgia, serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+html {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background-color: #F0EDE4;
+  color: #1C1310;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-up {
+  animation: revealUp 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reveal-up-delay {
+  animation: revealUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+.reveal-up-delay-2 {
+  animation: revealUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+:hover::-webkit-scrollbar-thumb {
+  background: rgba(28, 19, 16, 0.2);
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  background: #1C1310;
+  height: 1px;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;
+  background-color: #6B1F2E;
+  height: 11px;
+  width: 11px;
+  border-radius: 50%;
+  border: 1px solid #6B1F2E;
+}
