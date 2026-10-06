@@ -1,47 +1,42 @@
 import { useState } from "react";
-import { Page } from "../../types";
+import { Link, useLocation, useNavigate } from "react-router";
 
 interface NavProps {
-  page: Page;
-  setPage: (p: Page) => void;
   cartCount: number;
   lang: "EN" | "ES";
   setLang: (l: "EN" | "ES") => void;
   onCartOpen: () => void;
 }
 
-export default function Nav({ page, setPage, cartCount, lang, setLang, onCartOpen }: NavProps) {
+export default function Nav({ cartCount, lang, setLang, onCartOpen }: NavProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
 
-  const links: { label: string; target: Page }[] = [
-    { label: "Shop", target: "catalog" },
-    { label: "Wholesale", target: "wholesale" },
-    { label: "Our Origins", target: "product" },
-    { label: "Build a Sampler", target: "sampler" },
+  const links = [
+    { label: "Shop", to: "/shop", active: pathname === "/shop" },
+    { label: "Wholesale", to: "/wholesale", active: pathname === "/wholesale" },
+    { label: "Our Origins", to: "/shop/ecuador-72", active: pathname.startsWith("/shop/") },
+    { label: "Build a Sampler", to: "/sampler", active: pathname === "/sampler" },
   ];
 
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 bg-stone-paper border-b border-ink-cacao">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <button
-            onClick={() => setPage("home")}
-            className="font-spectral text-xl font-semibold text-ink-cacao tracking-tight shrink-0"
-          >
+          <Link to="/" className="font-spectral text-xl font-semibold text-ink-cacao tracking-tight shrink-0">
             SolCacao
-          </button>
+          </Link>
 
           <div className="hidden md:flex items-center gap-8">
             {links.map((l) => (
-              <button
-                key={l.target}
-                onClick={() => setPage(l.target)}
-                className={`font-sans text-sm text-ink-cacao hover:text-pod-wine transition-colors pb-0.5 ${
-                  page === l.target ? "border-b border-ink-cacao" : ""
-                }`}
+              <Link
+                key={l.to}
+                to={l.to}
+                className={`font-sans text-sm text-ink-cacao hover:text-pod-wine transition-colors pb-0.5 ${l.active ? "border-b border-ink-cacao" : ""}`}
               >
                 {l.label}
-              </button>
+              </Link>
             ))}
           </div>
 
@@ -70,7 +65,7 @@ export default function Nav({ page, setPage, cartCount, lang, setLang, onCartOpe
             </button>
 
             <button
-              onClick={() => setPage("auth")}
+              onClick={() => navigate("/login")}
               className="hidden md:block text-ink-cacao hover:text-pod-wine transition-colors"
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -129,13 +124,14 @@ export default function Nav({ page, setPage, cartCount, lang, setLang, onCartOpe
 
             <div className="flex flex-col gap-5">
               {links.map((l) => (
-                <button
-                  key={l.target}
-                  onClick={() => { setPage(l.target); setMobileOpen(false); }}
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setMobileOpen(false)}
                   className="font-spectral text-3xl text-paper-text text-left hover:text-sun-gold transition-colors"
                 >
                   {l.label}
-                </button>
+                </Link>
               ))}
             </div>
 

@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Product, Page } from "../../types";
+import { Link, useParams } from "react-router";
+import { Product } from "../../types";
+import { products } from "../../data/products";
+import { useCart } from "../cart/CartContext";
+import NotFoundPage from "../shell/NotFoundPage";
 
 interface ProductDetailProps {
   product: Product;
-  onAddToCart: (p: Product) => void;
-  setPage: (p: Page) => void;
 }
 
 function OriginMap() {
@@ -55,7 +57,16 @@ function OriginMap() {
   );
 }
 
-export default function ProductDetailPage({ product, onAddToCart, setPage }: ProductDetailProps) {
+export default function ProductDetailPage() {
+  const { slug } = useParams();
+  const product = products.find((p) => p.slug === slug);
+
+  if (!product) return <NotFoundPage />;
+  return <ProductDetail product={product} />;
+}
+
+function ProductDetail({ product }: ProductDetailProps) {
+  const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 
@@ -64,13 +75,13 @@ export default function ProductDetailPage({ product, onAddToCart, setPage }: Pro
   return (
     <div className="bg-stone-paper min-h-screen pt-14">
       <div className="max-w-7xl mx-auto px-6 py-5 flex items-center gap-2 border-b border-ink-cacao/15">
-        <button onClick={() => setPage("home")} className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors">
+        <Link to="/" className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors">
           Home
-        </button>
+        </Link>
         <span className="text-ink-cacao/30 text-[10px]">/</span>
-        <button onClick={() => setPage("catalog")} className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors">
+        <Link to="/shop" className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors">
           Shop
-        </button>
+        </Link>
         <span className="text-ink-cacao/30 text-[10px]">/</span>
         <span className="font-sans text-[10px] text-ink-cacao">{product.name}</span>
       </div>
@@ -142,7 +153,7 @@ export default function ProductDetailPage({ product, onAddToCart, setPage }: Pro
               </button>
             </div>
             <button
-              onClick={() => { for (let i = 0; i < quantity; i++) onAddToCart(product); }}
+              onClick={() => addItem(product, quantity)}
               className="flex-1 font-sans text-sm font-medium bg-sun-gold text-ink-cacao py-2.5 hover:bg-sun-gold/90 transition-colors"
             >
               Add to cart

@@ -1,9 +1,5 @@
 import { useState } from "react";
-import { Page } from "../../types";
-
-interface StudioProps {
-  setPage: (p: Page) => void;
-}
+import { useNavigate } from "react-router";
 
 const ORIGINS = [
   { id: "ecu", label: "Ecuador 72%", sub: "Berry, jasmine (Esmeraldas Province)", color: "#6B1F2E" },
@@ -21,7 +17,8 @@ const PACKAGING = [
   { id: "sleeve", label: "Paper sleeve", sub: "Recycled board, minimal print" },
 ];
 
-export default function StudioPage({ setPage }: StudioProps) {
+export default function StudioPage() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
   const [selectedPackaging, setSelectedPackaging] = useState<string | null>(null);
@@ -70,7 +67,7 @@ export default function StudioPage({ setPage }: StudioProps) {
               A quote for <strong>{formData.company}</strong> ({selectedOrigin && ORIGINS.find((o) => o.id === selectedOrigin)?.label}, {formData.quantity} units) will be sent to you within two business days.
             </p>
             <button
-              onClick={() => setPage("wholesale")}
+              onClick={() => navigate("/wholesale")}
               className="font-sans text-sm font-medium border border-ink-cacao text-ink-cacao px-6 py-2.5 hover:bg-ink-cacao hover:text-stone-paper transition-colors"
             >
               Back to Wholesale
@@ -386,7 +383,7 @@ export default function StudioPage({ setPage }: StudioProps) {
 
         <div className="flex items-center justify-between mt-12 pt-8 border-t border-ink-cacao/15">
           <button
-            onClick={() => { if (step > 0) setStep(step - 1); else setPage("wholesale"); }}
+            onClick={() => { if (step > 0) setStep(step - 1); else navigate("/wholesale"); }}
             className="font-sans text-xs text-ink-cacao/50 hover:text-ink-cacao transition-colors"
           >
             ← {step === 0 ? "Back to Wholesale" : "Previous step"}

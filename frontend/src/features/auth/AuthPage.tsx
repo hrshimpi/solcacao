@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Page } from "../../types";
+import { useLocation, useNavigate } from "react-router";
 
-interface AuthProps {
-  setPage: (p: Page) => void;
-}
-
-export default function AuthPage({ setPage }: AuthProps) {
+export default function AuthPage() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const mode = pathname === "/register" ? "register" : "login";
   const [accountType, setAccountType] = useState<"retail" | "business">("retail");
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -31,7 +29,7 @@ export default function AuthPage({ setPage }: AuthProps) {
         <div className="absolute inset-0 bg-ink-cacao/80" />
         <div className="relative">
           <button
-            onClick={() => setPage("home")}
+            onClick={() => navigate("/")}
             className="font-spectral text-xl font-semibold text-paper-text"
           >
             SolCacao
@@ -136,7 +134,7 @@ export default function AuthPage({ setPage }: AuthProps) {
           </div>
 
           <button
-            onClick={() => setPage("home")}
+            onClick={() => navigate("/")}
             className="mt-10 w-full font-sans text-sm font-medium bg-sun-gold text-ink-cacao py-3.5 hover:bg-sun-gold/90 transition-colors"
           >
             {mode === "login" ? "Sign in" : "Create account"}
@@ -144,7 +142,7 @@ export default function AuthPage({ setPage }: AuthProps) {
 
           <div className="mt-6 flex items-center justify-between">
             <button
-              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              onClick={() => navigate(mode === "login" ? "/register" : "/login")}
               className="font-sans text-xs text-ink-cacao/50 hover:text-ink-cacao transition-colors underline underline-offset-2"
             >
               {mode === "login" ? "New here? Create an account" : "Already have an account? Sign in"}

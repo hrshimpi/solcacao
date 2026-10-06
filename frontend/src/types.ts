@@ -1,5 +1,3 @@
-export type Page = "home" | "catalog" | "product" | "wholesale" | "studio" | "auth" | "sampler";
-
 export interface Product {
   id: number;
   slug: string;

@@ -1,10 +1,4 @@
-import { Page } from "../../types";
-
-interface FooterProps {
-  setPage: (p: Page) => void;
-}
-
-export default function Footer({ setPage }: FooterProps) {
+export default function Footer() {
   const columns = [
     {
       label: "Shop",

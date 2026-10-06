@@ -1,10 +1,7 @@
-import { Page } from "../../types";
+import { useNavigate } from "react-router";
 
-interface WholesaleProps {
-  setPage: (p: Page) => void;
-}
-
-export default function WholesalePage({ setPage }: WholesaleProps) {
+export default function WholesalePage() {
+  const navigate = useNavigate();
   const features = [
     {
       icon: (
@@ -68,7 +65,7 @@ export default function WholesalePage({ setPage }: WholesaleProps) {
               We work with hotels, retailers, and gifting programmes that require traceability, consistency, and the kind of chocolate that holds its own on an expense account.
             </p>
             <button
-              onClick={() => setPage("studio")}
+              onClick={() => navigate("/wholesale/studio")}
               className="font-sans text-sm font-medium bg-sun-gold text-ink-cacao px-8 py-3.5 hover:bg-sun-gold/90 transition-colors"
             >
               Enter the Corporate Cacao Studio
@@ -124,7 +121,7 @@ export default function WholesalePage({ setPage }: WholesaleProps) {
                 Our B2B ordering flow takes most clients through four steps: profile selection, packaging, brand asset upload, and final quote review. Most quotes are returned within two business days.
               </p>
               <button
-                onClick={() => setPage("studio")}
+                onClick={() => navigate("/wholesale/studio")}
                 className="mt-8 font-sans text-sm font-medium bg-ink-cacao text-stone-paper px-8 py-3.5 hover:bg-pod-wine transition-colors"
               >
                 Start in the Studio →
@@ -171,7 +168,7 @@ export default function WholesalePage({ setPage }: WholesaleProps) {
             </p>
           </div>
           <button
-            onClick={() => setPage("studio")}
+            onClick={() => navigate("/wholesale/studio")}
             className="font-sans text-sm font-medium bg-ink-cacao text-stone-paper px-8 py-3.5 hover:bg-pod-wine transition-colors shrink-0"
           >
             Enter the Corporate Cacao Studio

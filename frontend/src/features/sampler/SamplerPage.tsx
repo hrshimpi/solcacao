@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Product } from "../../types";
-
-interface SamplerProps {
-  products: Product[];
-  onAddToCart: (p: Product) => void;
-}
+import { products } from "../../data/products";
+import { useCart } from "../cart/CartContext";
 
 const MIN_PIECES = 4;
 const MAX_PIECES = 6;
@@ -16,7 +13,8 @@ const TRAY_POSITIONS = [
   { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 },
 ];
 
-export default function SamplerPage({ products, onAddToCart }: SamplerProps) {
+export default function SamplerPage() {
+  const { addItem } = useCart();
   const [selected, setSelected] = useState<Product[]>([]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -40,7 +38,7 @@ export default function SamplerPage({ products, onAddToCart }: SamplerProps) {
   const isComplete = selected.length >= MIN_PIECES;
 
   const handleAddSamplerToCart = () => {
-    selected.forEach((p) => onAddToCart(p));
+    selected.forEach((p) => addItem(p));
   };
 
   return (

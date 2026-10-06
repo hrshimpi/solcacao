@@ -1,12 +1,8 @@
-import { Page, Product } from "../../types";
+import { useNavigate } from "react-router";
+import { products } from "../../data/products";
 
-interface HomeProps {
-  setPage: (p: Page) => void;
-  setSelectedProduct: (p: Product) => void;
-  products: Product[];
-}
-
-export default function HomePage({ setPage, setSelectedProduct, products }: HomeProps) {
+export default function HomePage() {
+  const navigate = useNavigate();
   const showcase = products.slice(0, 5);
 
   return (
@@ -32,13 +28,13 @@ export default function HomePage({ setPage, setSelectedProduct, products }: Home
             </h1>
             <div className="reveal-up-delay flex flex-wrap gap-4">
               <button
-                onClick={() => setPage("catalog")}
+                onClick={() => navigate("/shop")}
                 className="font-sans text-sm font-medium bg-sun-gold text-ink-cacao px-8 py-3.5 hover:bg-sun-gold/90 transition-colors"
               >
                 Shop the Collection
               </button>
               <button
-                onClick={() => setPage("wholesale")}
+                onClick={() => navigate("/wholesale")}
                 className="font-sans text-sm font-medium border border-paper-text/40 text-paper-text px-8 py-3.5 hover:border-paper-text transition-colors"
               >
                 Explore Wholesale
@@ -70,7 +66,7 @@ export default function HomePage({ setPage, setSelectedProduct, products }: Home
               </p>
             </div>
             <button
-              onClick={() => setPage("catalog")}
+              onClick={() => navigate("/shop")}
               className="font-sans text-xs text-ink-cacao/60 hover:text-ink-cacao underline underline-offset-2 transition-colors"
             >
               View all origins →
@@ -81,7 +77,7 @@ export default function HomePage({ setPage, setSelectedProduct, products }: Home
             {showcase.map((product) => (
               <button
                 key={product.id}
-                onClick={() => { setSelectedProduct(product); setPage("product"); }}
+                onClick={() => navigate(`/shop/${product.slug}`)}
                 className="border border-ink-cacao bg-stone-paper group text-left hover:bg-clay-surface transition-colors"
               >
                 <div className="aspect-[3/4] overflow-hidden bg-clay-surface">
@@ -122,7 +118,7 @@ export default function HomePage({ setPage, setSelectedProduct, products }: Home
                 Every bar we make carries a Batch Passport: origin farm, harvest date, fermentation method, roast profile. Not marketing copy. Documentation. Because when you eat chocolate made from fruit picked by hand in Esmeraldas or Barlovento, you deserve to know exactly where it grew and how it was handled.
               </p>
               <button
-                onClick={() => setPage("product")}
+                onClick={() => navigate(`/shop/${products[0].slug}`)}
                 className="font-sans text-sm text-paper-text border-b border-paper-text/40 hover:border-paper-text pb-0.5 transition-colors"
               >
                 See a Batch Passport →
@@ -176,7 +172,7 @@ export default function HomePage({ setPage, setSelectedProduct, products }: Home
             </h3>
           </div>
           <button
-            onClick={() => setPage("wholesale")}
+            onClick={() => navigate("/wholesale")}
             className="font-sans text-sm font-medium bg-sun-gold text-ink-cacao px-8 py-3.5 hover:bg-sun-gold/90 transition-colors shrink-0"
           >
             Explore Wholesale
