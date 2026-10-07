@@ -128,7 +128,7 @@ export default function CatalogPage() {
     [products, minPct, maxPct, selectedOrigins, selectedCategory, selectedFlavors]
   );
 
-  const Sidebar = () => (
+  const sidebar = (
     <aside className="w-full space-y-7">
       <div className="border-b border-ink-cacao/15 pb-6">
         <p className="font-sans text-[10px] font-medium tracking-widest text-ink-cacao/50 uppercase mb-4">
@@ -262,7 +262,7 @@ export default function CatalogPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-10 flex gap-12">
         <div className="hidden md:block w-52 shrink-0 pt-1">
-          <Sidebar />
+          {sidebar}
         </div>
 
         {filterOpen && (
@@ -278,7 +278,7 @@ export default function CatalogPage() {
                   </svg>
                 </button>
               </div>
-              <Sidebar />
+              {sidebar}
             </div>
           </div>
         )}
