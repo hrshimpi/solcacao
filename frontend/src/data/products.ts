@@ -12,7 +12,8 @@ export const products: Product[] = [
     notes: ["Fruity", "Floral"],
     caption: "Ecuador, 72% cacao",
     tastingSummary: "bright berry, jasmine finish",
-    image: "https://images.unsplash.com/photo-1575377427642-087cf684f29d?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1575377427642-087cf684f29d?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-ECU-072",
     harvestDate: "March 2024",
     farm: "Finca La Perla, Esmeraldas Province",
@@ -31,7 +32,8 @@ export const products: Product[] = [
     notes: ["Nutty", "Earthy"],
     caption: "Peru, 68% cacao",
     tastingSummary: "toasted almond, forest floor",
-    image: "https://images.unsplash.com/photo-1613669146965-507d0e72a688?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1613669146965-507d0e72a688?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-PER-068",
     harvestDate: "January 2024",
     farm: "Cooperativa Pangoa, Junín Region",
@@ -50,7 +52,8 @@ export const products: Product[] = [
     notes: ["Floral", "Smoky"],
     caption: "Venezuela, 76% cacao",
     tastingSummary: "violet, light smoke, stone fruit",
-    image: "https://images.unsplash.com/photo-1646303339019-a57056b180ae?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1646303339019-a57056b180ae?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-VEN-076",
     harvestDate: "February 2024",
     farm: "Hacienda El Rosario, Barlovento",
@@ -69,7 +72,8 @@ export const products: Product[] = [
     notes: ["Fruity", "Nutty"],
     caption: "Colombia, 64% cacao",
     tastingSummary: "mango, macadamia, mild acidity",
-    image: "https://images.unsplash.com/photo-1610740655993-3080279a0022?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1610740655993-3080279a0022?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-COL-064",
     harvestDate: "April 2024",
     farm: "Finca El Recreo, Tumaco",
@@ -88,7 +92,8 @@ export const products: Product[] = [
     notes: ["Fruity", "Floral"],
     caption: "Madagascar, 80% cacao",
     tastingSummary: "red citrus, raspberry, sharp acidity",
-    image: "https://images.unsplash.com/photo-1573710661345-610f790e1218?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1573710661345-610f790e1218?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-MDG-080",
     harvestDate: "November 2023",
     farm: "Sambirano Valley Collective",
@@ -107,7 +112,8 @@ export const products: Product[] = [
     notes: ["Earthy", "Smoky"],
     caption: "Ecuador, 70% ganache",
     tastingSummary: "espresso, dark earth, peat smoke",
-    image: "https://images.unsplash.com/photo-1744136943096-adae60aff987?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1744136943096-adae60aff987?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-TRF-001",
     harvestDate: "March 2024",
     farm: "Finca La Perla, Esmeraldas Province",
@@ -126,7 +132,8 @@ export const products: Product[] = [
     notes: ["Fruity", "Floral"],
     caption: "Ecuador, 68% cacao",
     tastingSummary: "sea salt, caramel, citrus bloom",
-    image: "https://images.unsplash.com/photo-1760307207865-c49d6670e572?w=480&h=600&fit=crop&auto=format",
+    image:
+      "https://images.unsplash.com/photo-1760307207865-c49d6670e572?w=480&h=600&fit=crop&auto=format",
     batchCode: "SC-2024-SEA-001",
     harvestDate: "March 2024",
     farm: "Finca La Perla, Esmeraldas Province",

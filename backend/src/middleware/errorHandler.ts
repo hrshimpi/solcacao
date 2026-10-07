@@ -1,7 +1,13 @@
 import type { ErrorRequestHandler } from "express";
 import { AppError } from "../errors/AppError.ts";
 
-function send(res: Parameters<ErrorRequestHandler>[2], status: number, code: string, message: string, details: unknown[] = []) {
+function send(
+  res: Parameters<ErrorRequestHandler>[2],
+  status: number,
+  code: string,
+  message: string,
+  details: unknown[] = [],
+) {
   res.status(status).json({ error: { code, message, details } });
 }
 

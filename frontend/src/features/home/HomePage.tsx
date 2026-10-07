@@ -24,7 +24,11 @@ export default function HomePage() {
               Single-origin · Direct trade · Field-documented
             </p>
             <h1 className="reveal-up font-spectral text-5xl md:text-6xl lg:text-7xl font-semibold text-paper-text leading-[1.05] mb-10">
-              Grown in Sunlight,<br />Crafted with<br />Intention.
+              Grown in Sunlight,
+              <br />
+              Crafted with
+              <br />
+              Intention.
             </h1>
             <div className="reveal-up-delay flex flex-wrap gap-4">
               <button
@@ -46,7 +50,10 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 border-t border-paper-text/10">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-8 overflow-x-auto">
             {["Ecuador 72%", "Peru 68%", "Venezuela 76%", "Madagascar 80%"].map((label) => (
-              <span key={label} className="font-sans text-[10px] text-paper-text/40 whitespace-nowrap">
+              <span
+                key={label}
+                className="font-sans text-[10px] text-paper-text/40 whitespace-nowrap"
+              >
                 {label}
               </span>
             ))}
@@ -115,7 +122,10 @@ export default function HomePage() {
                 The cacao pod is a field document. We treat it that way.
               </h2>
               <p className="font-spectral text-paper-text/75 text-lg leading-relaxed mb-8 max-w-xl">
-                Every bar we make carries a Batch Passport: origin farm, harvest date, fermentation method, roast profile. Not marketing copy. Documentation. Because when you eat chocolate made from fruit picked by hand in Esmeraldas or Barlovento, you deserve to know exactly where it grew and how it was handled.
+                Every bar we make carries a Batch Passport: origin farm, harvest date, fermentation
+                method, roast profile. Not marketing copy. Documentation. Because when you eat
+                chocolate made from fruit picked by hand in Esmeraldas or Barlovento, you deserve to
+                know exactly where it grew and how it was handled.
               </p>
               <button
                 onClick={() => navigate(`/shop/${products[0].slug}`)}

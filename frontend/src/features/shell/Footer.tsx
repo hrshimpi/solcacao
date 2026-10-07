@@ -36,9 +36,7 @@ export default function Footer() {
                   </li>
                 ))}
               </ul>
-              {i < columns.length - 1 && (
-                <div className="hidden md:block absolute" />
-              )}
+              {i < columns.length - 1 && <div className="hidden md:block absolute" />}
             </div>
           ))}
         </div>
@@ -47,7 +45,8 @@ export default function Footer() {
           <div>
             <p className="font-spectral text-2xl text-paper-text mb-2">SolCacao</p>
             <p className="font-sans text-xs text-paper-text/40 leading-relaxed max-w-xs">
-              Single-origin chocolate, sourced direct from farming cooperatives across Latin America and Madagascar.
+              Single-origin chocolate, sourced direct from farming cooperatives across Latin America
+              and Madagascar.
             </p>
           </div>
 
@@ -68,7 +67,10 @@ export default function Footer() {
 
             <div className="flex items-center gap-4 mt-2">
               {["Instagram", "Twitter", "LinkedIn"].map((s) => (
-                <button key={s} className="font-sans text-[10px] text-paper-text/40 hover:text-paper-text/70 transition-colors">
+                <button
+                  key={s}
+                  className="font-sans text-[10px] text-paper-text/40 hover:text-paper-text/70 transition-colors"
+                >
                   {s}
                 </button>
               ))}
@@ -82,7 +84,10 @@ export default function Footer() {
           </p>
           <div className="flex gap-4">
             {["Privacy", "Terms", "Cookies"].map((l) => (
-              <button key={l} className="font-sans text-[10px] text-paper-text/30 hover:text-paper-text/50 transition-colors">
+              <button
+                key={l}
+                className="font-sans text-[10px] text-paper-text/30 hover:text-paper-text/50 transition-colors"
+              >
                 {l}
               </button>
             ))}

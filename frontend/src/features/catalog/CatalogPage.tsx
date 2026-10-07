@@ -107,14 +107,10 @@ export default function CatalogPage() {
   const categories = ["All", "Bars", "Truffles", "Seasonal"];
 
   const toggleOrigin = (o: string) =>
-    setSelectedOrigins((prev) =>
-      prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]
-    );
+    setSelectedOrigins((prev) => (prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]));
 
   const toggleFlavor = (n: string) =>
-    setSelectedFlavors((prev) =>
-      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
-    );
+    setSelectedFlavors((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
 
   const filtered = useMemo(
     () =>
@@ -122,10 +118,11 @@ export default function CatalogPage() {
         if (p.percentage < minPct || p.percentage > maxPct) return false;
         if (selectedOrigins.length && !selectedOrigins.includes(p.origin)) return false;
         if (selectedCategory !== "All" && p.category !== selectedCategory) return false;
-        if (selectedFlavors.length && !selectedFlavors.some((f) => p.notes.includes(f))) return false;
+        if (selectedFlavors.length && !selectedFlavors.some((f) => p.notes.includes(f)))
+          return false;
         return true;
       }),
-    [products, minPct, maxPct, selectedOrigins, selectedCategory, selectedFlavors]
+    [products, minPct, maxPct, selectedOrigins, selectedCategory, selectedFlavors],
   );
 
   const sidebar = (
@@ -175,7 +172,14 @@ export default function CatalogPage() {
                 }`}
               >
                 {selectedOrigins.includes(o) && (
-                  <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="2">
+                  <svg
+                    width="8"
+                    height="8"
+                    viewBox="0 0 10 10"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="2"
+                  >
                     <path d="M1.5 5 L4 7.5 L8.5 2.5" strokeLinecap="round" />
                   </svg>
                 )}
@@ -231,9 +235,7 @@ export default function CatalogPage() {
       <div className="max-w-7xl mx-auto px-6 py-10 border-b border-ink-cacao">
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="font-spectral text-4xl font-semibold text-ink-cacao">
-              The collection
-            </h1>
+            <h1 className="font-spectral text-4xl font-semibold text-ink-cacao">The collection</h1>
             <p className="font-sans text-xs text-ink-cacao/50 mt-1.5">
               {filtered.length} specimen{filtered.length !== 1 ? "s" : ""} · September 2024 harvest
             </p>
@@ -261,18 +263,27 @@ export default function CatalogPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-10 flex gap-12">
-        <div className="hidden md:block w-52 shrink-0 pt-1">
-          {sidebar}
-        </div>
+        <div className="hidden md:block w-52 shrink-0 pt-1">{sidebar}</div>
 
         {filterOpen && (
           <div className="fixed inset-0 z-50 flex md:hidden">
-            <div className="absolute inset-0 bg-ink-cacao/40" onClick={() => setFilterOpen(false)} />
+            <div
+              className="absolute inset-0 bg-ink-cacao/40"
+              onClick={() => setFilterOpen(false)}
+            />
             <div className="relative w-72 bg-stone-paper h-full overflow-y-auto px-6 py-8 slide-in-left">
               <div className="flex items-center justify-between mb-6">
                 <p className="font-spectral text-xl font-semibold">Filters</p>
                 <button onClick={() => setFilterOpen(false)}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  >
                     <line x1="18" x2="6" y1="6" y2="18" />
                     <line x1="6" x2="18" y1="6" y2="18" />
                   </svg>
@@ -286,7 +297,9 @@ export default function CatalogPage() {
         <div className="flex-1">
           {filtered.length === 0 ? (
             <div className="border border-ink-cacao p-16 text-center">
-              <p className="font-spectral text-xl text-ink-cacao/60">No specimens match these filters.</p>
+              <p className="font-spectral text-xl text-ink-cacao/60">
+                No specimens match these filters.
+              </p>
               <button
                 onClick={() => {
                   setMinPct(60);
@@ -344,7 +357,6 @@ export default function CatalogPage() {
           )}
         </div>
       </div>
-
     </div>
   );
 }

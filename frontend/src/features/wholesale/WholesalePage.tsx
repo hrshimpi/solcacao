@@ -5,7 +5,15 @@ export default function WholesalePage() {
   const features = [
     {
       icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="round"
+        >
           <rect x="3" y="3" width="7" height="7" />
           <rect x="14" y="3" width="7" height="7" />
           <rect x="3" y="14" width="7" height="7" />
@@ -17,7 +25,15 @@ export default function WholesalePage() {
     },
     {
       icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="round"
+        >
           <rect x="2" y="6" width="20" height="14" rx="0" />
           <path d="M2 10h20" />
           <circle cx="8" cy="14" r="1" fill="currentColor" />
@@ -28,7 +44,15 @@ export default function WholesalePage() {
     },
     {
       icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="round"
+        >
           <path d="M12 2L2 7l10 5 10-5-10-5Z" />
           <path d="M2 17l10 5 10-5" />
           <path d="M2 12l10 5 10-5" />
@@ -39,7 +63,13 @@ export default function WholesalePage() {
     },
   ];
 
-  const logos = ["Hacienda Brands", "Colibrí Hotels", "Almanac Coffee", "Marabu Studio", "Terroir Foods"];
+  const logos = [
+    "Hacienda Brands",
+    "Colibrí Hotels",
+    "Almanac Coffee",
+    "Marabu Studio",
+    "Terroir Foods",
+  ];
 
   return (
     <div className="pt-14">
@@ -62,7 +92,8 @@ export default function WholesalePage() {
               Custom Chocolate, Crafted for Your Brand.
             </h1>
             <p className="font-spectral text-paper-text/70 text-lg leading-relaxed mb-10 max-w-md">
-              We work with hotels, retailers, and gifting programmes that require traceability, consistency, and the kind of chocolate that holds its own on an expense account.
+              We work with hotels, retailers, and gifting programmes that require traceability,
+              consistency, and the kind of chocolate that holds its own on an expense account.
             </p>
             <button
               onClick={() => navigate("/wholesale/studio")}
@@ -83,9 +114,7 @@ export default function WholesalePage() {
                 <h3 className="font-spectral text-xl text-paper-text font-semibold mb-3">
                   {f.title}
                 </h3>
-                <p className="font-sans text-sm text-paper-text/60 leading-relaxed">
-                  {f.body}
-                </p>
+                <p className="font-sans text-sm text-paper-text/60 leading-relaxed">{f.body}</p>
               </div>
             ))}
           </div>
@@ -118,7 +147,9 @@ export default function WholesalePage() {
                 A deliberate process for a deliberate product.
               </h2>
               <p className="font-spectral text-ink-cacao/70 leading-relaxed">
-                Our B2B ordering flow takes most clients through four steps: profile selection, packaging, brand asset upload, and final quote review. Most quotes are returned within two business days.
+                Our B2B ordering flow takes most clients through four steps: profile selection,
+                packaging, brand asset upload, and final quote review. Most quotes are returned
+                within two business days.
               </p>
               <button
                 onClick={() => navigate("/wholesale/studio")}
@@ -130,10 +161,26 @@ export default function WholesalePage() {
 
             <div className="space-y-0">
               {[
-                { n: "01", title: "Choose your cacao profile", desc: "Origin, percentage, and tasting notes from our certified supplier network." },
-                { n: "02", title: "Select packaging & branding", desc: "Rigid box, foil wrap, or specimen card insert. White label or co-branded." },
-                { n: "03", title: "Upload your brand assets", desc: "PDF, AI, or PNG. We prepare a digital mockup within 48 hours." },
-                { n: "04", title: "Review & submit for quote", desc: "Full itemised summary, and you can edit before submitting." },
+                {
+                  n: "01",
+                  title: "Choose your cacao profile",
+                  desc: "Origin, percentage, and tasting notes from our certified supplier network.",
+                },
+                {
+                  n: "02",
+                  title: "Select packaging & branding",
+                  desc: "Rigid box, foil wrap, or specimen card insert. White label or co-branded.",
+                },
+                {
+                  n: "03",
+                  title: "Upload your brand assets",
+                  desc: "PDF, AI, or PNG. We prepare a digital mockup within 48 hours.",
+                },
+                {
+                  n: "04",
+                  title: "Review & submit for quote",
+                  desc: "Full itemised summary, and you can edit before submitting.",
+                },
               ].map((step, i) => (
                 <div
                   key={step.n}

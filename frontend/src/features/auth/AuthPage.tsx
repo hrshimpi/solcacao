@@ -40,7 +40,8 @@ export default function AuthPage() {
             From the same hands that grew the cacao.
           </p>
           <p className="font-spectral text-paper-text/50 mt-4 leading-relaxed max-w-xs">
-            A direct account connects you to the source: farm notes, harvest records and early access to limited batches.
+            A direct account connects you to the source: farm notes, harvest records and early
+            access to limited batches.
           </p>
           <div className="mt-8 flex items-center gap-3">
             <div className="w-1.5 h-1.5 rounded-full bg-sun-gold" />
@@ -145,7 +146,9 @@ export default function AuthPage() {
               onClick={() => navigate(mode === "login" ? "/register" : "/login")}
               className="font-sans text-xs text-ink-cacao/50 hover:text-ink-cacao transition-colors underline underline-offset-2"
             >
-              {mode === "login" ? "New here? Create an account" : "Already have an account? Sign in"}
+              {mode === "login"
+                ? "New here? Create an account"
+                : "Already have an account? Sign in"}
             </button>
             {mode === "login" && (
               <button className="font-sans text-xs text-ink-cacao/40 hover:text-ink-cacao transition-colors">
@@ -157,7 +160,8 @@ export default function AuthPage() {
           {accountType === "business" && (
             <div className="mt-8 border border-ink-cacao/15 bg-clay-surface p-4">
               <p className="font-sans text-[10px] text-ink-cacao/60 leading-relaxed">
-                Business accounts unlock wholesale pricing, the Corporate Cacao Studio, and white-label ordering. Verification may take up to one business day.
+                Business accounts unlock wholesale pricing, the Corporate Cacao Studio, and
+                white-label ordering. Verification may take up to one business day.
               </p>
             </div>
           )}

@@ -2,7 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 
 const ORIGINS = [
-  { id: "ecu", label: "Ecuador 72%", sub: "Berry, jasmine (Esmeraldas Province)", color: "#6B1F2E" },
+  {
+    id: "ecu",
+    label: "Ecuador 72%",
+    sub: "Berry, jasmine (Esmeraldas Province)",
+    color: "#6B1F2E",
+  },
   { id: "per", label: "Peru 68%", sub: "Almond, earth (Junín Region)", color: "#2B4531" },
   { id: "ven", label: "Venezuela 76%", sub: "Violet, smoke (Barlovento)", color: "#1C1310" },
   { id: "col", label: "Colombia 64%", sub: "Mango, macadamia (Tumaco)", color: "#4A2A1A" },
@@ -64,7 +69,9 @@ export default function StudioPage() {
               We have your brief.
             </h2>
             <p className="font-spectral text-ink-cacao/70 leading-relaxed mb-8">
-              A quote for <strong>{formData.company}</strong> ({selectedOrigin && ORIGINS.find((o) => o.id === selectedOrigin)?.label}, {formData.quantity} units) will be sent to you within two business days.
+              A quote for <strong>{formData.company}</strong> (
+              {selectedOrigin && ORIGINS.find((o) => o.id === selectedOrigin)?.label},{" "}
+              {formData.quantity} units) will be sent to you within two business days.
             </p>
             <button
               onClick={() => navigate("/wholesale")}
@@ -104,10 +111,12 @@ export default function StudioPage() {
                       isCompleted
                         ? "bg-pod-wine border-pod-wine"
                         : isActive
-                        ? "bg-stone-paper border-sun-gold border-2"
-                        : "bg-stone-paper border-ink-cacao/20"
+                          ? "bg-stone-paper border-sun-gold border-2"
+                          : "bg-stone-paper border-ink-cacao/20"
                     }`}
-                    onClick={() => { if (i <= step) setStep(i); }}
+                    onClick={() => {
+                      if (i <= step) setStep(i);
+                    }}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <span
@@ -115,14 +124,22 @@ export default function StudioPage() {
                           isCompleted
                             ? "text-paper-text/70"
                             : isActive
-                            ? "text-sun-gold"
-                            : "text-ink-cacao/30"
+                              ? "text-sun-gold"
+                              : "text-ink-cacao/30"
                         }`}
                       >
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       {isCompleted && (
-                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#F3ECDD" strokeWidth="1.5" strokeLinecap="round">
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                          stroke="#F3ECDD"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        >
                           <path d="M2 6 L5 9 L10 3" />
                         </svg>
                       )}
@@ -132,8 +149,8 @@ export default function StudioPage() {
                         isCompleted
                           ? "text-paper-text/80"
                           : isActive
-                          ? "text-ink-cacao font-medium"
-                          : "text-ink-cacao/35"
+                            ? "text-ink-cacao font-medium"
+                            : "text-ink-cacao/35"
                       }`}
                     >
                       {label}
@@ -163,9 +180,7 @@ export default function StudioPage() {
       <div className="max-w-4xl mx-auto px-6 py-12">
         {step === 0 && (
           <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">
-              Choose your cacao profile
-            </p>
+            <p className="font-spectral text-xl text-ink-cacao mb-2">Choose your cacao profile</p>
             <p className="font-sans text-xs text-ink-cacao/50 mb-8">
               Select a single origin or request a custom blend.
             </p>
@@ -184,16 +199,16 @@ export default function StudioPage() {
                     className="w-full h-16 mb-4 border border-ink-cacao/10"
                     style={{ backgroundColor: o.color, opacity: 0.85 }}
                   />
-                  <p className="font-spectral text-sm font-semibold text-ink-cacao">
-                    {o.label}
-                  </p>
+                  <p className="font-spectral text-sm font-semibold text-ink-cacao">{o.label}</p>
                   <p className="font-sans text-[10px] text-ink-cacao/55 mt-1 leading-snug">
                     {o.sub}
                   </p>
                   {selectedOrigin === o.id && (
                     <div className="mt-3 flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-pod-wine" />
-                      <span className="font-sans text-[9px] text-pod-wine font-medium">Selected</span>
+                      <span className="font-sans text-[9px] text-pod-wine font-medium">
+                        Selected
+                      </span>
                     </div>
                   )}
                 </button>
@@ -204,9 +219,7 @@ export default function StudioPage() {
 
         {step === 1 && (
           <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">
-              Select packaging & branding
-            </p>
+            <p className="font-spectral text-xl text-ink-cacao mb-2">Select packaging & branding</p>
             <p className="font-sans text-xs text-ink-cacao/50 mb-8">
               All formats available in white-label or co-branded configurations.
             </p>
@@ -228,7 +241,16 @@ export default function StudioPage() {
                         : "border-ink-cacao/20 bg-clay-surface"
                     }`}
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-ink-cacao/50">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      strokeLinecap="round"
+                      className="text-ink-cacao/50"
+                    >
                       <rect x="2" y="4" width="20" height="16" />
                       <path d="M2 8h20" />
                     </svg>
@@ -237,9 +259,7 @@ export default function StudioPage() {
                     <p className="font-spectral text-sm font-semibold text-ink-cacao">
                       {pkg.label}
                     </p>
-                    <p className="font-sans text-[10px] text-ink-cacao/55 mt-1">
-                      {pkg.sub}
-                    </p>
+                    <p className="font-sans text-[10px] text-ink-cacao/55 mt-1">{pkg.sub}</p>
                   </div>
                 </button>
               ))}
@@ -249,18 +269,21 @@ export default function StudioPage() {
 
         {step === 2 && (
           <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">
-              Upload your brand assets
-            </p>
+            <p className="font-spectral text-xl text-ink-cacao mb-2">Upload your brand assets</p>
             <p className="font-sans text-xs text-ink-cacao/50 mb-8">
               Accepted formats: PDF, AI, EPS, PNG. Max 50 MB per file.
             </p>
 
             <label
               className={`block border-2 border-dashed p-12 text-center cursor-pointer transition-colors ${
-                dragOver ? "border-pod-wine bg-pod-wine/5" : "border-pod-wine/40 hover:border-pod-wine/70"
+                dragOver
+                  ? "border-pod-wine bg-pod-wine/5"
+                  : "border-pod-wine/40 hover:border-pod-wine/70"
               }`}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleFileDrop}
             >
@@ -271,7 +294,16 @@ export default function StudioPage() {
                 accept=".pdf,.ai,.eps,.png"
                 onChange={handleFileInput}
               />
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" className="text-ink-cacao/30 mx-auto mb-3">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                className="text-ink-cacao/30 mx-auto mb-3"
+              >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" x2="12" y1="3" y2="15" />
@@ -287,7 +319,10 @@ export default function StudioPage() {
             {uploadedFiles.length > 0 && (
               <div className="mt-6 border-t border-ink-cacao/15 pt-4 space-y-2">
                 {uploadedFiles.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-ink-cacao/10">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between py-2 border-b border-ink-cacao/10"
+                  >
                     <p className="font-sans text-xs text-ink-cacao">{f}</p>
                     <button
                       onClick={() => setUploadedFiles((prev) => prev.filter((_, j) => j !== i))}
@@ -304,9 +339,7 @@ export default function StudioPage() {
 
         {step === 3 && (
           <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">
-              Review & submit
-            </p>
+            <p className="font-spectral text-xl text-ink-cacao mb-2">Review & submit</p>
             <p className="font-sans text-xs text-ink-cacao/50 mb-8">
               Edit any field before submitting. A quote will be returned within two business days.
             </p>
@@ -327,10 +360,16 @@ export default function StudioPage() {
                   },
                   {
                     label: "Brand assets",
-                    value: uploadedFiles.length > 0 ? `${uploadedFiles.length} file(s)` : "None uploaded",
+                    value:
+                      uploadedFiles.length > 0
+                        ? `${uploadedFiles.length} file(s)`
+                        : "None uploaded",
                   },
                 ].map(({ label, value }) => (
-                  <div key={label} className="flex items-baseline justify-between border-b border-ink-cacao/15 pb-3">
+                  <div
+                    key={label}
+                    className="flex items-baseline justify-between border-b border-ink-cacao/15 pb-3"
+                  >
                     <span className="font-sans text-[10px] tracking-widest text-ink-cacao/40 uppercase">
                       {label}
                     </span>
@@ -383,7 +422,10 @@ export default function StudioPage() {
 
         <div className="flex items-center justify-between mt-12 pt-8 border-t border-ink-cacao/15">
           <button
-            onClick={() => { if (step > 0) setStep(step - 1); else navigate("/wholesale"); }}
+            onClick={() => {
+              if (step > 0) setStep(step - 1);
+              else navigate("/wholesale");
+            }}
             className="font-sans text-xs text-ink-cacao/50 hover:text-ink-cacao transition-colors"
           >
             ← {step === 0 ? "Back to Wholesale" : "Previous step"}
@@ -391,7 +433,7 @@ export default function StudioPage() {
           {step < 3 && (
             <button
               onClick={() => setStep(step + 1)}
-              disabled={step === 0 && !selectedOrigin || step === 1 && !selectedPackaging}
+              disabled={(step === 0 && !selectedOrigin) || (step === 1 && !selectedPackaging)}
               className="font-sans text-sm font-medium bg-ink-cacao text-stone-paper px-8 py-3 hover:bg-pod-wine transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Continue →

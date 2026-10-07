@@ -51,8 +51,19 @@ function OriginMap() {
       <circle cx="88" cy="102" r="3" fill="#EFA836" opacity="0.7" />
       <circle cx="78" cy="115" r="2" fill="#EFA836" opacity="0.5" />
       <circle cx="165" cy="98" r="3" fill="#EFA836" opacity="0.6" />
-      <line x1="0" y1="90" x2="320" y2="90" stroke="#F3ECDD" strokeWidth="0.4" strokeDasharray="3 4" opacity="0.2" />
-      <text x="305" y="87" fontSize="7" fill="#F3ECDD" opacity="0.3" fontFamily="IBM Plex Mono">EQ</text>
+      <line
+        x1="0"
+        y1="90"
+        x2="320"
+        y2="90"
+        stroke="#F3ECDD"
+        strokeWidth="0.4"
+        strokeDasharray="3 4"
+        opacity="0.2"
+      />
+      <text x="305" y="87" fontSize="7" fill="#F3ECDD" opacity="0.3" fontFamily="IBM Plex Mono">
+        EQ
+      </text>
     </svg>
   );
 }
@@ -70,16 +81,26 @@ function ProductDetail({ product }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 
-  const images = [product.image, product.image.replace("w=480", "w=480&crop=top"), product.image.replace("fit=crop", "fit=crop&crop=bottom")];
+  const images = [
+    product.image,
+    product.image.replace("w=480", "w=480&crop=top"),
+    product.image.replace("fit=crop", "fit=crop&crop=bottom"),
+  ];
 
   return (
     <div className="bg-stone-paper min-h-screen pt-14">
       <div className="max-w-7xl mx-auto px-6 py-5 flex items-center gap-2 border-b border-ink-cacao/15">
-        <Link to="/" className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors">
+        <Link
+          to="/"
+          className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors"
+        >
           Home
         </Link>
         <span className="text-ink-cacao/30 text-[10px]">/</span>
-        <Link to="/shop" className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors">
+        <Link
+          to="/shop"
+          className="font-sans text-[10px] text-ink-cacao/50 hover:text-ink-cacao transition-colors"
+        >
           Shop
         </Link>
         <span className="text-ink-cacao/30 text-[10px]">/</span>
@@ -101,7 +122,9 @@ function ProductDetail({ product }: ProductDetailProps) {
                 key={i}
                 onClick={() => setActiveImage(i)}
                 className={`w-20 h-24 border overflow-hidden shrink-0 transition-colors ${
-                  activeImage === i ? "border-ink-cacao" : "border-ink-cacao/30 hover:border-ink-cacao/60"
+                  activeImage === i
+                    ? "border-ink-cacao"
+                    : "border-ink-cacao/30 hover:border-ink-cacao/60"
                 }`}
               >
                 <img src={img} alt="" className="w-full h-full object-cover" />
@@ -117,9 +140,7 @@ function ProductDetail({ product }: ProductDetailProps) {
           <h1 className="font-spectral text-4xl font-semibold text-ink-cacao mb-1">
             {product.name}
           </h1>
-          <p className="font-sans text-2xl font-medium text-sun-gold mb-6">
-            ${product.price}
-          </p>
+          <p className="font-sans text-2xl font-medium text-sun-gold mb-6">${product.price}</p>
 
           <p className="font-spectral text-base text-ink-cacao/80 leading-relaxed mb-6">
             {product.description}
@@ -171,7 +192,15 @@ function ProductDetail({ product }: ProductDetailProps) {
                 </p>
               </div>
               <div className="border border-ink-cacao/30 p-1.5">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-ink-cacao/40">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  className="text-ink-cacao/40"
+                >
                   <rect x="3" y="3" width="18" height="18" rx="0" />
                   <path d="M3 9h18M9 21V9" />
                 </svg>
@@ -221,10 +250,15 @@ function ProductDetail({ product }: ProductDetailProps) {
               {product.farm}
             </h2>
             <p className="font-spectral text-paper-text/70 text-base leading-relaxed mb-6">
-              {product.description} The beans are transported within 48 hours of harvest to a central fermentation station, where they spend between five and nine days under controlled conditions before being dried on raised mesh beds exposed to direct equatorial sunlight.
+              {product.description} The beans are transported within 48 hours of harvest to a
+              central fermentation station, where they spend between five and nine days under
+              controlled conditions before being dried on raised mesh beds exposed to direct
+              equatorial sunlight.
             </p>
             <p className="font-spectral text-paper-text/70 text-base leading-relaxed">
-              Our relationship with this farm began in 2019. Every year we return for the harvest, not as buyers but as witnesses. The flavors in this bar are the flavors of this particular soil, this particular season, these particular hands.
+              Our relationship with this farm began in 2019. Every year we return for the harvest,
+              not as buyers but as witnesses. The flavors in this bar are the flavors of this
+              particular soil, this particular season, these particular hands.
             </p>
           </div>
         </div>
