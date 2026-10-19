@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation } from "react-router";
 
 interface NavProps {
   cartCount: number;
@@ -10,7 +10,6 @@ interface NavProps {
 
 export default function Nav({ cartCount, lang, setLang, onCartOpen }: NavProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navigate = useNavigate();
   const { pathname } = useLocation();
 
   const links = [
@@ -75,8 +74,9 @@ export default function Nav({ cartCount, lang, setLang, onCartOpen }: NavProps) 
               </svg>
             </button>
 
-            <button
-              onClick={() => navigate("/login")}
+            <Link
+              to="/profile"
+              aria-label="View profile"
               className="hidden md:block text-ink-cacao hover:text-pod-wine transition-colors"
             >
               <svg
@@ -91,7 +91,7 @@ export default function Nav({ cartCount, lang, setLang, onCartOpen }: NavProps) 
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
               </svg>
-            </button>
+            </Link>
 
             <button
               onClick={onCartOpen}
@@ -177,6 +177,13 @@ export default function Nav({ cartCount, lang, setLang, onCartOpen }: NavProps) 
                   {l.label}
                 </Link>
               ))}
+              <Link
+                to="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="font-spectral text-3xl text-paper-text text-left hover:text-sun-gold transition-colors"
+              >
+                {lang === "EN" ? "My Profile" : "Mi perfil"}
+              </Link>
             </div>
 
             <div className="mt-auto">
