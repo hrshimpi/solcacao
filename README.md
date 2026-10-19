@@ -11,7 +11,7 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - Home page, shop with filters (cacao percentage, origin, category, tasting notes) and product pages with a batch passport and origin story
 - A cart with a drawer. Checkout isn't available, the button says so
 - Wholesale page and the four step Corporate Cacao Studio form for business quotes
-- Sign in and create account screens, a sampler builder and a contact form
+- Sign in and create account screens, a profile page (with sample data), a sampler builder and a contact form
 - A backend with a health check and a standard error format
 
 The forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with the database, real accounts and emails.
@@ -57,6 +57,7 @@ Open the shop at http://localhost:5173. The frontend forwards anything under `/a
 | Corporate Cacao Studio | http://localhost:5173/wholesale/studio |
 | Sign in | http://localhost:5173/login |
 | Create account | http://localhost:5173/register |
+| Profile | http://localhost:5173/profile |
 | Sampler and contact | http://localhost:5173/sampler |
 | Backend health check | http://localhost:4000/api/health |
 
