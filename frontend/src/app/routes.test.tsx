@@ -15,6 +15,7 @@ describe("pages", () => {
     ["/shop/ecuador-72", /Ecuador 72%/],
     ["/wholesale", /Custom Chocolate, Crafted for Your Brand/],
     ["/wholesale/studio", /The Corporate Cacao Studio/],
+    ["/profile", /Your profile/],
     ["/login", /Sign in/],
     ["/register", /Create account/],
     ["/sampler", /Build your own sampler/],
