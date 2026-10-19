@@ -1,3 +1,9 @@
+export type Lang = "EN" | "ES";
+
+export interface AppContext {
+  lang: Lang;
+}
+
 export interface Product {
   id: number;
   slug: string;

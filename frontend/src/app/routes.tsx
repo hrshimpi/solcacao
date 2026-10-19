@@ -3,6 +3,7 @@ import AuthPage from "../features/auth/AuthPage";
 import CatalogPage from "../features/catalog/CatalogPage";
 import HomePage from "../features/home/HomePage";
 import ProductDetailPage from "../features/product/ProductDetailPage";
+import ProfilePage from "../features/profile/ProfilePage";
 import SamplerPage from "../features/sampler/SamplerPage";
 import NotFoundPage from "../features/shell/NotFoundPage";
 import StudioPage from "../features/studio/StudioPage";
@@ -20,6 +21,7 @@ export const routes: RouteObject[] = [
       { path: "/wholesale/studio", element: <StudioPage /> },
       { path: "/login", element: <AuthPage /> },
       { path: "/register", element: <AuthPage /> },
+      { path: "/profile", element: <ProfilePage /> },
       { path: "/sampler", element: <SamplerPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
