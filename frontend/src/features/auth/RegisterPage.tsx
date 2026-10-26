@@ -1,6 +1,7 @@
 // The create account page. A business account also asks for the company name.
+// The address ?type=business opens it on the business account, which is where the studio sends retail accounts.
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useLang } from "../../i18n/LanguageContext";
 import { useForm } from "../../lib/useForm";
 import { usePageTitle } from "../../lib/usePageTitle";
@@ -8,15 +9,18 @@ import { email, maxLength, minLength, required } from "../../lib/validation";
 import { useAnnounce } from "../../ui/LiveRegion";
 import LocaleLink from "../../ui/LocaleLink";
 import TextField from "../../ui/TextField";
+import { useAuth } from "./AuthContext";
 import AuthShell, { type AccountType } from "./components/AuthShell";
 
 export default function RegisterPage() {
   const { t, path } = useLang();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const { signIn } = useAuth();
   const announce = useAnnounce();
   usePageTitle(t("titles.register"));
 
-  const [accountType, setAccountType] = useState<AccountType>("retail");
+  const [accountType, setAccountType] = useState<AccountType>(params.get("type") === "business" ? "business" : "retail");
 
   const form = useForm({
     initial: { name: "", company: "", email: "", password: "" },
@@ -26,7 +30,8 @@ export default function RegisterPage() {
       email: [required, email],
       password: [required, minLength(8)],
     },
-    onSubmit: () => {
+    onSubmit: (values) => {
+      signIn({ email: values.email, accountType });
       announce(t("auth.created"));
       navigate(path("/"));
     },
