@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildTransport, createMailService, type MailConfig } from "./mail.service.ts";
-import type { InquiryMailData, QuoteMailData } from "./mail-templates.ts";
+import type { InquiryMailData, QuoteReadyMailData, QuoteRequestMailData } from "./mail-templates.ts";
 
 const config: MailConfig = {
   host: "",
@@ -21,7 +21,7 @@ const inquiry: InquiryMailData = {
   message: "Do you ship the Ecuador bar to Canada?",
 };
 
-const request: QuoteMailData = {
+const request: QuoteReadyMailData = {
   companyName: "Hacienda Brands",
   cacaoProfile: "Ecuador",
   packagingType: "foil_wrap",
@@ -31,6 +31,16 @@ const request: QuoteMailData = {
 };
 
 const user = { email: "isabel@example.com", name: "Isabel" };
+
+const quoteRequest: QuoteRequestMailData = {
+  companyName: "Hacienda Brands",
+  contactName: "Isabel Vasquez",
+  cacaoProfile: "Ecuador",
+  packagingType: "foil_wrap",
+  quantityEstimate: 800,
+  notes: "Before the holidays, please.",
+  brandAssets: [{ originalName: "logo.png", sizeBytes: 20480 }],
+};
 
 // a mail service that uses Nodemailer's JSON transport: it builds the messages but sends nothing
 function setup(overrides: Partial<MailConfig> = {}) {
@@ -160,11 +170,70 @@ describe("sendInquiryEmail: what is in it", () => {
   });
 });
 
-describe("sendQuoteNotification", () => {
+describe("sendQuoteNotification (to the team)", () => {
+  it("goes to the wholesale address, and replying answers the customer", async () => {
+    const { service, sent } = setup();
+
+    expect(await service.sendQuoteNotification(quoteRequest, user)).toBe(true);
+
+    const [message] = await sent();
+    expect(message.to).toEqual([{ address: "wholesale@solcacao.example", name: "" }]);
+    expect(message.replyTo).toEqual([{ address: "isabel@example.com", name: "" }]);
+    expect(message.subject).toBe("New quote request from Hacienda Brands");
+    expect(message.html).toContain("Before the holidays, please.");
+    expect(message.html).toContain("logo.png (20 KB)");
+  });
+
+  it("uses the address from the settings", async () => {
+    const { service, sent } = setup({ toWholesale: "b2b@shop.example" });
+
+    await service.sendQuoteNotification(quoteRequest, user);
+
+    expect((await sent())[0].to[0].address).toBe("b2b@shop.example");
+  });
+
+  it("is still sent when the customer's email is not known, just without a reply address", async () => {
+    const { service, sent } = setup();
+
+    expect(await service.sendQuoteNotification(quoteRequest, { email: "" })).toBe(true);
+
+    expect((await sent())[0].replyTo ?? null).toBeNull();
+  });
+
+  it("escapes what the customer typed", async () => {
+    const { service, sent } = setup();
+
+    await service.sendQuoteNotification({ ...quoteRequest, companyName: "<b>Evil</b> & Co", notes: "<script>x()</script>" }, user);
+
+    const [message] = await sent();
+    expect(message.html).not.toContain("<script");
+    expect(message.html).not.toContain("<b>Evil");
+    expect(message.html).toContain("&lt;b&gt;Evil&lt;/b&gt; &amp; Co");
+  });
+
+  it("returns false and logs only the error message when sending fails", async () => {
+    const { service, sendMail, log } = setup();
+    sendMail.mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:587"));
+
+    await expect(service.sendQuoteNotification(quoteRequest, user)).resolves.toBe(false);
+
+    expect(log.error).toHaveBeenCalledWith({ kind: "quote", error: "connect ECONNREFUSED 127.0.0.1:587" }, "could not send email");
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain("Hacienda");
+  });
+
+  it("returns false for broken data instead of throwing", async () => {
+    const { service } = setup();
+
+    await expect(service.sendQuoteNotification(null as never, user)).resolves.toBe(false);
+    await expect(service.sendQuoteNotification(quoteRequest, null as never)).resolves.toBe(false);
+  });
+});
+
+describe("sendQuoteReady", () => {
   it("goes to the customer with the quote subject", async () => {
     const { service, sent } = setup();
 
-    expect(await service.sendQuoteNotification(request, user)).toBe(true);
+    expect(await service.sendQuoteReady(request, user)).toBe(true);
 
     const [message] = await sent();
     expect(message.to).toEqual([{ address: "isabel@example.com", name: "" }]);
@@ -176,7 +245,7 @@ describe("sendQuoteNotification", () => {
   it("escapes the company, the note and the customer name", async () => {
     const { service, sent } = setup();
 
-    await service.sendQuoteNotification(
+    await service.sendQuoteReady(
       { ...request, companyName: "<b>Evil</b> & Co", quoteNote: "<script>x()</script>" },
       { email: "isabel@example.com", name: `"><img src=x>` },
     );
@@ -191,7 +260,7 @@ describe("sendQuoteNotification", () => {
   it("does not send to an address that is not valid", async () => {
     const { service, sendMail, log } = setup();
 
-    expect(await service.sendQuoteNotification(request, { email: "not an email" })).toBe(false);
+    expect(await service.sendQuoteReady(request, { email: "not an email" })).toBe(false);
 
     expect(sendMail).not.toHaveBeenCalled();
     expect(log.error).toHaveBeenCalledTimes(1);
@@ -244,7 +313,7 @@ describe("when sending fails", () => {
     const { service } = broken();
 
     await expect(service.sendInquiryEmail(inquiry)).resolves.toBe(false);
-    await expect(service.sendQuoteNotification(request, user)).resolves.toBe(false);
+    await expect(service.sendQuoteReady(request, user)).resolves.toBe(false);
     await expect(service.sendNewsletterWelcome("isabel@example.com", "en")).resolves.toBe(false);
   });
 
@@ -266,10 +335,10 @@ describe("when sending fails", () => {
   it("logs which kind of email it was", async () => {
     const { service, log } = broken();
 
-    await service.sendQuoteNotification(request, user);
+    await service.sendQuoteReady(request, user);
     await service.sendNewsletterWelcome("isabel@example.com", "es");
 
-    expect(log.error.mock.calls.map(([fields]) => fields.kind)).toEqual(["quote", "newsletter"]);
+    expect(log.error.mock.calls.map(([fields]) => fields.kind)).toEqual(["quote-ready", "newsletter"]);
   });
 
   it("copes with things that are not Error objects", async () => {
@@ -286,8 +355,8 @@ describe("when sending fails", () => {
 
     await expect(service.sendInquiryEmail(null as never)).resolves.toBe(false);
     await expect(service.sendInquiryEmail(undefined as never)).resolves.toBe(false);
-    await expect(service.sendQuoteNotification(null as never, user)).resolves.toBe(false);
-    await expect(service.sendQuoteNotification(request, null as never)).resolves.toBe(false);
+    await expect(service.sendQuoteReady(null as never, user)).resolves.toBe(false);
+    await expect(service.sendQuoteReady(request, null as never)).resolves.toBe(false);
     await expect(service.sendNewsletterWelcome(undefined as never, "en")).resolves.toBe(false);
 
     expect(sendMail).not.toHaveBeenCalled();
@@ -336,7 +405,7 @@ describe("without an SMTP server", () => {
 
     // no connection is made and no mail server is needed
     expect(await mail.sendInquiryEmail(inquiry)).toBe(true);
-    expect(await mail.sendQuoteNotification(request, user)).toBe(true);
+    expect(await mail.sendQuoteReady(request, user)).toBe(true);
     expect(await mail.sendNewsletterWelcome("isabel@example.com", "es")).toBe(true);
   });
 });

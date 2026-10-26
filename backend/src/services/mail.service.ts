@@ -10,11 +10,13 @@ import {
   inquiryEmail,
   isValidAddress,
   newsletterWelcomeEmail,
-  quoteEmail,
+  quoteReadyEmail,
+  quoteRequestEmail,
   type InquiryMailData,
   type MailContent,
   type MailRecipient,
-  type QuoteMailData,
+  type QuoteReadyMailData,
+  type QuoteRequestMailData,
 } from "./mail-templates.ts";
 
 export interface MailConfig {
@@ -88,11 +90,21 @@ export function createMailService(options: { config: MailConfig; log: MailLogger
       }));
     },
 
+    // to the wholesale team, when a business sends a quote request
+    sendQuoteNotification(request: QuoteRequestMailData, user: MailRecipient): Promise<boolean> {
+      return deliver("quote", () => ({
+        to: config.toWholesale,
+        // so the team answers the customer by pressing reply
+        replyTo: isValidAddress(user.email) ? user.email : undefined,
+        ...quoteRequestEmail(request, user),
+      }));
+    },
+
     // to the customer, when their quote request has been answered
-    sendQuoteNotification(request: QuoteMailData, user: MailRecipient): Promise<boolean> {
-      return deliver("quote", () => {
+    sendQuoteReady(request: QuoteReadyMailData, user: MailRecipient): Promise<boolean> {
+      return deliver("quote-ready", () => {
         if (!isValidAddress(user.email)) throw new Error("the user has no valid email address");
-        return { to: user.email, ...quoteEmail(request, user, { siteUrl: config.siteUrl }) };
+        return { to: user.email, ...quoteReadyEmail(request, user, { siteUrl: config.siteUrl }) };
       });
     },
 
@@ -120,4 +132,4 @@ const mail = createMailService({
   log: logger,
 });
 
-export const { sendInquiryEmail, sendQuoteNotification, sendNewsletterWelcome } = mail;
+export const { sendInquiryEmail, sendQuoteNotification, sendQuoteReady, sendNewsletterWelcome } = mail;

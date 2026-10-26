@@ -4,9 +4,11 @@ import {
   inquiryEmail,
   isValidAddress,
   newsletterWelcomeEmail,
-  quoteEmail,
+  quoteReadyEmail,
+  quoteRequestEmail,
   type InquiryMailData,
-  type QuoteMailData,
+  type QuoteReadyMailData,
+  type QuoteRequestMailData,
 } from "./mail-templates.ts";
 
 const siteUrl = "https://solcacao.example";
@@ -21,7 +23,7 @@ function tagNames(html: string): string[] {
   return [...new Set([...html.matchAll(/<\/?([a-z][a-z0-9]*)/gi)].map((match) => match[1].toLowerCase()))].sort();
 }
 
-const request: QuoteMailData = {
+const request: QuoteReadyMailData = {
   companyName: "Hacienda Brands",
   cacaoProfile: "Ecuador",
   packagingType: "rigid_box",
@@ -160,11 +162,82 @@ describe("inquiry email", () => {
   });
 });
 
-describe("quote email", () => {
+const quoteRequest: QuoteRequestMailData = {
+  companyName: "Hacienda Brands",
+  contactName: "Isabel Vasquez",
+  cacaoProfile: "Ecuador",
+  packagingType: "specimen_card",
+  quantityEstimate: 2500,
+  notes: "We need it before the holidays.\nPlease call first.",
+  brandAssets: [
+    { originalName: "logo.png", sizeBytes: 20480 },
+    { originalName: "label.pdf", sizeBytes: 3 * 1024 * 1024 },
+  ],
+};
+
+describe("quote request email (for the team)", () => {
+  const customer = { email: "isabel@example.com", name: "Isabel" };
+
+  it("has a subject with the company and all the details in html and text", () => {
+    const { subject, html, text } = quoteRequestEmail(quoteRequest, customer);
+
+    expect(subject).toBe("New quote request from Hacienda Brands");
+    for (const part of ["Hacienda Brands", "Isabel Vasquez", "isabel@example.com", "Ecuador", "Specimen card", "2,500", "We need it before the holidays."]) {
+      expect(html, part).toContain(part);
+      expect(text, part).toContain(part);
+    }
+    expect(html).toContain("We need it before the holidays.<br>Please call first.");
+  });
+
+  it("lists the brand files with their sizes, and says None when there are none", () => {
+    const withFiles = quoteRequestEmail(quoteRequest, customer);
+    const without = quoteRequestEmail({ ...quoteRequest, brandAssets: [] }, customer);
+
+    expect(withFiles.text).toContain("Brand files: logo.png (20 KB), label.pdf (3 MB)");
+    expect(without.text).toContain("Brand files: None");
+  });
+
+  it("has a button to reply to the customer, only for a usable address", () => {
+    expect(quoteRequestEmail(quoteRequest, customer).html).toContain('href="mailto:isabel@example.com"');
+    expect(quoteRequestEmail(quoteRequest, { email: "" }).html).not.toContain("mailto:");
+    expect(quoteRequestEmail(quoteRequest, { email: "not an email" }).html).not.toContain("mailto:");
+  });
+
+  it("works without notes and without a known email", () => {
+    const { html, text } = quoteRequestEmail({ ...quoteRequest, notes: undefined }, { email: "" });
+
+    expect(html).not.toContain("border-left:4px");
+    expect(text).not.toContain("Email:");
+  });
+
+  it("keeps the subject on one line and cuts a very long company name", () => {
+    expect(quoteRequestEmail({ ...quoteRequest, companyName: "Hacienda\r\nBcc: evil@example.com" }, customer).subject).toBe("New quote request from Hacienda Bcc: evil@example.com");
+    expect(quoteRequestEmail({ ...quoteRequest, companyName: "x".repeat(500) }, customer).subject.length).toBeLessThan(120);
+  });
+
+  it("escapes everything a person typed, including the names of the files", () => {
+    const evil: QuoteRequestMailData = {
+      ...quoteRequest,
+      companyName: attack,
+      contactName: attack,
+      cacaoProfile: attack,
+      notes: attack + "\n" + attack,
+      brandAssets: [{ originalName: attack, sizeBytes: 10 }],
+    };
+
+    const { html } = quoteRequestEmail(evil, { email: "isabel@example.com", name: attack });
+
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("<img");
+    expect(tagNames(html)).toEqual(tagNames(quoteRequestEmail(quoteRequest, customer).html));
+  });
+});
+
+describe("quote ready email", () => {
   const user = { email: "isabel@example.com", name: "Isabel" };
 
   it("has the subject and the quote details", () => {
-    const { subject, html, text } = quoteEmail(request, user, { siteUrl });
+    const { subject, html, text } = quoteReadyEmail(request, user, { siteUrl });
 
     expect(subject).toBe("Your SolCacao quote is ready");
     for (const part of ["Hello Isabel,", "Hacienda Brands", "Ecuador", "Rigid box", "1,200", "$1,250.00", "Includes the foil printing."]) {
@@ -175,7 +248,7 @@ describe("quote email", () => {
   });
 
   it("works without a name, a note or an amount", () => {
-    const { html, text } = quoteEmail({ ...request, quoteNote: undefined, quoteAmount: null }, { email: "isabel@example.com" }, { siteUrl });
+    const { html, text } = quoteReadyEmail({ ...request, quoteNote: undefined, quoteAmount: null }, { email: "isabel@example.com" }, { siteUrl });
 
     expect(text.startsWith("Your quote is ready")).toBe(true);
     expect(text).toContain("Hello,");
@@ -184,7 +257,7 @@ describe("quote email", () => {
   });
 
   it("escapes the company, the name, the profile and the note", () => {
-    const { html } = quoteEmail(
+    const { html } = quoteReadyEmail(
       { ...request, companyName: attack, cacaoProfile: attack, quoteNote: attack + "\n" + attack },
       { email: "isabel@example.com", name: attack },
       { siteUrl },
@@ -192,11 +265,11 @@ describe("quote email", () => {
 
     expect(html).not.toContain("<script");
     expect(html).not.toContain("<img");
-    expect(tagNames(html)).toEqual(tagNames(quoteEmail(request, user, { siteUrl }).html));
+    expect(tagNames(html)).toEqual(tagNames(quoteReadyEmail(request, user, { siteUrl }).html));
   });
 
   it("has a gold button to the site", () => {
-    const { html, text } = quoteEmail(request, user, { siteUrl });
+    const { html, text } = quoteReadyEmail(request, user, { siteUrl });
 
     expect(html).toContain(`href="${siteUrl}"`);
     expect(html).toContain("#efa836");
@@ -248,7 +321,8 @@ describe("newsletter welcome", () => {
 describe("how the emails look", () => {
   const all = [
     inquiryEmail({ category: "wholesale", name: "Isabel", email: "isabel@example.com", message: "Hello there" }),
-    quoteEmail(request, { email: "isabel@example.com", name: "Isabel" }, { siteUrl }),
+    quoteReadyEmail(request, { email: "isabel@example.com", name: "Isabel" }, { siteUrl }),
+    quoteRequestEmail(quoteRequest, { email: "isabel@example.com", name: "Isabel" }),
     newsletterWelcomeEmail("isabel@example.com", "en", { siteUrl }),
     newsletterWelcomeEmail("isabel@example.com", "es", { siteUrl }),
   ];
@@ -286,7 +360,7 @@ describe("how the emails look", () => {
 
 describe("links in buttons", () => {
   it("leaves out a button whose address is not a web or mail link", () => {
-    const { html, text } = quoteEmail(request, { email: "isabel@example.com" }, { siteUrl: "javascript:alert(1)" });
+    const { html, text } = quoteReadyEmail(request, { email: "isabel@example.com" }, { siteUrl: "javascript:alert(1)" });
 
     expect(html).not.toContain("javascript:");
     expect(html).not.toContain("Open SolCacao");
