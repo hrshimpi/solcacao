@@ -1,7 +1,6 @@
 // Where inquiries are kept. The service only talks to the InquiryStore interface, so the tests can use a
 // store that lives in memory and the real server uses the MongoDB one below.
-import { isDatabaseReady } from "../config/db.ts";
-import { AppError } from "../errors/AppError.ts";
+import { requireDatabase } from "../config/db.ts";
 import { Inquiry, type InquiryCategory, type InquiryDocument, type InquiryStatus } from "../models/inquiry.model.ts";
 
 // an inquiry as the API shows it
@@ -65,17 +64,10 @@ function toStored(doc: InquiryDocument): StoredInquiry {
   };
 }
 
-// no connection means a clear 503 right away, not a request that hangs until a timeout
-function ensureDatabase() {
-  if (!isDatabaseReady()) {
-    throw new AppError("DATABASE_UNAVAILABLE", 503, "We can't reach the database right now. Please try again in a moment.");
-  }
-}
-
 export function createMongoInquiryStore(): InquiryStore {
   return {
     async create(data) {
-      ensureDatabase();
+      requireDatabase();
       try {
         return toStored(await Inquiry.create(data));
       } catch (error) {
@@ -86,13 +78,13 @@ export function createMongoInquiryStore(): InquiryStore {
     },
 
     async findNewsletter(email) {
-      ensureDatabase();
+      requireDatabase();
       const doc = await Inquiry.findOne({ category: "newsletter", email });
       return doc ? toStored(doc) : null;
     },
 
     async list({ status, category, page, limit }) {
-      ensureDatabase();
+      requireDatabase();
       const filter: { status?: InquiryStatus; category?: InquiryCategory } = {};
       if (status) filter.status = status;
       if (category) filter.category = category;
@@ -109,7 +101,7 @@ export function createMongoInquiryStore(): InquiryStore {
     },
 
     async setStatus(id, status) {
-      ensureDatabase();
+      requireDatabase();
       const doc = await Inquiry.findByIdAndUpdate(id, { status }, { returnDocument: "after", runValidators: true });
       return doc ? toStored(doc) : null;
     },
