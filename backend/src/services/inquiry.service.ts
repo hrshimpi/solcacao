@@ -3,6 +3,7 @@
 import { AppError } from "../errors/AppError.ts";
 import type { InquiryStatus } from "../models/inquiry.model.ts";
 import type { InquiryInput } from "../schemas/inquiry.schema.ts";
+import { inTheBackground } from "./background.ts";
 import { DuplicateInquiryError, type InquiryListQuery, type InquiryStore, type StoredInquiry } from "./inquiry.store.ts";
 import type { InquiryMailData } from "./mail-templates.ts";
 
@@ -17,15 +18,6 @@ interface SubmitContext {
   userId?: string;
   // the language of the visitor, for the newsletter welcome
   lang: string;
-}
-
-// The mail service never throws, but a request must not depend on that: this swallows anything that goes wrong.
-function inTheBackground(send: () => Promise<unknown>) {
-  try {
-    send().catch(() => {});
-  } catch {
-    // nothing to do, the inquiry is saved and that is what the visitor needs
-  }
 }
 
 export function createInquiryService({ store, mail }: { store: InquiryStore; mail: InquiryMail }) {
