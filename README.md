@@ -110,3 +110,39 @@ It prints `true` when the server accepted the message. Then look in the inbox. I
 **With Gmail.** Turn on 2-step verification for the account, then create an app password (Google Account, Security, App passwords). Use `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587` (or 465), your address as `SMTP_USER` and the 16 character app password as `SMTP_PASS`, written without spaces. Use the same address in `MAIL_FROM`, because Gmail replaces other senders. Your normal Gmail password does not work here, and Gmail limits how many emails you can send per day, so it is fine for trying things out but not for the real shop.
 
 The screens of these services change now and then. If the names above don't match, search for "SMTP" in their help pages.
+
+## Inquiries API
+
+The contact form, the feedback form and the newsletter box all post to one endpoint, and the team reads the messages with two admin endpoints. The database is MongoDB: set `MONGODB_URI` in `backend/.env` (the default is `mongodb://127.0.0.1:27017/solcacao`, a MongoDB on your own machine or an Atlas address both work). The server starts even when the database is not there yet. It keeps trying every 10 seconds and the inquiry routes answer 503 until it is connected.
+
+| Request | Who | What it does |
+|---|---|---|
+| `POST /api/inquiries` | anyone | saves a message, feedback or newsletter sign up and answers `201 { "id": "..." }`. Emails the team (a welcome email for the newsletter). 5 messages per 15 minutes per IP address, then `429` |
+| `GET /api/inquiries` | admin | a page of inquiries, newest first: `?status=new\|responded`, `?category=...`, `?page=1&limit=20` (up to 100). Answers `{ items, page, limit, total }` |
+| `PATCH /api/inquiries/:id` | admin | `{ "status": "new" }` or `{ "status": "responded" }` |
+
+The body of a `POST` depends on the category (`general`, `wholesale`, `support`, `feedback` or `newsletter`):
+
+```
+{ "category": "general", "name": "Isabel", "email": "isabel@example.com", "message": "Do you ship to Canada?" }
+{ "category": "feedback", "rating": 5, "message": "optional", "email": "optional" }
+{ "category": "newsletter", "email": "isabel@example.com" }
+```
+
+- Tags are stripped from all the text, so only plain text is saved.
+- The forms have a hidden field called `website` that people never see. If anything is in it the answer is `201` as usual, but nothing is saved or sent.
+- A newsletter address that is already subscribed gets the same `201` answer, with no second record and no second email. The language of the welcome email comes from the `Accept-Language` header.
+- A signed in user's id is saved with the message when the request has a good token (`Authorization: Bearer <token>`). A missing or bad token does not stop the message.
+- Mistakes come back as `400` with a message for each field: `{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [{ "field": "email", "message": "..." }] } }`.
+- The admin endpoints answer `401` without a token and `403` for a user who is not an admin. The login routes come later. Until then you can make an admin token yourself, from the `backend` folder (it uses `JWT_SECRET` from `.env`, and lasts an hour):
+
+```
+node --input-type=module -e "import { signToken } from './src/middleware/auth.ts'; console.log(await signToken({ id: '64b7f0c2a1b2c3d4e5f60718', role: 'admin' }))"
+curl -H "Authorization: Bearer <token>" "http://localhost:4000/api/inquiries?status=new"
+```
+
+The tests do not need a database. One group of tests checks the real MongoDB code and only runs when you give it a database, which is emptied first, so its name has to contain `test`:
+
+```
+MONGODB_TEST_URI=mongodb://127.0.0.1:27017/solcacao_test pnpm test
+```
