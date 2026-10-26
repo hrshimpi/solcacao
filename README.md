@@ -181,3 +181,31 @@ curl -X POST http://localhost:4000/api/b2b/quote \
 The answer is `201 { "request": { ... } }` with the saved request (status `submitted`, no quote yet) and the stored name of each file. Mistakes come back in the same error shape as the inquiries: `400` with a message for each field, and `413` for a file that is too big. A request is either saved with all its files or not at all: if anything fails after the files were stored, they are deleted again. The wholesale address gets an email about each new request, and if that email fails the request still works.
 
 Until the account code exists, the company, contact name and email are read from the `users` collection (`name`, or `firstName` and `lastName`; `companyName` or `b2bProfile.companyName`; `email`). Those field names are a guess and will be replaced by the real profile code.
+
+### Reading and changing the requests
+
+| Request | Who | What it does |
+|---|---|---|
+| `GET /api/b2b/requests` | business account | the user's own requests, newest first: `?page=1&limit=20` (up to 100). Answers `{ items, page, limit, total, totalPages }` |
+| `GET /api/b2b/requests/:id` | the owner or an admin | one request, as `{ "request": { ... } }` |
+| `GET /api/b2b/requests/:id/assets/:storedName` | the owner or an admin | the file, as a download with the name it was uploaded with |
+| `PATCH /api/b2b/requests/:id` | admin | the new `status`, and with a quote the `quoteAmount` in cents and a `quoteNote` |
+
+- A guest gets `401`. The list is for business accounts, so a retail account gets `403` there. Changing a status is for admins only: everybody else gets `403`, also the owner of the request.
+- Somebody else's request answers `404`, exactly like a request that does not exist, so nobody can find out which ids are in use. The same goes for a file name that does not belong to that request. An id that is not 24 letters and numbers is a `400`.
+- The files are never public. The only way to get one is the download route above, which needs the owner's or an admin's token. It is sent with `Content-Disposition: attachment`, so the browser saves it and does not open it, and with `Cache-Control: private, no-store`. A stored name in the response is only a name: it does not tell where the file is kept.
+- Statuses move one way: `submitted` to `quoted` or `rejected`, and `quoted` to `approved` or `rejected`. `approved` and `rejected` are final. Any other change is `400` with the code `INVALID_TRANSITION`, and the message says where the request can go.
+- `quoted` needs a `quoteAmount` (a whole number of cents, so `125000` is 1,250.00). It is set once, so the other statuses do not take one, and the amount stays on the request. A `quoteNote` can come with any change.
+- If two admins change the same request at the same moment, one of them wins and the other gets `409`.
+
+Try it with an admin token (from the `backend` folder, same command as for the inquiries) and the id from the quote request answer:
+
+```
+curl -H "Authorization: Bearer <business token>" "http://localhost:4000/api/b2b/requests?limit=5"
+curl -X PATCH http://localhost:4000/api/b2b/requests/<id> \
+  -H "Authorization: Bearer <admin token>" -H "Content-Type: application/json" \
+  -d '{ "status": "quoted", "quoteAmount": 125000, "quoteNote": "Includes shipping." }'
+curl -OJ -H "Authorization: Bearer <business token>" http://localhost:4000/api/b2b/requests/<id>/assets/<storedName>
+```
+
+The last one saves the file under its original name (`-OJ` reads it from the header). There is no email to the customer yet when a request is quoted.
