@@ -16,6 +16,48 @@ function appWith(options: { limit: number; windowMs?: number }) {
   return app;
 }
 
+describe("createRateLimiter by user", () => {
+  function appByUser(options: { limit: number; countFailedRequests?: boolean }) {
+    const app = express();
+    app.use(pinoHttp({ logger: pino({ level: "silent" }) }));
+    const limiter = createRateLimiter({
+      limit: options.limit,
+      windowMs: 60_000,
+      message: "Slow down.",
+      keyBy: (req) => String(req.headers["x-user"] ?? "nobody"),
+      countFailedRequests: options.countFailedRequests,
+    });
+    app.get("/ok", limiter, (_req, res) => void res.json({ ok: true }));
+    app.get("/fail", limiter, (_req, res) => void res.status(400).json({ ok: false }));
+    app.use(errorHandler);
+    return app;
+  }
+
+  it("counts each user on their own, whatever the IP address", async () => {
+    const app = appByUser({ limit: 2 });
+
+    for (let i = 0; i < 2; i++) await request(app).get("/ok").set("X-User", "anna");
+
+    expect((await request(app).get("/ok").set("X-User", "anna")).status).toBe(429);
+    expect((await request(app).get("/ok").set("X-User", "ben")).status).toBe(200);
+  });
+
+  it("does not count failed requests unless it is told to", async () => {
+    const app = appByUser({ limit: 2 });
+
+    for (let i = 0; i < 5; i++) expect((await request(app).get("/fail").set("X-User", "anna")).status).toBe(400);
+    expect((await request(app).get("/ok").set("X-User", "anna")).status).toBe(200);
+  });
+
+  it("counts failed requests too when it is told to", async () => {
+    const app = appByUser({ limit: 2, countFailedRequests: true });
+
+    for (let i = 0; i < 2; i++) expect((await request(app).get("/fail").set("X-User", "anna")).status).toBe(400);
+
+    expect((await request(app).get("/ok").set("X-User", "anna")).status).toBe(429);
+  });
+});
+
 describe("createRateLimiter", () => {
   it("lets the allowed number of requests through, then answers 429 in the standard shape", async () => {
     const app = appWith({ limit: 3 });
