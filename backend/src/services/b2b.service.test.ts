@@ -135,7 +135,7 @@ describe("createQuote", () => {
   });
 
   it("deletes the stored files and sends no email when saving fails", async () => {
-    const failing: B2BRequestStore = { create: async () => Promise.reject(new AppError("DATABASE_UNAVAILABLE", 503, "down")) };
+    const failing: B2BRequestStore = { ...createMemoryB2BStore(), create: async () => Promise.reject(new AppError("DATABASE_UNAVAILABLE", 503, "down")) };
     const { service, mail, uploads, storageFolder } = await setup({ store: failing, files: 3 });
     expect(await readdir(storageFolder)).toHaveLength(3);
 

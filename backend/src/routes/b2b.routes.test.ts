@@ -461,7 +461,7 @@ describe("POST /api/b2b/quote: cleaning up when something fails", () => {
   });
 
   it("deletes the stored files when saving the request fails", async () => {
-    const failing: B2BRequestStore = { create: async () => Promise.reject(new AppError("DATABASE_UNAVAILABLE", 503, "We can't reach the database right now. Please try again in a moment.")) };
+    const failing: B2BRequestStore = { ...createMemoryB2BStore(), create: async () => Promise.reject(new AppError("DATABASE_UNAVAILABLE", 503, "We can't reach the database right now. Please try again in a moment.")) };
     const { app, mail } = build({ store: failing });
 
     const res = await sendQuote(app, { files: [logo, guide] });
@@ -473,7 +473,7 @@ describe("POST /api/b2b/quote: cleaning up when something fails", () => {
   });
 
   it("deletes the stored files when saving fails in an unexpected way", async () => {
-    const failing: B2BRequestStore = { create: async () => Promise.reject(new Error("disk full")) };
+    const failing: B2BRequestStore = { ...createMemoryB2BStore(), create: async () => Promise.reject(new Error("disk full")) };
     const { app } = build({ store: failing });
 
     const res = await sendQuote(app, { files: [logo] });
