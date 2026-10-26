@@ -82,7 +82,7 @@ backend/
 
 ## Email
 
-The backend can send three emails: a message to the team when someone writes through the site (wholesale inquiries go to the wholesale address, everything else to support), a notice to a customer when their quote is ready, and a welcome for new newsletter subscribers in English or Spanish. The code is in `backend/src/services/mail.service.ts` and the templates are in `mail-templates.ts`. Sending an email never breaks a request: if something goes wrong the function returns `false` and the error message is written to the log.
+The backend can send four emails: a message to the team when someone writes through the site (wholesale inquiries go to the wholesale address, everything else to support), a notice to the wholesale address when a business sends a quote request, a notice to a customer when their quote is ready (no endpoint uses this one yet), and a welcome for new newsletter subscribers in English or Spanish. The code is in `backend/src/services/mail.service.ts` and the templates are in `mail-templates.ts`. Sending an email never breaks a request: if something goes wrong the function returns `false` and the error message is written to the log.
 
 **Without a mail server (the default).** When `SMTP_HOST` is empty, which is how `.env.example` ships, nothing is sent. Nodemailer's JSON transport only builds the message, and the server log shows who it was for, the subject and the text. The tests work the same way, so you don't need an account to develop or to run them.
 
@@ -146,3 +146,38 @@ The tests do not need a database. One group of tests checks the real MongoDB cod
 ```
 MONGODB_TEST_URI=mongodb://127.0.0.1:27017/solcacao_test pnpm test
 ```
+
+## Quote requests API
+
+A business account sends a quote request from the Corporate Cacao Studio as one multipart form: the text fields and up to 5 brand files.
+
+`POST /api/b2b/quote` needs a business account, which means a token with `accountType: "b2b"`. A guest gets `401` and a retail account gets `403`. Each user can send 10 requests per hour, then it is `429`.
+
+| Field | Notes |
+|---|---|
+| `cacaoProfile` | an origin like `Ecuador`, or `custom` |
+| `packagingType` | `foil_wrap`, `rigid_box`, `specimen_card` or `paper_sleeve` |
+| `quantityEstimate` | a whole number, 1 or more |
+| `companyName`, `contactName` | taken from the user's profile when the form leaves them out |
+| `notes` | optional, up to 2000 characters |
+| `brandAssets` | 0 to 5 files (PDF, AI, EPS or PNG), 50 MB each. It is one field name, repeated for each file |
+
+You can make a business token yourself, like the admin one above (from the `backend` folder), and try the endpoint with curl. Use your own files:
+
+```
+node --input-type=module -e "import { signToken } from './src/middleware/auth.ts'; console.log(await signToken({ id: '64b7f0c2a1b2c3d4e5f60718', role: 'user', accountType: 'b2b' }))"
+curl -X POST http://localhost:4000/api/b2b/quote \
+  -H "Authorization: Bearer <token>" \
+  -F cacaoProfile=Ecuador \
+  -F packagingType=foil_wrap \
+  -F quantityEstimate=800 \
+  -F companyName="Hacienda Brands" \
+  -F contactName="Isabel Vasquez" \
+  -F notes="Before the holidays, please" \
+  -F "brandAssets=@brand-guide.pdf;type=application/pdf" \
+  -F "brandAssets=@logo.png;type=image/png"
+```
+
+The answer is `201 { "request": { ... } }` with the saved request (status `submitted`, no quote yet) and the stored name of each file. Mistakes come back in the same error shape as the inquiries: `400` with a message for each field, and `413` for a file that is too big. A request is either saved with all its files or not at all: if anything fails after the files were stored, they are deleted again. The wholesale address gets an email about each new request, and if that email fails the request still works.
+
+Until the account code exists, the company, contact name and email are read from the `users` collection (`name`, or `firstName` and `lastName`; `companyName` or `b2bProfile.companyName`; `email`). Those field names are a guess and will be replaced by the real profile code.
