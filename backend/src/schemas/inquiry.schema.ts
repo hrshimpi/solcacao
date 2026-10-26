@@ -86,7 +86,7 @@ const rating = z.preprocess(
 const honeypot = z.string().max(0, "We couldn't send this form. Please try again.").optional();
 
 // the category goes first and is a literal, so zod can pick the right set of rules
-const written = (category: InquiryCategory) =>
+const written = <Category extends Extract<InquiryCategory, "general" | "wholesale" | "support">>(category: Category) =>
   z.object({ category: z.literal(category), name, email, message, website: honeypot });
 
 const feedback = z.object({
