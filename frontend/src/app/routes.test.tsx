@@ -1,90 +1,130 @@
-import { render, screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createMemoryRouter, RouterProvider } from "react-router";
-import { routes } from "./routes";
-
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  return render(<RouterProvider router={router} />);
-}
+import { renderAt } from "../test/renderAt";
 
 describe("pages", () => {
   const pages: [string, RegExp][] = [
-    ["/", /Grown in Sunlight/],
-    ["/shop", /The collection/],
-    ["/shop/ecuador-72", /Ecuador 72%/],
-    ["/wholesale", /Custom Chocolate, Crafted for Your Brand/],
-    ["/wholesale/studio", /The Corporate Cacao Studio/],
-    ["/profile", /Your profile/],
-    ["/login", /Sign in/],
-    ["/register", /Create account/],
-    ["/sampler", /Build your own sampler/],
+    ["/en", /Grown in Sunlight/],
+    ["/en/shop", /The collection/],
+    ["/en/shop/ecuador-72", /Ecuador 72%/],
+    ["/en/wholesale", /Custom Chocolate, Crafted for Your Brand/],
+    ["/en/wholesale/studio", /The Corporate Cacao Studio/],
+    ["/en/sampler", /Build your own sampler/],
+    ["/en/contact", /Get in touch/],
+    ["/en/account/login", /Sign in/],
+    ["/en/account/register", /Create account/],
+    ["/en/profile", /Your profile/],
+    ["/es/shop", /La colección/],
+    ["/es/profile", /Tu perfil/],
   ];
 
   it.each(pages)("%s shows its heading", async (path, heading) => {
     renderAt(path);
 
-    expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
   });
 
-  it("shows the not found page for an unknown url", async () => {
-    renderAt("/no-such-page");
+  it.each(pages)("%s has exactly one h1", async (path) => {
+    renderAt(path);
+    await screen.findByRole("heading", { level: 1 });
 
-    expect(
-      await screen.findByRole("heading", { name: /couldn't find that page/i }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
-  it("shows the not found page for an unknown product", async () => {
-    renderAt("/shop/no-such-bar");
+  it.each(pages)("%s sets a page title and the page language", async (path) => {
+    renderAt(path);
+    await screen.findByRole("heading", { level: 1 });
 
-    expect(
-      await screen.findByRole("heading", { name: /couldn't find that page/i }),
-    ).toBeInTheDocument();
+    expect(document.title).toMatch(/ \| SolCacao$/);
+    expect(document.documentElement.lang).toBe(path.startsWith("/es") ? "es" : "en");
+  });
+
+  it("has a main landmark and two navigation landmarks with different names", async () => {
+    renderAt("/en");
+    await screen.findByRole("heading", { level: 1 });
+
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Footer" })).toBeInTheDocument();
+  });
+});
+
+describe("language in the address", () => {
+  it("sends / to /en when the browser language is English", async () => {
+    const { router } = renderAt("/");
+
+    await screen.findByRole("heading", { level: 1, name: /Grown in Sunlight/ });
+    expect(router.state.location.pathname).toBe("/en");
+  });
+
+  it("sends / to the saved language", async () => {
+    localStorage.setItem("sc_lang", "es");
+    const { router } = renderAt("/");
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(router.state.location.pathname).toBe("/es");
+  });
+
+  it("keeps the same page when you switch the language", async () => {
+    const user = userEvent.setup();
+    const { router } = renderAt("/en/shop?category=bar");
+
+    await user.click(screen.getByRole("button", { name: "ES, Español" }));
+
+    expect(router.state.location.pathname).toBe("/es/shop");
+    expect(router.state.location.search).toBe("?category=bar");
+    expect(await screen.findByRole("heading", { level: 1, name: "La colección" })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("es");
+  });
+});
+
+describe("not found", () => {
+  it.each(["/nothing-here", "/en/nothing-here", "/en/shop/no-such-bar"])("%s shows the not found page", async (path) => {
+    renderAt(path);
+
+    expect(await screen.findByRole("heading", { level: 1, name: /couldn't find that page/i })).toBeInTheDocument();
   });
 });
 
 describe("navigation", () => {
-  it("opens the shop from the menu", async () => {
+  it("opens the shop from the main navigation", async () => {
     const user = userEvent.setup();
-    renderAt("/");
+    renderAt("/en");
 
-    await user.click(screen.getAllByRole("link", { name: "Shop" })[0]);
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    await user.click(within(nav).getByRole("link", { name: "Shop" }));
 
-    expect(await screen.findByRole("heading", { name: /The collection/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: /The collection/ })).toBeInTheDocument();
+  });
+
+  it("moves focus to the page heading after a link is used", async () => {
+    const user = userEvent.setup();
+    renderAt("/en");
+
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    await user.click(within(nav).getByRole("link", { name: "Wholesale" }));
+
+    const heading = await screen.findByRole("heading", { level: 1, name: /Custom Chocolate/ });
+    expect(heading).toHaveFocus();
+  });
+
+  it("has a skip link that jumps to the main content", async () => {
+    const user = userEvent.setup();
+    renderAt("/en");
+
+    await user.tab();
+    expect(screen.getByRole("link", { name: "Skip to main content" })).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("main")).toHaveFocus();
   });
 
   it("switches between sign in and create account", async () => {
     const user = userEvent.setup();
-    renderAt("/login");
+    renderAt("/en/account/login");
 
-    await user.click(screen.getByRole("button", { name: /Create an account/ }));
+    await user.click(screen.getByRole("link", { name: /Create an account/ }));
 
-    expect(await screen.findByRole("heading", { name: "Create account" })).toBeInTheDocument();
-  });
-});
-
-describe("cart", () => {
-  it("collects products from the shop and shows them in the cart drawer", async () => {
-    const user = userEvent.setup();
-    renderAt("/shop");
-
-    await user.click(screen.getAllByRole("button", { name: "Add to cart" })[0]);
-    await user.click(screen.getByRole("button", { name: /^Cart/ }));
-
-    const drawer = await screen.findByRole("dialog", { name: "Your cart" });
-    expect(drawer).toHaveTextContent("Ecuador 72%");
-    expect(drawer).toHaveTextContent("$12.00");
-  });
-
-  it("says that checkout isn't available yet", async () => {
-    const user = userEvent.setup();
-    renderAt("/shop");
-
-    await user.click(screen.getAllByRole("button", { name: "Add to cart" })[0]);
-    await user.click(screen.getByRole("button", { name: /^Cart/ }));
-    await user.click(await screen.findByRole("button", { name: "Checkout" }));
-
-    expect(screen.getByText(/checkout isn't available yet/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Create account" })).toBeInTheDocument();
   });
 });

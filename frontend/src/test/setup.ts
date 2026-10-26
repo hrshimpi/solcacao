@@ -6,4 +6,6 @@ window.scrollTo = vi.fn();
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
+  document.title = "";
 });
