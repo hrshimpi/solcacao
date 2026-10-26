@@ -4,7 +4,7 @@ import { renderAt } from "../../test/renderAt";
 
 async function openStudio() {
   const user = userEvent.setup();
-  renderAt("/en/wholesale/studio");
+  renderAt("/en/wholesale/studio", { account: "business" });
   await screen.findByRole("heading", { level: 1, name: "The Corporate Cacao Studio" });
   return user;
 }
@@ -70,7 +70,7 @@ describe("studio wizard", () => {
 
   it("rejects a file type that is not allowed and accepts a PDF", async () => {
     const user = userEvent.setup({ applyAccept: false });
-    renderAt("/en/wholesale/studio");
+    renderAt("/en/wholesale/studio", { account: "business" });
     await screen.findByRole("heading", { level: 1 });
 
     await user.click(screen.getByRole("radio", { name: /Peru 68%/ }));

@@ -1,14 +1,15 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { AccountType } from "../features/auth/components/AuthShell";
 import { renderAt } from "../test/renderAt";
 
 describe("pages", () => {
-  const pages: [string, RegExp][] = [
+  const pages: [string, RegExp, AccountType?][] = [
     ["/en", /Grown in Sunlight/],
     ["/en/shop", /The collection/],
     ["/en/shop/ecuador-72", /Ecuador 72%/],
     ["/en/wholesale", /Custom Chocolate, Crafted for Your Brand/],
-    ["/en/wholesale/studio", /The Corporate Cacao Studio/],
+    ["/en/wholesale/studio", /The Corporate Cacao Studio/, "business"],
     ["/en/sampler", /Build your own sampler/],
     ["/en/contact", /Get in touch/],
     ["/en/account/login", /Sign in/],
@@ -18,21 +19,21 @@ describe("pages", () => {
     ["/es/profile", /Tu perfil/],
   ];
 
-  it.each(pages)("%s shows its heading", async (path, heading) => {
-    renderAt(path);
+  it.each(pages)("%s shows its heading", async (path, heading, account) => {
+    renderAt(path, { account });
 
     expect(await screen.findByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
   });
 
-  it.each(pages)("%s has exactly one h1", async (path) => {
-    renderAt(path);
+  it.each(pages)("%s has exactly one h1", async (path, _heading, account) => {
+    renderAt(path, { account });
     await screen.findByRole("heading", { level: 1 });
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
-  it.each(pages)("%s sets a page title and the page language", async (path) => {
-    renderAt(path);
+  it.each(pages)("%s sets a page title and the page language", async (path, _heading, account) => {
+    renderAt(path, { account });
     await screen.findByRole("heading", { level: 1 });
 
     expect(document.title).toMatch(/ \| SolCacao$/);
