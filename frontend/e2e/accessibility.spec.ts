@@ -1,7 +1,7 @@
 // Runs axe on every route, on the open dialogs and on each studio step. Fails on any WCAG 2.2 AA problem.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { openRoute, routes, chooseOption } from "./helpers";
+import { chooseOption, mockFeaturedProducts, openRoute, routes } from "./helpers";
 
 const tags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
@@ -21,6 +21,14 @@ test.describe("axe scan of every route", () => {
 });
 
 test.describe("axe scan of open dialogs and steps", () => {
+  test("the home page with the showcase loaded", async ({ page }) => {
+    await mockFeaturedProducts(page);
+    await openRoute(page, "/en");
+    await expect(page.getByRole("article")).toHaveCount(5);
+
+    expect(await scan(page)).toEqual([]);
+  });
+
   test("the cart dialog", async ({ page }) => {
     await openRoute(page, "/en/shop?min=55");
     await page.getByRole("button", { name: /^Add to cart, / }).first().click();
