@@ -72,6 +72,9 @@ inquirySchema.path("rating").validate(function (this: WithCategory, value: numbe
 // the inbox lists inquiries by status, newest first
 inquirySchema.index({ status: 1, createdAt: -1 });
 
+// one newsletter sign up per email address, even when two requests arrive at the same moment
+inquirySchema.index({ email: 1 }, { unique: true, partialFilterExpression: { category: "newsletter" } });
+
 inquirySchema.plugin(jsonPlugin);
 
 export const Inquiry = model<InquiryData>("Inquiry", inquirySchema);

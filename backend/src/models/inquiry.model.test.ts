@@ -129,6 +129,12 @@ describe("Inquiry schema", () => {
     expect(indexes).toContainEqual({ status: 1, createdAt: -1 });
   });
 
+  it("allows only one newsletter sign up for each email address", () => {
+    const found = Inquiry.schema.indexes().find(([fields]) => (fields as Record<string, number>).email === 1);
+
+    expect(found?.[1]).toMatchObject({ unique: true, partialFilterExpression: { category: "newsletter" } });
+  });
+
   it("keeps createdAt but has no updatedAt", () => {
     expect(Inquiry.schema.path("createdAt")).toBeDefined();
     expect(Inquiry.schema.path("updatedAt")).toBeUndefined();
