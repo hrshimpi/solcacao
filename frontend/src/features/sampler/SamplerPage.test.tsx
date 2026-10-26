@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { getProducts } from "../../data/products";
 import { renderAt } from "../../test/renderAt";
@@ -43,7 +43,8 @@ describe("sampler page", () => {
     await user.click(screen.getByRole("button", { name: `Remove ${products[0].name} from the sampler` }));
 
     expect(screen.getByText("0 of 6 chosen")).toBeInTheDocument();
-    expect(tile(0)).toHaveFocus();
+    // focus moves back to the tile on the next animation frame
+    await waitFor(() => expect(tile(0)).toHaveFocus());
   });
 
   it("stops at six specimens", async () => {
