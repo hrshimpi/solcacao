@@ -16,7 +16,8 @@ How to run the app: `pnpm dev` in the `frontend` folder, then open http://localh
 | Filters stay in the address after a reload | not tested | not tested | not tested | not tested | not tested | not tested |
 | Add to cart, cart dialog, quantity buttons, reload keeps the cart | not tested | not tested | not tested | not tested | not tested | not tested |
 | Build a sampler: pick 4 to 6, add as one cart item | not tested | not tested | not tested | not tested | not tested | not tested |
-| Corporate Cacao Studio: all four steps, Choose file button, submit | not tested | not tested | not tested | not tested | not tested | not tested |
+| Corporate Cacao Studio, signed in as a business account: all four steps, Choose file button, submit | not tested | not tested | not tested | not tested | not tested | not tested |
+| Studio access: a guest is sent to sign in and comes back to the studio, a retail account sees the business accounts message, the three studio buttons on the wholesale page | not tested | not tested | not tested | not tested | not tested | not tested |
 | Contact, sign in, create account: error messages and success message | not tested | not tested | not tested | not tested | not tested | not tested |
 | Profile page: edit, save, cancel, password panel, switch | not tested | not tested | not tested | not tested | not tested | not tested |
 | Keyboard only: Tab order, skip link, focus ring visible, Escape closes dialogs | not tested | not tested | not tested | not tested | not tested | not tested |

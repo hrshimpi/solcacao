@@ -36,9 +36,19 @@ export async function goToPage(page: Page, name: string | RegExp) {
   }
 }
 
+export type Account = "retail" | "business";
+
+// signs someone in before any page of this test loads. The preview sign in keeps the user in sessionStorage.
+export async function signInAs(page: Page, accountType: Account) {
+  await page.addInitScript((user) => sessionStorage.setItem("sc_user", JSON.stringify(user)), { email: "isabel@example.com", accountType });
+}
+
 // the page is ready when its heading is there, the web fonts have loaded and the entrance animations are done
 // (a scan in the middle of a fade-in would measure half see-through colours)
-export async function openRoute(page: Page, path: string) {
+// The studio is only for business accounts, so it is opened as one unless the test says otherwise (account: null is a guest).
+export async function openRoute(page: Page, path: string, options: { account?: Account | null } = {}) {
+  const account = options.account === undefined && path.includes("/wholesale/studio") ? "business" : options.account;
+  if (account) await signInAs(page, account);
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
