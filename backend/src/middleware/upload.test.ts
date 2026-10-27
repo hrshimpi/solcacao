@@ -427,6 +427,44 @@ describe("upload: names the person gave are never used as paths", () => {
     expect(res.body.uploads[0].originalName).toBe("logo été.png");
   });
 
+  // these change how a name is shown without being visible: the end of a name can be drawn backwards, so a customer or an
+  // admin reading the list can be fooled about what the file is
+  it.each([
+    ["a right-to-left override", "invoice\u202Egnp.exe.png", "invoicegnp.exe.png"],
+    ["a left-to-right and a right-to-left mark", "a\u200Eb\u200F.png", "ab.png"],
+    ["an embedding and an isolate", "x\u202Ay\u2066z\u2069.png", "xyz.png"],
+    ["a zero width space", "lo\u200Bgo.png", "logo.png"],
+    ["a word joiner", "lo\u2060go.png", "logo.png"],
+    ["a byte order mark", "\uFEFFlogo.png", "logo.png"],
+  ])("takes %s out of the name we show", async (_label, filename, expected) => {
+    const res = await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename, contentType: "image/png" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.uploads[0].originalName).toBe(expected);
+  });
+
+  it("keeps the joiner of an emoji, which is not a way to fool anybody", async () => {
+    const res = await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename: "family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}.png", contentType: "image/png" });
+
+    expect(res.body.uploads[0].originalName).toBe("family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}.png");
+  });
+
+  it("checks the name that is shown: a hidden character after the extension does not change what the file is", async () => {
+    const res = await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename: "logo.png\u200B", contentType: "image/png" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.uploads[0].originalName).toBe("logo.png");
+  });
+
+  it("does not let a hidden character hide a bad type either", async () => {
+    const res = await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename: "logo.png\u200B.exe", contentType: "image/png" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("UNSUPPORTED_FILE_TYPE");
+    expect(res.body.error.details[0].file).toBe("logo.png.exe");
+    expect(await filesLeft()).toEqual([]);
+  });
+
   it("never serves or writes outside its two folders", async () => {
     await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename: "../../evil.png", contentType: "image/png" });
 

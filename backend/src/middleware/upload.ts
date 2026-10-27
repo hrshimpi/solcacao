@@ -42,12 +42,18 @@ const problemCodes: Record<FileProblem, string> = {
   empty: "EMPTY_FILE",
 };
 
-// the file name as text we can work with: no folders and no control characters
+// Characters that are not seen but change how a name is shown: the end of a name can be drawn backwards, so it looks
+// like it ends in another extension than it really does. Besides the control characters these are the marks and
+// overrides that set the direction of the text, the zero width space, the word joiner and the byte order mark.
+// The joiners of an emoji are kept.
+const hiddenInNames = /[\p{Cc}\u200B\u200E\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/gu;
+
+// the file name as text we can work with: no folders and nothing hidden in it
 function cleanName(rawName: string): string {
   // browsers send UTF-8 names and multer reads them as latin1, so convert them back
   const name = Buffer.from(rawName, "latin1").toString("utf8");
   const lastPart = name.split(/[\\/]/).pop() ?? "";
-  const clean = lastPart.replace(/\p{Cc}/gu, "").trim();
+  const clean = lastPart.replace(hiddenInNames, "").trim();
   return clean === "" ? "file" : clean;
 }
 
