@@ -95,7 +95,18 @@ describe("create account", () => {
     await user.type(page.getByLabelText(/Password/), "a long password");
     await user.click(page.getByRole("button", { name: "Create account" }));
 
-    expect(saved()).toEqual({ email: "isabel@hacienda.example", accountType: "business" });
+    expect(saved()).toEqual({ email: "isabel@hacienda.example", accountType: "business", name: "Isabel Vasquez", companyName: "Hacienda Brands" });
+  });
+
+  it("keeps the name of a new retail account, and no company", async () => {
+    const { user, page } = await openMain("/en/account/register");
+
+    await user.type(page.getByLabelText(/Full name/), "  Isabel Vasquez ");
+    await user.type(page.getByLabelText(/Email/), "isabel@example.com");
+    await user.type(page.getByLabelText(/Password/), "a long password");
+    await user.click(page.getByRole("button", { name: "Create account" }));
+
+    expect(saved()).toEqual({ email: "isabel@example.com", accountType: "retail", name: "Isabel Vasquez" });
   });
 
   it("does not sign anyone in when the form has mistakes", async () => {

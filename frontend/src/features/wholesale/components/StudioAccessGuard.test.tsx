@@ -217,7 +217,7 @@ describe("the studio for a retail account", () => {
     await user.type(page.getByLabelText(/Password/), "a long password");
     await user.click(page.getByRole("button", { name: "Create account" }));
     await screen.findByRole("heading", { level: 1, name: /Grown in Sunlight/ });
-    expect(signedInUser()).toEqual({ email: "isabel@hacienda.example", accountType: "business" });
+    expect(signedInUser()).toEqual({ email: "isabel@hacienda.example", accountType: "business", name: "Isabel Vasquez", companyName: "Hacienda Brands" });
 
     await act(async () => {
       await router.navigate("/en/wholesale/studio");

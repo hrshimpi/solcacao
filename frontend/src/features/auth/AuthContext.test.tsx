@@ -48,12 +48,44 @@ describe("useAuth", () => {
     expect(result.current.user).toBeNull();
   });
 
-  it("keeps only the email and the account type from what was saved", () => {
-    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: "a@b.co", accountType: "business", role: "admin" }));
+  it("keeps only the email, the account type and the names from what was saved", () => {
+    sessionStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({ email: "a@b.co", accountType: "business", name: "Isabel", companyName: "Hacienda Brands", role: "admin" }),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.user).toEqual({ email: "a@b.co", accountType: "business", name: "Isabel", companyName: "Hacienda Brands" });
+  });
+
+  it("works without the names, which are only there after an account was created", () => {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: "a@b.co", accountType: "business" }));
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     expect(result.current.user).toEqual({ email: "a@b.co", accountType: "business" });
+  });
+
+  it.each([
+    ["a name that is not text", { name: 42, companyName: ["x"] }],
+    ["names that are empty", { name: "", companyName: "" }],
+  ])("ignores %s", (_label, extra) => {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: "a@b.co", accountType: "business", ...extra }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.user).toEqual({ email: "a@b.co", accountType: "business" });
+  });
+
+  it("keeps the names that were given when signing in", () => {
+    const first = renderHook(() => useAuth(), { wrapper });
+    act(() => first.result.current.signIn({ email: "a@b.co", accountType: "business", name: "Isabel", companyName: "Hacienda Brands" }));
+    first.unmount();
+
+    const second = renderHook(() => useAuth(), { wrapper });
+
+    expect(second.result.current.user).toEqual({ email: "a@b.co", accountType: "business", name: "Isabel", companyName: "Hacienda Brands" });
   });
 
   it("works when the browser does not let the page save anything", () => {
