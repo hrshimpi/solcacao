@@ -9,6 +9,8 @@ interface TextFieldProps {
   onBlur?: () => void;
   error?: string;
   hint?: string;
+  // a gentle note about a value that is allowed, unlike an error it does not mark the field as invalid
+  warning?: string;
   type?: HTMLInputTypeAttribute;
   autoComplete?: string;
   required?: boolean;
@@ -28,6 +30,7 @@ export default function TextField({
   onBlur,
   error,
   hint,
+  warning,
   type = "text",
   autoComplete,
   required,
@@ -40,8 +43,9 @@ export default function TextField({
 }: TextFieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
+  const warningId = `${id}-warning`;
   const errorId = `${id}-error`;
-  const describedBy = [hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined;
+  const describedBy = [hint ? hintId : "", warning ? warningId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined;
   const dark = tone === "dark";
 
   const common = {
@@ -82,6 +86,16 @@ export default function TextField({
       {hint && (
         <p id={hintId} className={`mt-1 font-sans text-xs ${dark ? "text-paper-text/70" : "text-ink-cacao/70"}`}>
           {hint}
+        </p>
+      )}
+      {warning && (
+        <p
+          id={warningId}
+          className={`mt-1 border-l-2 pl-2 font-sans text-xs font-medium ${
+            dark ? "border-sun-gold text-sun-gold" : "border-gold-deep text-gold-deep"
+          }`}
+        >
+          {warning}
         </p>
       )}
       {error && (
