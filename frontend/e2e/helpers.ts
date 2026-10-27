@@ -79,7 +79,13 @@ export async function mockQuoteApi(page: Page, options: { answer?: QuoteAnswer; 
     // the body is only read as text to look for the names of the fields and files, never to rebuild them
     state.requests.push({ headers: request.headers(), body: request.postDataBuffer()?.toString("latin1") ?? "" });
     if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-    await route.fulfill({ status: state.answer.status, contentType: "application/json", body: JSON.stringify(state.answer.body) });
+    // a text body is sent as a page, which is how a proxy or a broken server answers
+    const asPage = typeof state.answer.body === "string";
+    await route.fulfill({
+      status: state.answer.status,
+      contentType: asPage ? "text/html" : "application/json",
+      body: asPage ? (state.answer.body as string) : JSON.stringify(state.answer.body),
+    });
   });
   return state;
 }
