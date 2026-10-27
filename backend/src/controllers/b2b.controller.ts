@@ -1,6 +1,7 @@
 // The handlers for /api/b2b. A quote request arrives as a multipart form: the upload middleware has already
 // checked and stored the files and put the text fields in req.body by the time this runs.
 // The rest read and change the requests that were sent: the list, one request, one of its files and the status.
+import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { Request, RequestHandler } from "express";
 import { AppError } from "../errors/AppError.ts";
@@ -27,6 +28,18 @@ function withProfileDefaults(body: unknown, profile: UserProfile): Record<string
   if (isMissing(fields.companyName)) fields.companyName = profile.companyName;
   if (isMissing(fields.contactName)) fields.contactName = profile.name;
   return fields;
+}
+
+// the pieces of a file, beginning with one that was already read
+async function* startingWith(first: IteratorResult<Buffer>, rest: AsyncIterator<Buffer>) {
+  try {
+    if (first.done) return;
+    yield first.value;
+    for (let next = await rest.next(); !next.done; next = await rest.next()) yield next.value;
+  } finally {
+    // lets go of the file, also when the person leaves in the middle of the download
+    await rest.return?.();
+  }
 }
 
 export function createB2BController(service: B2BService) {
@@ -65,23 +78,29 @@ export function createB2BController(service: B2BService) {
     const id = parseOrThrow(requestIdSchema, req.params.id);
     const { asset, content } = await service.openAsset(id, String(req.params.storedName), user);
 
+    // The first piece is read before anything is sent. A file that cannot be read (no permission, a broken disk, too
+    // many open files) fails here, while the answer can still be a proper error. Once the headers are out, all that is
+    // left to do when the file breaks is to end the connection, and pipeline would end it before any error was sent.
+    const pieces = content[Symbol.asyncIterator]() as AsyncIterator<Buffer>;
+    let first: IteratorResult<Buffer>;
+    try {
+      first = await pieces.next();
+    } catch (error) {
+      content.destroy();
+      throw error;
+    }
+
     res.attachment(asset.originalName);
     // the type that was checked when the file came in, without any extra parameters
     res.type(asset.mimeType.split(";")[0].trim());
     res.set({ "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store" });
 
     try {
-      await pipeline(content, res);
+      await pipeline(Readable.from(startingWith(first, pieces)), res);
     } catch (error) {
       // the download already started, or the person left: there is nobody to send an error to
-      if (res.headersSent || res.destroyed) {
-        req.log.warn({ err: error }, "a download stopped early");
-        res.destroy();
-        return;
-      }
-      // nothing was sent yet, so the error answer must not look like a file
-      for (const header of ["Content-Disposition", "Content-Type", "X-Content-Type-Options", "Cache-Control"]) res.removeHeader(header);
-      throw error;
+      req.log.warn({ err: error }, "a download stopped early");
+      res.destroy();
     }
   };
 

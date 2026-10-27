@@ -2,15 +2,18 @@
 // real files in a temporary folder, with the real auth and error handling, so every answer is the one a
 // client gets. Sending quote requests (POST /quote) is tested in b2b.routes.test.ts.
 import { randomBytes, randomUUID } from "node:crypto";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import express, { type RequestHandler } from "express";
 import mongoose from "mongoose";
 import { pino } from "pino";
 import { pinoHttp } from "pino-http";
 import request from "supertest";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signToken } from "../middleware/auth.ts";
 import { errorHandler } from "../middleware/errorHandler.ts";
 import type { StoredUpload } from "../middleware/upload.ts";
@@ -47,10 +50,10 @@ afterEach(async () => {
 
 // the routes with a store in memory and files in a temporary folder. Uploading and the limit are tested with
 // the quote itself, so they are left out here.
-function build(options: { store?: B2BRequestStore } = {}) {
+function build(options: { store?: B2BRequestStore; wrapStorage?: (storage: StorageService) => StorageService } = {}) {
   const memory = createMemoryB2BStore();
   const storage = createDiskStorage(path.join(base, "store"));
-  const service = createB2BService({ store: options.store ?? memory, storage, mail: { sendQuoteNotification: async () => true }, profiles: async () => ({}) });
+  const service = createB2BService({ store: options.store ?? memory, storage: options.wrapStorage?.(storage) ?? storage, mail: { sendQuoteNotification: async () => true }, profiles: async () => ({}) });
   const letThrough: RequestHandler = (_req, _res, next) => next();
 
   const app = express();
@@ -515,6 +518,104 @@ describe("GET /api/b2b/requests/:id/assets/:storedName", () => {
     await download(ctx.app, assetUrl(saved.id, saved.brandAssets[0].storedName), token);
 
     expect(await readdir(path.join(base, "store"))).toEqual([saved.brandAssets[0].storedName]);
+  });
+});
+
+describe("GET /api/b2b/requests/:id/assets/:storedName: a file that cannot be read", () => {
+  // a storage whose files break: after `afterBytes` bytes were read (0 means before the first one)
+  const breaking =
+    (afterBytes: number) =>
+    (disk: StorageService): StorageService => ({
+      ...disk,
+      async stream() {
+        let sent = false;
+        return new Readable({
+          read() {
+            if (afterBytes > 0 && !sent) {
+              sent = true;
+              this.push(Buffer.alloc(afterBytes, 1));
+              return;
+            }
+            this.destroy(new Error("the disk failed at /var/data/secret-place"));
+          },
+        });
+      },
+    });
+
+  it("answers the standard 500, with nothing that looks like a file and nothing about the disk, when it breaks before anything was sent", async () => {
+    const ctx = build({ wrapStorage: breaking(0) });
+    const saved = await seed(ctx, isabel, { files: [pdf] });
+
+    const res = await download(ctx.app, assetUrl(saved.id, saved.brandAssets[0].storedName), await businessToken(isabel));
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toEqual({ code: "INTERNAL_ERROR", message: "Something went wrong on our side.", details: [] });
+    expect(res.headers["content-type"]).toMatch(/json/);
+    expect(res.headers["content-disposition"]).toBeUndefined();
+    expect(res.headers["x-content-type-options"]).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain("secret-place");
+  });
+
+  it("ends the download without crashing the server when it breaks halfway, and the next request works", async () => {
+    const ctx = build({ wrapStorage: breaking(1000) });
+    const saved = await seed(ctx, isabel, { files: [pdf] });
+    const token = await businessToken(isabel);
+
+    // part of the file went out already, so there is no way to send an error: the answer is cut off
+    const outcome = await download(ctx.app, assetUrl(saved.id, saved.brandAssets[0].storedName), token).then(
+      (res) => ({ complete: res.status === 200 && Buffer.isBuffer(res.body) && res.body.length === 1000 && res.headers["content-length"] === undefined ? "cut short" : "answered", status: res.status }),
+      () => ({ complete: "cut off", status: 0 }),
+    );
+
+    expect(["cut off", "cut short"]).toContain(outcome.complete);
+    const next = await get(ctx.app, "/api/b2b/requests", token);
+    expect(next.status).toBe(200);
+  });
+
+  it("lets go of the file when the person leaves in the middle of the download", async () => {
+    // a file that never ends, so the download is still going when the person leaves
+    let content: Readable | undefined;
+    const ctx = build({
+      wrapStorage: (disk) => ({
+        ...disk,
+        async stream() {
+          content = new Readable({ read() { this.push(Buffer.alloc(64 * 1024, 1)); } });
+          return content;
+        },
+      }),
+    });
+    const saved = await seed(ctx, isabel, { files: [pdf] });
+    const token = await businessToken(isabel);
+    const server = ctx.app.listen(0);
+
+    try {
+      const { port } = server.address() as AddressInfo;
+      await new Promise<void>((resolve) => {
+        const call = http.get({ port, path: assetUrl(saved.id, saved.brandAssets[0].storedName), headers: bearer(token) }, (res) => {
+          res.on("error", () => {});
+          res.once("data", () => {
+            call.destroy();
+            resolve();
+          });
+        });
+        call.on("error", () => {});
+      });
+
+      await vi.waitFor(() => expect(content?.destroyed).toBe(true));
+    } finally {
+      server.close();
+    }
+  });
+
+  it("answers an empty stored file as an empty download, and does not hang", async () => {
+    const ctx = build({ wrapStorage: (disk) => ({ ...disk, stream: async () => Readable.from([]) }) });
+    const saved = await seed(ctx, isabel, { files: [pdf] });
+
+    const res = await download(ctx.app, assetUrl(saved.id, saved.brandAssets[0].storedName), await businessToken(isabel));
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-disposition"]).toContain("attachment");
+    expect((res.body as Buffer).length).toBe(0);
   });
 });
 
