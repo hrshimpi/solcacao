@@ -1,6 +1,20 @@
 // Browser tests of the main flows (language, filters, cart, sampler, studio, forms, skip link).
 import { expect, test } from "@playwright/test";
-import { chooseOption, failFeaturedProducts, fillStudio, goToPage, mockFeaturedProducts, mockQuoteApi, openRoute, quoteFailed, quoteSaved } from "./helpers";
+import {
+  chooseOption,
+  e2eFile,
+  e2eRequest,
+  failFeaturedProducts,
+  fillStudio,
+  goToPage,
+  mockFeaturedProducts,
+  mockQuoteApi,
+  mockRequestsApi,
+  openRoute,
+  quoteFailed,
+  quoteSaved,
+  withToken,
+} from "./helpers";
 
 test.describe("smoke flows", () => {
   test("the address / goes to a language page", async ({ page }) => {
@@ -119,7 +133,7 @@ test.describe("smoke flows", () => {
 
     await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
     await expect(page.getByText("SC-18293A4B")).toBeVisible();
-    await expect(page.getByRole("link", { name: "My quote requests" })).toHaveAttribute("href", "/en/account/requests");
+    await expect(page.getByRole("link", { name: "My quote requests" })).toHaveAttribute("href", "/en/account/requests?request=66a1b2c3d4e5f60718293a4b");
     await expect(page.getByRole("link", { name: "Back to Wholesale" })).toHaveAttribute("href", "/en/wholesale");
   });
 
@@ -174,6 +188,124 @@ test.describe("smoke flows", () => {
     await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
 
     expect(quote.requests).toHaveLength(1);
+  });
+
+  test("My quote requests lists the requests with their status, and opens the details of one", async ({ page }) => {
+    const server = await mockRequestsApi(page, [
+      e2eRequest("66a1b2c3d4e5f60718293a4b", { status: "submitted" }),
+      e2eRequest("66a1b2c3d4e5f60718293a4c", {
+        status: "quoted",
+        quoteAmount: 125000,
+        quoteNote: "Includes shipping.",
+        cacaoProfile: "Peru 68%",
+        packagingType: "foil_wrap",
+        quantityEstimate: 1200,
+        brandAssets: [e2eFile("one.pdf", "brand guide.pdf")],
+      }),
+    ]);
+    await withToken(page);
+    await openRoute(page, "/en/account/requests");
+
+    const rows = page.getByRole("region", { name: "Your quote requests" }).getByRole("link");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText("Submitted");
+    await expect(rows.nth(1)).toContainText("Quoted");
+    await expect(rows.nth(1)).toContainText("$1,250.00");
+
+    await rows.nth(1).click();
+    await expect(page).toHaveURL(/\/en\/account\/requests\?request=66a1b2c3d4e5f60718293a4c$/);
+    await expect(page.getByRole("heading", { name: "Request SC-18293A4C" })).toBeFocused();
+    await expect(page.getByText("Includes shipping.")).toBeVisible();
+    await expect(page.getByText("brand guide.pdf")).toBeVisible();
+    expect(server.calls[0].authorization).toBe("Bearer e2e-token");
+  });
+
+  test("a file of a request downloads with the token, under the name it was uploaded with", async ({ page }) => {
+    const server = await mockRequestsApi(page, [e2eRequest("66a1b2c3d4e5f60718293a4b", { brandAssets: [e2eFile("one.pdf", "brand guide.pdf")] })]);
+    server.fileContent = "the bytes of the guide";
+    await withToken(page);
+    await openRoute(page, "/en/account/requests?request=66a1b2c3d4e5f60718293a4b");
+
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download brand guide.pdf" }).click()]);
+
+    expect(download.suggestedFilename()).toBe("brand guide.pdf");
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    expect(Buffer.concat(chunks).toString()).toBe("the bytes of the guide");
+    const call = server.calls.find((entry) => entry.path.includes("/assets/"));
+    expect(call?.path).toBe("/api/b2b/requests/66a1b2c3d4e5f60718293a4b/assets/one.pdf");
+    expect(call?.authorization).toBe("Bearer e2e-token");
+  });
+
+  test("a status that an admin changed shows up when the list is refreshed", async ({ page }) => {
+    const server = await mockRequestsApi(page, [e2eRequest("66a1b2c3d4e5f60718293a4b", { status: "submitted" })]);
+    await withToken(page);
+    await openRoute(page, "/en/account/requests");
+    await expect(page.getByRole("link", { name: /Ecuador 72%/ })).toContainText("Submitted");
+
+    server.items = [e2eRequest("66a1b2c3d4e5f60718293a4b", { status: "quoted", quoteAmount: 99900 })];
+    await page.getByRole("button", { name: "Refresh" }).click();
+
+    await expect(page.getByRole("link", { name: /Ecuador 72%/ })).toContainText("Quoted");
+    await expect(page.getByRole("link", { name: /Ecuador 72%/ })).toContainText("$999.00");
+  });
+
+  test("My quote requests has an empty state with a button to the studio", async ({ page }) => {
+    await mockRequestsApi(page, []);
+    await withToken(page);
+    await openRoute(page, "/en/account/requests");
+
+    await expect(page.getByRole("heading", { name: "You have not sent a quote request yet." })).toBeVisible();
+    await page.getByRole("link", { name: "Start in the Studio" }).click();
+    await expect(page).toHaveURL(/\/en\/wholesale\/studio$/);
+  });
+
+  test("My quote requests shows a problem and lets the person try again", async ({ page }) => {
+    const server = await mockRequestsApi(page, [e2eRequest("66a1b2c3d4e5f60718293a4b")]);
+    server.status = 500;
+    await withToken(page);
+    await openRoute(page, "/en/account/requests");
+    await expect(page.getByRole("alert")).toContainText("We could not load your quote requests.");
+
+    server.status = 200;
+    await page.getByRole("button", { name: "Try again" }).click();
+
+    await expect(page.getByRole("link", { name: /Ecuador 72%/ })).toBeVisible();
+  });
+
+  test("My quote requests is for business accounts: a guest signs in first and a retail account is told", async ({ page }) => {
+    await mockRequestsApi(page, []);
+    await openRoute(page, "/en/account/requests", { account: null });
+    await expect(page).toHaveURL(/\/en\/account\/login\?next=%2Faccount%2Frequests$/);
+
+    await openRoute(page, "/en/account/requests", { account: "retail" });
+    await expect(page.getByRole("heading", { level: 1, name: "Quote requests are for business accounts" })).toBeVisible();
+  });
+
+  test("the account page links to My quote requests for a business account", async ({ page }) => {
+    await mockRequestsApi(page, []);
+    await withToken(page);
+    await openRoute(page, "/en/profile", { account: "business" });
+
+    await page.getByRole("region", { name: "Wholesale" }).getByRole("link", { name: /My quote requests/ }).click();
+
+    await expect(page).toHaveURL(/\/en\/account\/requests$/);
+    await expect(page.getByRole("heading", { level: 1, name: "My quote requests" })).toBeVisible();
+  });
+
+  test("after a request is sent, the studio links to it in My quote requests", async ({ page }) => {
+    await mockQuoteApi(page);
+    await mockRequestsApi(page, [e2eRequest("66a1b2c3d4e5f60718293a4b")]);
+    await withToken(page);
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+
+    await page.getByRole("link", { name: "My quote requests" }).click();
+
+    await expect(page).toHaveURL(/\/en\/account\/requests\?request=66a1b2c3d4e5f60718293a4b$/);
+    await expect(page.getByRole("heading", { name: "Request SC-18293A4B" })).toBeVisible();
   });
 
   test("a refresh keeps the answers of the studio form, except the files", async ({ page }) => {

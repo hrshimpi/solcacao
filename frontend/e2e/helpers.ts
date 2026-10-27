@@ -45,9 +45,9 @@ export async function signInAs(page: Page, accountType: Account) {
 
 // the page is ready when its heading is there, the web fonts have loaded and the entrance animations are done
 // (a scan in the middle of a fade-in would measure half see-through colours)
-// The studio is only for business accounts, so it is opened as one unless the test says otherwise (account: null is a guest).
+// The studio and My quote requests are only for business accounts, so they are opened as one unless the test says otherwise (account: null is a guest).
 export async function openRoute(page: Page, path: string, options: { account?: Account | null } = {}) {
-  const account = options.account === undefined && path.includes("/wholesale/studio") ? "business" : options.account;
+  const account = options.account === undefined && /\/(wholesale\/studio|account\/requests)/.test(path) ? "business" : options.account;
   if (account) await signInAs(page, account);
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -118,4 +118,71 @@ export async function mockFeaturedProducts(page: Page, options: { delayMs?: numb
 // makes the same request fail
 export async function failFeaturedProducts(page: Page, how: "error" | "offline") {
   await page.route("**/api/products?**", (route) => (how === "offline" ? route.abort("connectionrefused") : route.fulfill({ status: 500, json: { error: { code: "INTERNAL_ERROR" } } })));
+}
+
+// ---------- the quote requests of a business account ----------
+
+export const requestToken = "e2e-token";
+
+export function e2eRequest(id: string, extra: Record<string, unknown> = {}) {
+  return {
+    id,
+    userId: "66a1b2c3d4e5f60718290000",
+    companyName: "Hacienda Brands",
+    contactName: "Isabel Vasquez",
+    cacaoProfile: "Ecuador 72%",
+    packagingType: "rigid_box",
+    quantityEstimate: 800,
+    notes: "",
+    brandAssets: [],
+    status: "submitted",
+    quoteAmount: null,
+    createdAt: "2026-10-26T12:00:00.000Z",
+    updatedAt: "2026-10-26T12:00:00.000Z",
+    ...extra,
+  };
+}
+
+export const e2eFile = (storedName: string, originalName: string) => ({
+  originalName,
+  storedName,
+  mimeType: "application/pdf",
+  sizeBytes: 2048,
+  uploadedAt: "2026-10-26T12:00:00.000Z",
+});
+
+// gives the browser tab a token, like the real sign in will, so the calls that need one can be checked for it
+export async function withToken(page: Page, token = requestToken) {
+  await page.addInitScript((value) => sessionStorage.setItem("sc_token", value), token);
+}
+
+// answers the list of the requests and their files like the server would, and remembers every call with its Authorization header.
+// Change state.items between calls to play an admin changing a request, and set state.status to make the list fail.
+export async function mockRequestsApi(page: Page, items: unknown[] = []) {
+  const state = {
+    items,
+    status: 200,
+    fileContent: "%PDF-1.4 e2e file",
+    calls: [] as { path: string; authorization: string | undefined }[],
+  };
+  await page.route("**/api/b2b/requests**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    state.calls.push({ path: url.pathname + url.search, authorization: request.headers().authorization });
+
+    if (url.pathname === "/api/b2b/requests") {
+      if (state.status !== 200) {
+        await route.fulfill({ status: state.status, json: { error: { code: "INTERNAL_ERROR", message: "Something went wrong on our side.", details: [] } } });
+        return;
+      }
+      await route.fulfill({ json: { items: state.items, page: 1, limit: 100, total: state.items.length, totalPages: 1 } });
+      return;
+    }
+    if (/^\/api\/b2b\/requests\/[^/]+\/assets\/[^/]+$/.test(url.pathname)) {
+      await route.fulfill({ status: 200, contentType: "application/pdf", headers: { "Content-Disposition": "attachment" }, body: state.fileContent });
+      return;
+    }
+    await route.fallback();
+  });
+  return state;
 }
