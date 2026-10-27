@@ -1,7 +1,7 @@
 // Runs axe on every route, on the open dialogs and on each studio step. Fails on any WCAG 2.2 AA problem.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { chooseOption, mockFeaturedProducts, openRoute, routes } from "./helpers";
+import { chooseOption, fillStudio, mockFeaturedProducts, mockQuoteApi, openRoute, quoteFailed, quoteSaved, routes } from "./helpers";
 
 const tags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
@@ -102,6 +102,30 @@ test.describe("axe scan of open dialogs and steps", () => {
     await page.getByLabel(/Estimated units/).fill("100");
     await page.getByLabel(/Company name/).focus();
     await expect(page.getByLabel(/Estimated units/)).toHaveAccessibleDescription(/under our usual minimum of 500 units/);
+
+    expect(await scan(page)).toEqual([]);
+  });
+
+  test("the studio when a request could not be sent, and when it was saved", async ({ page }) => {
+    const quote = await mockQuoteApi(page, { answer: quoteFailed });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+    await expect(page.getByRole("alert")).toBeVisible();
+    expect(await scan(page)).toEqual([]);
+
+    quote.answer = quoteSaved;
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+    await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
+    expect(await scan(page)).toEqual([]);
+  });
+
+  test("the studio while a request with files is being sent", async ({ page }) => {
+    await mockQuoteApi(page, { delayMs: 3000 });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page, [{ name: "logo.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") }]);
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+    await expect(page.getByRole("progressbar")).toBeVisible();
 
     expect(await scan(page)).toEqual([]);
   });

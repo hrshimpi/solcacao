@@ -1,6 +1,6 @@
 // Browser tests of the main flows (language, filters, cart, sampler, studio, forms, skip link).
 import { expect, test } from "@playwright/test";
-import { chooseOption, failFeaturedProducts, goToPage, mockFeaturedProducts, openRoute } from "./helpers";
+import { chooseOption, failFeaturedProducts, fillStudio, goToPage, mockFeaturedProducts, mockQuoteApi, openRoute, quoteFailed, quoteSaved } from "./helpers";
 
 test.describe("smoke flows", () => {
   test("the address / goes to a language page", async ({ page }) => {
@@ -110,21 +110,70 @@ test.describe("smoke flows", () => {
     await expect(page.getByRole("dialog", { name: "Your cart" })).toContainText("Custom sampler");
   });
 
-  test("the studio wizard can be completed", async ({ page }) => {
+  test("the studio wizard can be completed, and shows the reference and where to go next", async ({ page }) => {
+    await mockQuoteApi(page);
     await openRoute(page, "/en/wholesale/studio");
 
-    await chooseOption(page, /Ecuador 72%/);
-    await page.getByRole("button", { name: "Continue" }).click();
-    await chooseOption(page, /Rigid gift box/);
-    await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-
-    await page.getByLabel(/Company name/).fill("Hacienda Brands");
-    await page.getByLabel(/Contact name/).fill("Isabel Vasquez");
-    await page.getByLabel(/Estimated units/).fill("800");
+    await fillStudio(page);
     await page.getByRole("button", { name: "Submit for quote" }).click();
 
     await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
+    await expect(page.getByText("SC-18293A4B")).toBeVisible();
+    await expect(page.getByRole("link", { name: "My quote requests" })).toHaveAttribute("href", "/en/account/requests");
+    await expect(page.getByRole("link", { name: "Back to Wholesale" })).toHaveAttribute("href", "/en/wholesale");
+  });
+
+  test("a quote request goes to the server as a multipart form with the brand files", async ({ page }) => {
+    const quote = await mockQuoteApi(page);
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page, [
+      { name: "logo.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") },
+      { name: "mark.png", mimeType: "image/png", buffer: Buffer.from("png bytes") },
+    ]);
+
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+    await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
+
+    expect(quote.requests).toHaveLength(1);
+    const { headers, body } = quote.requests[0];
+    expect(headers["content-type"]).toMatch(/^multipart\/form-data; boundary=/);
+    expect(body).toContain('name="cacaoProfile"');
+    expect(body).toContain("Ecuador 72%");
+    expect(body).toContain('name="packagingType"');
+    expect(body).toContain("rigid_box");
+    expect(body).toContain('name="quantityEstimate"');
+    expect(body).toContain('name="companyName"');
+    expect(body).toContain('name="brandAssets"; filename="logo.pdf"');
+    expect(body).toContain('name="brandAssets"; filename="mark.png"');
+  });
+
+  test("a request that could not be sent keeps the form and can be sent again", async ({ page }) => {
+    const quote = await mockQuoteApi(page, { answer: quoteFailed });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+
+    await expect(page.getByRole("alert")).toContainText("We could not send your request.");
+    await expect(page.getByRole("alert")).toContainText("Something went wrong on our side.");
+    await expect(page.getByLabel(/Company name/)).toHaveValue("Hacienda Brands");
+    await expect(page.getByLabel(/Estimated units/)).toHaveValue("800");
+
+    quote.answer = quoteSaved;
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+    await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
+    expect(quote.requests).toHaveLength(2);
+  });
+
+  test("a double click on Submit sends one request", async ({ page }) => {
+    const quote = await mockQuoteApi(page, { delayMs: 600 });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+
+    await page.getByRole("button", { name: "Submit for quote" }).dblclick();
+    await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
+
+    expect(quote.requests).toHaveLength(1);
   });
 
   test("a refresh keeps the answers of the studio form, except the files", async ({ page }) => {

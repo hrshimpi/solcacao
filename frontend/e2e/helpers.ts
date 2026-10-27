@@ -60,6 +60,43 @@ export async function chooseOption(page: Page, text: string | RegExp) {
   await page.locator("label:visible").filter({ hasText: text }).first().click();
 }
 
+export interface QuoteAnswer {
+  status: number;
+  body: unknown;
+}
+
+export const quoteSaved: QuoteAnswer = { status: 201, body: { request: { id: "66a1b2c3d4e5f60718293a4b", status: "submitted" } } };
+export const quoteFailed: QuoteAnswer = {
+  status: 500,
+  body: { error: { code: "INTERNAL_ERROR", message: "Something went wrong on our side.", details: [] } },
+};
+
+// answers the quote endpoint like the server would, so no test needs a backend, and keeps what was sent to it
+export async function mockQuoteApi(page: Page, options: { answer?: QuoteAnswer; delayMs?: number } = {}) {
+  const state = { answer: options.answer ?? quoteSaved, requests: [] as { headers: Record<string, string>; body: string }[] };
+  await page.route("**/api/b2b/quote", async (route) => {
+    const request = route.request();
+    // the body is only read as text to look for the names of the fields and files, never to rebuild them
+    state.requests.push({ headers: request.headers(), body: request.postDataBuffer()?.toString("latin1") ?? "" });
+    if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
+    await route.fulfill({ status: state.answer.status, contentType: "application/json", body: JSON.stringify(state.answer.body) });
+  });
+  return state;
+}
+
+// goes through the studio up to the review step and fills it in, with files on the files step when there are any
+export async function fillStudio(page: Page, files: { name: string; mimeType: string; buffer: Buffer }[] = []) {
+  await chooseOption(page, /Ecuador 72%/);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await chooseOption(page, /Rigid gift box/);
+  await page.getByRole("button", { name: "Continue" }).click();
+  if (files.length > 0) await page.locator("input[type=file]").setInputFiles(files);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel(/Company name/).fill("Hacienda Brands");
+  await page.getByLabel(/Contact name/).fill("Isabel Vasquez");
+  await page.getByLabel(/Estimated units/).fill("800");
+}
+
 // five featured products, as the API sends them (prices in cents)
 const featured = ["ecuador-72", "peru-68", "venezuela-76", "colombia-64", "madagascar-80"].map((slug, index) => ({
   id: `p${index}`,
