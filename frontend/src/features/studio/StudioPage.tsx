@@ -42,7 +42,7 @@ export default function StudioPage() {
   // the files of the draft were not kept by the refresh, so their names are shown until new files are added
   const [lostFiles, setLostFiles] = useState(start.fileNames);
   const [stepError, setStepError] = useState("");
-  const { status, progress, failure, reference, send } = useQuoteSubmit();
+  const { status, progress, failure, reference, requestId, send } = useQuoteSubmit();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const alertRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
@@ -137,6 +137,7 @@ export default function StudioPage() {
             profile={profileLabel}
             units={form.values.units}
             reference={reference}
+            requestId={requestId}
           />
         ) : (
           <form ref={form.formRef} onSubmit={step === 3 ? form.handleSubmit : goNext} noValidate>

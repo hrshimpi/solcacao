@@ -10,9 +10,10 @@ interface SentScreenProps {
   units: string;
   // empty when the server did not say which request it saved
   reference: string;
+  requestId: string;
 }
 
-export default function SentScreen({ headingRef, company, profile, units, reference }: SentScreenProps) {
+export default function SentScreen({ headingRef, company, profile, units, reference, requestId }: SentScreenProps) {
   const { t } = useLang();
 
   return (
@@ -32,7 +33,7 @@ export default function SentScreen({ headingRef, company, profile, units, refere
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <LocaleLink
-          to="/account/requests"
+          to={requestId ? `/account/requests?request=${encodeURIComponent(requestId)}` : "/account/requests"}
           className="inline-flex min-h-11 items-center justify-center bg-ink-cacao px-6 py-2.5 font-sans text-sm font-medium text-stone-paper hover:bg-pod-wine"
         >
           {t("b2b.submit.myRequests")}

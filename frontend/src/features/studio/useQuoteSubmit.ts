@@ -25,6 +25,8 @@ export function useQuoteSubmit() {
   // a new object for every problem, so the page can react to a second one that says the same
   const [failure, setFailure] = useState<{ detail: string } | null>(null);
   const [reference, setReference] = useState("");
+  // the id of the saved request, for a link that opens it. Empty when the server did not say.
+  const [requestId, setRequestId] = useState("");
   // set at the moment sending starts: the state only changes after the next render, and a quick second click would get through
   const busy = useRef(false);
 
@@ -59,6 +61,7 @@ export function useQuoteSubmit() {
       const id = answer?.request?.id;
       // an answer without an id is still a saved request, so it is not shown as a failure (that would invite a second one)
       setReference(typeof id === "string" ? requestReference(id) : "");
+      setRequestId(typeof id === "string" ? id : "");
       setStatus("sent");
       announce(t("studio.sentAnnounce"));
     } catch (error) {
@@ -69,5 +72,5 @@ export function useQuoteSubmit() {
     }
   }
 
-  return { status, progress, failure, reference, send };
+  return { status, progress, failure, reference, requestId, send };
 }

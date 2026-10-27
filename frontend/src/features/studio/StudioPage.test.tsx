@@ -713,15 +713,25 @@ describe("sending the request", () => {
       expect(screen.queryByText(/preview/i)).not.toBeInTheDocument();
     });
 
-    it("links to the quote requests of the person, and back to the wholesale page", async () => {
+    it("links to the request that was just saved in My quote requests, and back to the wholesale page", async () => {
       serverSaves();
       const person = await fillEverything();
 
       await person.click(submitButton());
       await screen.findByRole("heading", { name: "We have your brief." });
 
-      expect(screen.getByRole("link", { name: "My quote requests" })).toHaveAttribute("href", "/en/account/requests");
+      expect(screen.getByRole("link", { name: "My quote requests" })).toHaveAttribute("href", `/en/account/requests?request=${savedRequestId}`);
       expect(screen.getByRole("link", { name: "Back to Wholesale" })).toHaveAttribute("href", "/en/wholesale");
+    });
+
+    it("links to the list of the requests when the answer does not say which one was saved", async () => {
+      FakeXhr.autoAnswer = { status: 201, body: { something: "else" } };
+      const person = await fillEverything();
+
+      await person.click(submitButton());
+      await screen.findByRole("heading", { name: "We have your brief." });
+
+      expect(screen.getByRole("link", { name: "My quote requests" })).toHaveAttribute("href", "/en/account/requests");
     });
 
     it("is in Spanish on the Spanish page", async () => {
@@ -732,7 +742,7 @@ describe("sending the request", () => {
 
       expect(await screen.findByRole("heading", { name: "Recibimos su solicitud." })).toBeInTheDocument();
       expect(screen.getByText("Referencia de la solicitud").nextElementSibling).toHaveTextContent("SC-18293A4B");
-      expect(screen.getByRole("link", { name: "Mis solicitudes de cotización" })).toHaveAttribute("href", "/es/account/requests");
+      expect(screen.getByRole("link", { name: "Mis solicitudes de cotización" })).toHaveAttribute("href", `/es/account/requests?request=${savedRequestId}`);
       expect(screen.getByRole("link", { name: "Volver a Venta por mayor" })).toHaveAttribute("href", "/es/wholesale");
     });
 
