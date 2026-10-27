@@ -6,11 +6,14 @@ import type { Lang } from "../i18n";
 export class ApiError extends Error {
   // the HTTP status, or 0 when there was no answer at all
   status: number;
+  // the code from the server's error answer (like RATE_LIMITED), when the answer had one
+  code: string | undefined;
 
-  constructor(message: string, status = 0) {
+  constructor(message: string, status = 0, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
