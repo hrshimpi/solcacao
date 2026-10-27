@@ -19,7 +19,11 @@ const schema = z.object({
   MAIL_FROM: z.string().min(1).default("SolCacao <no-reply@solcacao.example>"),
   MAIL_TO_SUPPORT: z.string().min(1).default("support@solcacao.example"),
   MAIL_TO_WHOLESALE: z.string().min(1).default("wholesale@solcacao.example"),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  // brand asset uploads: a private folder (never served as static files), the size of one file in MB, and files per request
+  UPLOAD_DIR: z.string().min(1).default("./uploads"),
+  MAX_UPLOAD_MB: z.coerce.number().positive().default(50),
+  MAX_UPLOAD_FILES: z.coerce.number().int().positive().default(5),
 }).refine((settings) => settings.NODE_ENV !== "production" || settings.JWT_SECRET !== devSecret, {
   path: ["JWT_SECRET"],
   message: "set your own JWT_SECRET in production",

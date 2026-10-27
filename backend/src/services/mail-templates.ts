@@ -24,10 +24,17 @@ export interface InquiryMailData {
   rating?: number;
 }
 
-export type QuoteMailData = Pick<
+// what the customer's "your quote is ready" email needs
+export type QuoteReadyMailData = Pick<
   B2BRequestData,
   "companyName" | "cacaoProfile" | "packagingType" | "quantityEstimate" | "quoteAmount" | "quoteNote"
 >;
+
+// what the team's "new quote request" email needs, with the brand files as names and sizes only
+export type QuoteRequestMailData = Pick<
+  B2BRequestData,
+  "companyName" | "contactName" | "cacaoProfile" | "packagingType" | "quantityEstimate" | "notes"
+> & { brandAssets: { originalName: string; sizeBytes: number }[] };
 
 export interface MailRecipient {
   email: string;
@@ -204,8 +211,43 @@ function formatMoney(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+// the email the team gets when a business sends a quote request
+export function quoteRequestEmail(request: QuoteRequestMailData, user: MailRecipient): MailContent {
+  const subject = `New quote request from ${oneLine(request.companyName) || "a business"}`;
+
+  const files = request.brandAssets.map((asset) => `${oneLine(asset.originalName, 60)} (${formatSize(asset.sizeBytes)})`);
+  const rows: [string, string][] = [
+    ["Company", request.companyName],
+    ["Contact", request.contactName],
+  ];
+  if (user.email) rows.push(["Email", user.email]);
+  rows.push(
+    ["Cacao profile", request.cacaoProfile],
+    ["Packaging", packagingLabels[request.packagingType] ?? request.packagingType],
+    ["Estimated units", request.quantityEstimate.toLocaleString("en-US")],
+    ["Brand files", files.length > 0 ? files.join(", ") : "None"],
+  );
+
+  const blocks: Block[] = [{ kind: "details", rows }];
+  if (request.notes) blocks.push({ kind: "quote", text: request.notes });
+  if (isValidAddress(user.email)) blocks.push({ kind: "button", label: "Reply by email", url: `mailto:${user.email}` });
+
+  return render({
+    lang: "en",
+    subject,
+    heading: subject,
+    blocks,
+    footer: "Sent from the SolCacao website. Replying to this email answers the customer directly.",
+  });
+}
+
 // the email a customer gets when their quote request has been answered
-export function quoteEmail(request: QuoteMailData, user: MailRecipient, options: TemplateOptions): MailContent {
+export function quoteReadyEmail(request: QuoteReadyMailData, user: MailRecipient, options: TemplateOptions): MailContent {
   const rows: [string, string][] = [
     ["Company", request.companyName],
     ["Cacao profile", request.cacaoProfile],

@@ -6,17 +6,21 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { env } from "../config/env.ts";
 import { errorHandler } from "./errorHandler.ts";
-import { optionalAuth, requireAdmin, signToken } from "./auth.ts";
+import { optionalAuth, requireAccountType, requireAdmin, requireAuth, signToken } from "./auth.ts";
 
 const app = express();
 app.use(pinoHttp({ logger: pino({ level: "silent" }) }));
 app.get("/optional", optionalAuth, (req, res) => void res.json({ user: req.user ?? null }));
 app.get("/admin", requireAdmin, (req, res) => void res.json({ user: req.user }));
+app.get("/signed-in", requireAuth, (req, res) => void res.json({ user: req.user }));
+app.get("/business", requireAuth, requireAccountType("b2b"), (req, res) => void res.json({ user: req.user }));
+app.get("/business-without-auth", requireAccountType("b2b"), (_req, res) => void res.json({ ok: true }));
 app.use(errorHandler);
 
 const secret = new TextEncoder().encode(env.JWT_SECRET);
-const user = { id: "64b7f0c2a1b2c3d4e5f60718", role: "user" as const };
-const admin = { id: "64b7f0c2a1b2c3d4e5f60719", role: "admin" as const };
+const user = { id: "64b7f0c2a1b2c3d4e5f60718", role: "user" as const, accountType: "retail" as const };
+const admin = { id: "64b7f0c2a1b2c3d4e5f60719", role: "admin" as const, accountType: "retail" as const };
+const business = { id: "64b7f0c2a1b2c3d4e5f6071a", role: "user" as const, accountType: "b2b" as const };
 
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
@@ -125,7 +129,70 @@ describe("requireAdmin", () => {
   });
 });
 
+describe("requireAuth", () => {
+  it("lets a signed in user through, whatever the account type", async () => {
+    for (const person of [user, admin, business]) {
+      const res = await request(app).get("/signed-in").set(bearer(await signToken(person)));
+      expect(res.status).toBe(200);
+      expect(res.body.user).toEqual(person);
+    }
+  });
+
+  it("answers 401 in the standard shape without a token, or with one that is not good", async () => {
+    const expired = await customToken({ expires: Math.floor(Date.now() / 1000) - 60 });
+
+    for (const headers of [{}, bearer("not a token"), bearer(expired)]) {
+      const res = await request(app).get("/signed-in").set(headers);
+      expect(res.status).toBe(401);
+      expect(res.body.error).toEqual({ code: "UNAUTHENTICATED", message: "Please sign in to do that.", details: [] });
+    }
+  });
+});
+
+describe("requireAccountType", () => {
+  it("lets a business account through", async () => {
+    const res = await request(app).get("/business").set(bearer(await signToken(business)));
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toEqual(business);
+  });
+
+  it("answers 403 in the standard shape for a retail account", async () => {
+    const res = await request(app).get("/business").set(bearer(await signToken(user)));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toEqual({ code: "FORBIDDEN", message: "You don't have access to that.", details: [] });
+  });
+
+  it("counts an account as retail when the token does not say, or says something else", async () => {
+    for (const accountType of [undefined, "", "business", "B2B", 1, null]) {
+      const token = await customToken({ claims: { role: "user", accountType } });
+      const res = await request(app).get("/business").set(bearer(token));
+      expect(res.status, String(accountType)).toBe(403);
+    }
+  });
+
+  it("answers 401 for a guest, and does not let a missing sign in through when used alone", async () => {
+    expect((await request(app).get("/business")).status).toBe(401);
+    expect((await request(app).get("/business-without-auth")).status).toBe(401);
+  });
+
+  it("makes no difference whether the signed in user is an admin", async () => {
+    const adminAccount = { ...admin, accountType: "retail" as const };
+
+    expect((await request(app).get("/business").set(bearer(await signToken(adminAccount)))).status).toBe(403);
+    expect((await request(app).get("/business").set(bearer(await signToken({ ...admin, accountType: "b2b" })))).status).toBe(200);
+  });
+});
+
 describe("signToken", () => {
+  it("puts the account type in the token, retail when it is left out", async () => {
+    const claims = async (token: string) => JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+
+    expect(await claims(await signToken({ id: user.id, role: "user" }))).toMatchObject({ accountType: "retail" });
+    expect(await claims(await signToken(business))).toMatchObject({ accountType: "b2b" });
+  });
+
   it("makes a token that lasts an hour by default", async () => {
     const token = await signToken(user);
     const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
