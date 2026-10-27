@@ -1,97 +1,134 @@
+// The site footer: four columns of links, the newsletter form and the copyright line.
+import { useState } from "react";
+import { useLang } from "../../i18n/LanguageContext";
+import { useForm } from "../../lib/useForm";
+import { email, required } from "../../lib/validation";
+import LocaleLink from "../../ui/LocaleLink";
+import { useAnnounce } from "../../ui/LiveRegion";
+import TextField from "../../ui/TextField";
+
+const whatsappUrl = "https://wa.me/15551234567";
+
+const columns = [
+  {
+    title: "footer.shop",
+    links: [
+      { key: "footer.allBars", to: "/shop?category=bar" },
+      { key: "footer.truffles", to: "/shop?category=truffle" },
+      { key: "footer.seasonal", to: "/shop?category=seasonal" },
+      { key: "footer.samplers", to: "/sampler" },
+      { key: "footer.origins", to: "/#origins" },
+    ],
+  },
+  {
+    title: "footer.wholesale",
+    links: [
+      { key: "footer.wholesaleOverview", to: "/wholesale" },
+      { key: "footer.requestQuote", to: "/wholesale/studio" },
+    ],
+  },
+  {
+    title: "footer.account",
+    links: [
+      { key: "footer.signIn", to: "/account/login" },
+      { key: "footer.createAccount", to: "/account/register" },
+      { key: "footer.profile", to: "/profile" },
+    ],
+  },
+] as const;
+
+const linkClass =
+  "inline-flex min-h-6 items-center py-1 font-spectral text-sm text-paper-text/70 hover:text-paper-text";
+
 export default function Footer() {
-  const columns = [
-    {
-      label: "Shop",
-      links: ["All bars", "Truffles", "Seasonal", "Gift sets", "Samplers"],
+  const { t } = useLang();
+  const announce = useAnnounce();
+  const [subscribed, setSubscribed] = useState(false);
+
+  const form = useForm({
+    initial: { email: "" },
+    rules: { email: [required, email] },
+    onSubmit: () => {
+      setSubscribed(true);
+      announce(t("footer.subscribed"));
+      form.reset();
     },
-    {
-      label: "Wholesale",
-      links: ["B2B overview", "Corporate gifting", "White label", "Pricing", "Request a quote"],
-    },
-    {
-      label: "Company",
-      links: ["Our story", "Origin partners", "Sustainability", "Press", "Careers"],
-    },
-    {
-      label: "Support",
-      links: ["FAQ", "Shipping", "Returns", "Contact us", "WhatsApp"],
-    },
-  ];
+  });
 
   return (
-    <footer className="bg-ink-cacao">
-      <div className="max-w-7xl mx-auto px-6 pt-16 pb-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-10 mb-14">
-          {columns.map((col, i) => (
-            <div key={col.label}>
-              <h4 className="font-sans text-xs font-medium text-paper-text/40 uppercase tracking-widest mb-5">
-                {col.label}
-              </h4>
-              <ul className="flex flex-col gap-2.5">
-                {col.links.map((link) => (
-                  <li key={link}>
-                    <button className="font-spectral text-sm text-paper-text/70 hover:text-paper-text transition-colors text-left">
-                      {link}
-                    </button>
+    <footer className="on-dark bg-ink-cacao text-paper-text">
+      <div className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:px-6">
+        <nav aria-label={t("footer.navLabel")} className="mb-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+          {columns.map((column) => (
+            <div key={column.title}>
+              <h2 className="mb-4 font-sans text-xs font-medium uppercase tracking-widest text-paper-text/70">
+                {t(column.title)}
+              </h2>
+              <ul className="flex flex-col">
+                {column.links.map((link) => (
+                  <li key={link.key}>
+                    <LocaleLink to={link.to} className={linkClass}>
+                      {t(link.key)}
+                    </LocaleLink>
                   </li>
                 ))}
               </ul>
-              {i < columns.length - 1 && <div className="hidden md:block absolute" />}
             </div>
           ))}
-        </div>
-
-        <div className="border-t border-paper-text/10 pt-10 grid md:grid-cols-2 gap-8 items-start">
           <div>
-            <p className="font-spectral text-2xl text-paper-text mb-2">SolCacao</p>
-            <p className="font-sans text-xs text-paper-text/40 leading-relaxed max-w-xs">
-              Single-origin chocolate, sourced direct from farming cooperatives across Latin America
-              and Madagascar.
-            </p>
+            <h2 className="mb-4 font-sans text-xs font-medium uppercase tracking-widest text-paper-text/70">
+              {t("footer.support")}
+            </h2>
+            <ul className="flex flex-col">
+              <li>
+                <LocaleLink to="/contact" className={linkClass}>
+                  {t("footer.contact")}
+                </LocaleLink>
+              </li>
+              <li>
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
+                  {t("footer.whatsapp")}
+                  <span className="sr-only"> {t("footer.opensNewTab")}</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <div className="grid items-start gap-8 border-t border-paper-text/20 pt-10 md:grid-cols-2">
+          <div>
+            <p className="mb-2 font-spectral text-2xl">{t("common.brand")}</p>
+            <p className="max-w-xs font-sans text-xs leading-relaxed text-paper-text/70">{t("footer.about")}</p>
           </div>
 
-          <div className="flex flex-col gap-4 md:items-end">
-            <div className="flex items-center gap-3">
-              <input
-                type="email"
-                placeholder="your@email.com"
-                className="font-sans text-xs bg-paper-text/5 border border-paper-text/20 text-paper-text placeholder-paper-text/30 px-4 py-2.5 w-52 focus:outline-none focus:border-paper-text/50 transition-colors"
-              />
-              <button className="font-sans text-xs font-medium bg-sun-gold text-ink-cacao px-5 py-2.5 hover:bg-sun-gold/90 transition-colors whitespace-nowrap">
-                Subscribe
-              </button>
-            </div>
-            <p className="font-sans text-[10px] text-paper-text/30">
-              Field notes, new harvests, limited releases.
-            </p>
-
-            <div className="flex items-center gap-4 mt-2">
-              {["Instagram", "Twitter", "LinkedIn"].map((s) => (
-                <button
-                  key={s}
-                  className="font-sans text-[10px] text-paper-text/40 hover:text-paper-text/70 transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <form ref={form.formRef} onSubmit={form.handleSubmit} noValidate className="md:justify-self-end md:w-full md:max-w-sm">
+            <h2 className="mb-3 font-sans text-xs font-medium uppercase tracking-widest text-paper-text/70">
+              {t("footer.newsletter")}
+            </h2>
+            <TextField
+              tone="dark"
+              label={t("footer.emailLabel")}
+              type="email"
+              autoComplete="email"
+              required
+              placeholder={t("footer.emailPlaceholder")}
+              hint={t("footer.newsletterHint")}
+              {...form.field("email")}
+            />
+            <button
+              type="submit"
+              className="mt-4 min-h-11 w-full bg-sun-gold px-5 py-2.5 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90 sm:w-auto"
+            >
+              {t("footer.subscribe")}
+            </button>
+            {subscribed && <p className="mt-3 font-sans text-sm text-paper-text">{t("footer.subscribed")}</p>}
+          </form>
         </div>
 
-        <div className="border-t border-paper-text/10 mt-10 pt-6 flex flex-col md:flex-row justify-between gap-3">
-          <p className="font-sans text-[10px] text-paper-text/30">
-            © 2024 SolCacao · Todos los derechos reservados · All rights reserved
+        <div className="mt-10 border-t border-paper-text/20 pt-6">
+          <p className="font-sans text-xs text-paper-text/70">
+            {t("footer.copyright", { year: new Date().getFullYear() })}
           </p>
-          <div className="flex gap-4">
-            {["Privacy", "Terms", "Cookies"].map((l) => (
-              <button
-                key={l}
-                className="font-sans text-[10px] text-paper-text/30 hover:text-paper-text/50 transition-colors"
-              >
-                {l}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </footer>
