@@ -14,8 +14,9 @@ export const profileColors: Record<ProfileId, string> = {
   custom: "#EFA836",
 };
 
-export const allowedExtensions = ["pdf", "ai", "png"];
+export const allowedExtensions = ["pdf", "ai", "eps", "png"];
 export const MAX_FILE_MB = 50;
+export const MAX_FILES = 5;
 export const MIN_UNITS = 500;
 
 export interface StudioFile {
