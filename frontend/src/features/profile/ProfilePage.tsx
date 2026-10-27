@@ -9,6 +9,7 @@ import { useAnnounce } from "../../ui/LiveRegion";
 import AccountSettings from "./components/AccountSettings";
 import ProfileDetails, { type ProfileFields } from "./components/ProfileDetails";
 import ProfilePhoto from "./components/ProfilePhoto";
+import WholesaleLinks from "./components/WholesaleLinks";
 
 const startValues: Record<ProfileFields, string> = {
   name: "Isabel Vásquez",
@@ -99,6 +100,7 @@ export default function ProfilePage() {
             field={form.field}
             defaultBio={t("profile.bioText")}
           />
+          <WholesaleLinks />
           <AccountSettings />
         </div>
       </div>
