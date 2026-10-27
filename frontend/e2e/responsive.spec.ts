@@ -9,18 +9,23 @@ test.beforeEach(async ({ browserName, isMobile }) => {
 
 const widths = [320, 375, 768, 1024, 1440];
 
+// One test for each page and width. They used to be one test for each width that opened every page one after the other,
+// which took about 26 of the 30 seconds a test is given, so a slower machine made them fail without anything being wrong.
 test.describe("no sideways scroll", () => {
   for (const width of widths) {
-    test(`at ${width}px wide`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 800 });
-
+    test.describe(`at ${width}px wide`, () => {
       for (const path of routes) {
-        await openRoute(page, path);
-        const sizes = await page.evaluate(() => ({
-          page: document.documentElement.scrollWidth,
-          window: document.documentElement.clientWidth,
-        }));
-        expect(sizes.page, `${path} is wider than the screen at ${width}px`).toBeLessThanOrEqual(sizes.window);
+        test(path, async ({ page }) => {
+          await page.setViewportSize({ width, height: 800 });
+
+          await openRoute(page, path);
+
+          const sizes = await page.evaluate(() => ({
+            page: document.documentElement.scrollWidth,
+            window: document.documentElement.clientWidth,
+          }));
+          expect(sizes.page, `${path} is wider than the screen at ${width}px`).toBeLessThanOrEqual(sizes.window);
+        });
       }
     });
   }

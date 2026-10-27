@@ -51,7 +51,8 @@ export async function openRoute(page: Page, path: string, options: { account?: A
   if (account) await signInAs(page, account);
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+  // the fonts come from the network, so a slow or missing connection must not hold a test until it times out
+  await page.evaluate(() => Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 8000))]));
   await page.evaluate(() => Promise.allSettled(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished)));
 }
 

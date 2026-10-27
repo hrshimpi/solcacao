@@ -5,6 +5,10 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
+  // Six browsers run at once and axe scans are heavy, so on a laptop with other programs open a plain page scan can
+  // take 30 seconds instead of 3 (measured). The default of 30 seconds then fails tests that did nothing wrong.
+  // The checks inside a test keep their own, shorter time limit below, so a real problem still fails quickly.
+  timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
