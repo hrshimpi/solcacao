@@ -59,3 +59,26 @@ export async function openRoute(page: Page, path: string, options: { account?: A
 export async function chooseOption(page: Page, text: string | RegExp) {
   await page.locator("label:visible").filter({ hasText: text }).first().click();
 }
+
+// five featured products, as the API sends them (prices in cents)
+const featured = ["ecuador-72", "peru-68", "venezuela-76", "colombia-64", "madagascar-80"].map((slug, index) => ({
+  id: `p${index}`,
+  slug,
+  name: slug.replace(/-(\d+)$/, " $1%").replace(/^./, (letter) => letter.toUpperCase()),
+  tastingSummary: `flavor line ${index + 1}`,
+  price: 1000 + index * 100,
+  images: [`https://images.unsplash.com/photo-1575377427642-087cf684f29d?w=480&h=600&fit=crop&auto=format`],
+}));
+
+// makes the featured products request answer with five products, after an optional wait
+export async function mockFeaturedProducts(page: Page, options: { delayMs?: number } = {}) {
+  await page.route("**/api/products?**", async (route) => {
+    if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
+    await route.fulfill({ json: { items: featured, page: 1, limit: 5, total: 5 } });
+  });
+}
+
+// makes the same request fail
+export async function failFeaturedProducts(page: Page, how: "error" | "offline") {
+  await page.route("**/api/products?**", (route) => (how === "offline" ? route.abort("connectionrefused") : route.fulfill({ status: 500, json: { error: { code: "INTERNAL_ERROR" } } })));
+}

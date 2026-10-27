@@ -3,7 +3,8 @@ import { useLang } from "../../../i18n/LanguageContext";
 import { ArrowRightIcon } from "../../../ui/Icons";
 import LocaleLink from "../../../ui/LocaleLink";
 
-export default function BrandStory() {
+// passportSlug is the first featured product. Until we know it (or when the API is down) the link goes to the shop.
+export default function BrandStory({ passportSlug }: { passportSlug?: string }) {
   const { t } = useLang();
 
   return (
@@ -17,7 +18,7 @@ export default function BrandStory() {
             </h2>
             <p className="mb-8 max-w-xl font-spectral text-lg leading-relaxed text-paper-text/90">{t("home.storyBody")}</p>
             <LocaleLink
-              to="/shop/ecuador-72"
+              to={passportSlug ? `/shop/${passportSlug}` : "/shop"}
               className="inline-flex min-h-11 items-center gap-2 border-b border-paper-text/70 pb-0.5 font-sans text-sm hover:border-paper-text"
             >
               {t("home.seePassport")}
