@@ -1,0 +1,51 @@
+// Small helpers shared by the browser tests.
+import { expect, type Page } from "@playwright/test";
+
+export const routes = [
+  "/en",
+  "/en/shop",
+  "/en/shop/ecuador-72",
+  "/en/wholesale",
+  "/en/wholesale/studio",
+  "/en/sampler",
+  "/en/contact",
+  "/en/account/login",
+  "/en/account/register",
+  "/en/profile",
+  "/en/no-such-page",
+  "/es",
+  "/es/shop",
+  "/es/shop/ecuador-72",
+  "/es/wholesale",
+  "/es/wholesale/studio",
+  "/es/sampler",
+  "/es/contact",
+  "/es/account/login",
+  "/es/account/register",
+  "/es/profile",
+];
+
+// on a phone the page links are inside the menu dialog, on a wide screen they are in the header
+export async function goToPage(page: Page, name: string | RegExp) {
+  const menu = page.getByRole("button", { name: "Menu" });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await page.getByRole("dialog", { name: "Menu" }).getByRole("link", { name }).click();
+  } else {
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name }).click();
+  }
+}
+
+// the page is ready when its heading is there, the web fonts have loaded and the entrance animations are done
+// (a scan in the middle of a fade-in would measure half see-through colours)
+export async function openRoute(page: Page, path: string) {
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => Promise.allSettled(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished)));
+}
+
+// clicks the visible label of a radio button or checkbox, the way a person would
+export async function chooseOption(page: Page, text: string | RegExp) {
+  await page.locator("label:visible").filter({ hasText: text }).first().click();
+}
