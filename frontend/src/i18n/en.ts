@@ -311,6 +311,13 @@ export const en = {
       tooMany: "You can add up to {{max}} files. {{name}} was not added.",
       counter: "{{used}} of {{max}} files",
     },
+    steps: {
+      done: "completed",
+    },
+    draft: {
+      restored: "Your earlier answers were restored.",
+      filesLost: "These files were not kept when the page was reloaded: {{names}}. Add them again on the brand assets step if you still want to send them.",
+    },
     review: {
       smallRun: "That is under our usual minimum of {{min}} units. You can still send the request, and we will tell you what is possible.",
     },

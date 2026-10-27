@@ -127,6 +127,59 @@ test.describe("smoke flows", () => {
     await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
   });
 
+  test("a refresh keeps the answers of the studio form, except the files", async ({ page }) => {
+    // a refresh with an unsent form may ask the browser to confirm, and the person says yes
+    page.on("dialog", (dialog) => dialog.accept());
+    await openRoute(page, "/en/wholesale/studio");
+    await chooseOption(page, /Ecuador 72%/);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await chooseOption(page, /Rigid gift box/);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.locator("input[type=file]").setInputFiles({ name: "logo.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") });
+    await expect(page.getByRole("button", { name: "Remove logo.pdf" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByLabel(/Company name/).fill("Hacienda Brands");
+    await page.getByLabel(/Estimated units/).fill("800");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+
+    await expect(page.getByRole("heading", { name: "Review & submit" })).toBeVisible();
+    await expect(page.getByLabel(/Company name/)).toHaveValue("Hacienda Brands");
+    await expect(page.getByLabel(/Estimated units/)).toHaveValue("800");
+    await expect(page.getByText("Ecuador 72%")).toBeVisible();
+    await expect(page.getByText(/were not kept when the page was reloaded: logo\.pdf/)).toBeVisible();
+  });
+
+  test("the browser asks before the tab is closed with an unsent form", async ({ page }) => {
+    await openRoute(page, "/en/wholesale/studio");
+    await chooseOption(page, /Ecuador 72%/);
+    // closing with runBeforeUnload does not wait for the tab, so the question is waited for here
+    const question = page.waitForEvent("dialog");
+
+    await page.close({ runBeforeUnload: true });
+
+    const dialog = await question;
+    expect(dialog.type()).toBe("beforeunload");
+    // the person answers that they want to stay
+    await dialog.dismiss();
+    expect(page.isClosed()).toBe(false);
+  });
+
+  test("the browser does not ask before the tab is closed with an empty form", async ({ page }) => {
+    await openRoute(page, "/en/wholesale/studio");
+    const asked: string[] = [];
+    page.on("dialog", async (dialog) => {
+      asked.push(dialog.type());
+      await dialog.dismiss();
+    });
+    const closed = page.waitForEvent("close");
+
+    await page.close({ runBeforeUnload: true });
+
+    await closed;
+    expect(asked).toEqual([]);
+  });
+
   test("a guest is sent to sign in and comes back to the studio as a business account", async ({ page }) => {
     await openRoute(page, "/en/wholesale", { account: null });
     await page.getByRole("main").getByRole("link", { name: "Enter the Corporate Cacao Studio" }).first().click();

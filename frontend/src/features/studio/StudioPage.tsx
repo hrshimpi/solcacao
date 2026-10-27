@@ -1,16 +1,20 @@
 // The Corporate Cacao Studio: a four step wizard (cacao profile, packaging, brand files, review).
-// What you typed is kept when you go back, each step is checked before Continue, and sending is simulated.
+// What you typed is kept when you go back and in a draft that survives a refresh, each step is checked before
+// Continue, the browser asks before the tab is closed with something unsent, and sending is simulated.
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLang } from "../../i18n/LanguageContext";
+import { useBeforeUnload } from "../../lib/useBeforeUnload";
 import { useForm } from "../../lib/useForm";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { useAnnounce } from "../../ui/LiveRegion";
 import LocaleLink from "../../ui/LocaleLink";
+import { useAuth } from "../auth/AuthContext";
 import WizardSteps from "./components/WizardSteps";
 import AssetsStep from "./steps/AssetsStep";
 import PackagingStep from "./steps/PackagingStep";
 import ProfileStep from "./steps/ProfileStep";
 import ReviewStep from "./steps/ReviewStep";
+import { clearDraft, hasChanges, saveDraft, startingPoint, toDraft } from "./studioDraft";
 import type { PackagingId, ProfileId } from "./studioOptions";
 import { reviewRules, type ReviewField } from "./studioRules";
 
@@ -18,23 +22,50 @@ const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
 export default function StudioPage() {
   const { t } = useLang();
+  const { user } = useAuth();
   const announce = useAnnounce();
   usePageTitle(t("titles.studio"));
 
-  const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState<ProfileId | null>(null);
-  const [packaging, setPackaging] = useState<PackagingId | null>(null);
+  // read once when the page opens: the draft from before a refresh, and the names from the account
+  const owner = user?.email ?? "";
+  const [start] = useState(() => startingPoint(owner, user ?? {}));
+
+  const [step, setStep] = useState(start.step);
+  const [profile, setProfile] = useState<ProfileId | null>(start.profile);
+  const [packaging, setPackaging] = useState<PackagingId | null>(start.packaging);
   const [files, setFiles] = useState<File[]>([]);
+  // the files of the draft were not kept by the refresh, so their names are shown until new files are added
+  const [lostFiles, setLostFiles] = useState(start.fileNames);
   const [stepError, setStepError] = useState("");
   const [status, setStatus] = useState<"editing" | "sending" | "sent">("editing");
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
+  const announcedRestore = useRef(false);
 
   const form = useForm<ReviewField>({
-    initial: { companyName: "", contactName: "", units: "", notes: "" },
+    initial: start.fields,
     rules: reviewRules,
     onSubmit: () => setStatus("sending"),
   });
+
+  const dirty = hasChanges({ profile, packaging, files, ...form.values }, start.prefill);
+  useBeforeUnload(dirty && status !== "sent");
+
+  // keep the draft up to date, and drop it when there is nothing to keep or the request was sent
+  useEffect(() => {
+    if (status === "sent" || !dirty) {
+      clearDraft();
+      return;
+    }
+    saveDraft(owner, toDraft(step, { profile, packaging, files, ...form.values }, lostFiles));
+  }, [status, dirty, owner, step, profile, packaging, files, form.values, lostFiles]);
+
+  useEffect(() => {
+    if (start.restored && !announcedRestore.current) {
+      announcedRestore.current = true;
+      announce(t("b2b.draft.restored"));
+    }
+  }, [start.restored, announce, t]);
 
   useEffect(() => {
     if (status !== "sending") return;
@@ -116,6 +147,11 @@ export default function StudioPage() {
               {t(`studio.headings.${stepKeys[step]}`)}
             </h2>
             <p className="mb-8 font-sans text-xs text-ink-cacao/70">{t(`studio.hints.${stepKeys[step]}`)}</p>
+            {lostFiles.length > 0 && files.length === 0 && step >= 2 && (
+              <p className="-mt-4 mb-8 border-l-2 border-gold-deep pl-3 font-sans text-sm text-ink-cacao">
+                {t("b2b.draft.filesLost", { names: lostFiles.join(", ") })}
+              </p>
+            )}
 
             {step === 0 && (
               <ProfileStep
@@ -141,7 +177,15 @@ export default function StudioPage() {
               />
             )}
 
-            {step === 2 && <AssetsStep files={files} onChange={setFiles} />}
+            {step === 2 && (
+              <AssetsStep
+                files={files}
+                onChange={(next) => {
+                  setFiles(next);
+                  setLostFiles([]);
+                }}
+              />
+            )}
 
             {step === 3 && (
               <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, files }} field={form.field} />

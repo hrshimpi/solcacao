@@ -313,6 +313,14 @@ export const es: typeof en = {
       tooMany: "Puede agregar hasta {{max}} archivos. No se agregó {{name}}.",
       counter: "{{used}} de {{max}} archivos",
     },
+    steps: {
+      done: "completado",
+    },
+    draft: {
+      restored: "Se restauraron sus respuestas anteriores.",
+      filesLost:
+        "Estos archivos no se conservaron al recargar la página: {{names}}. Agréguelos de nuevo en el paso de materiales de marca si aún desea enviarlos.",
+    },
     review: {
       smallRun: "Es menos que nuestro mínimo habitual de {{min}} unidades. Aun así puede enviar la solicitud y le diremos qué es posible.",
     },
