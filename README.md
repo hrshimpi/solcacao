@@ -16,7 +16,7 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
 - A backend with a health check and a standard error format
 
-The forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with the database, real accounts and emails.
+The quote form of the studio sends its request, with the brand files, to the backend (see "Trying the studio" below). The other forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with real accounts.
 
 ## Tech
 
@@ -72,7 +72,19 @@ Use `/es` instead of `/en` for the Spanish version.
 - Signed in with a retail account: a message says the studio is for business accounts, with a link to create a business account (`/en/account/register?type=business` opens the form on the business choice).
 - Signed in with a business account: the studio opens.
 
-To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use. The backend checks the account type again when a quote request is sent.
+To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use.
+
+The last step sends the request to the backend (`POST /api/b2b/quote`) as a multipart form, and shows how much of the files has gone up. The backend checks the account type again, with a token, and the preview sign in does not give one yet. Without it the studio says that the server does not know who you are, and keeps everything that was typed. To send a request for real, run the backend with a database, make a business token (the command is in the "Quote requests API" section below) and put it in the browser tab, from the developer console of the studio page:
+
+```
+sessionStorage.setItem("sc_token", "<token>")
+```
+
+Once there is a real sign in, it should put the token there by itself. A few more things to know:
+
+- What was entered is kept in a draft in the browser tab, so a refresh brings it back. The files are not kept, so after a refresh the page lists the files to add again. The browser asks before the tab is closed with something unsent.
+- The company and contact start from the name and company that were given when the account was created in this tab, when there are any.
+- When the request is saved the page shows its reference (like `SC-1A2B3C4D`, the end of its id) and a link to "My quote requests" at `/en/account/requests`. That page is not built yet, so the link has nowhere to go for now.
 
 Other commands, run inside `frontend` or `backend`:
 
@@ -175,7 +187,7 @@ A business account sends a quote request from the Corporate Cacao Studio as one 
 
 | Field | Notes |
 |---|---|
-| `cacaoProfile` | an origin like `Ecuador`, or `custom` |
+| `cacaoProfile` | text, up to 60 characters. The studio sends the name of the card, like `Ecuador 72%` or `Custom blend` |
 | `packagingType` | `foil_wrap`, `rigid_box`, `specimen_card` or `paper_sleeve` |
 | `quantityEstimate` | a whole number, 1 or more |
 | `companyName`, `contactName` | taken from the user's profile when the form leaves them out |
