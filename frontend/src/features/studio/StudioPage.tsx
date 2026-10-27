@@ -7,12 +7,12 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { maxLength, minNumber, required, wholeNumber } from "../../lib/validation";
 import { useAnnounce } from "../../ui/LiveRegion";
 import LocaleLink from "../../ui/LocaleLink";
-import ChoiceCards from "./components/ChoiceCards";
 import FileDrop from "./components/FileDrop";
 import ReviewStep, { type StudioFields } from "./components/ReviewStep";
 import WizardSteps from "./components/WizardSteps";
+import PackagingStep from "./steps/PackagingStep";
 import ProfileStep from "./steps/ProfileStep";
-import { MIN_UNITS, packagingIds, type PackagingId, type ProfileId, type StudioFile } from "./studioOptions";
+import { MIN_UNITS, type PackagingId, type ProfileId, type StudioFile } from "./studioOptions";
 
 const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
@@ -135,21 +135,14 @@ export default function StudioPage() {
             )}
 
             {step === 1 && (
-              <ChoiceCards
-                name="packaging"
-                labelledBy="step-heading"
+              <PackagingStep
+                headingId="step-heading"
                 value={packaging}
                 onChange={(id) => {
                   setPackaging(id);
                   setStepError("");
                 }}
                 error={stepError}
-                className="grid-cols-1 md:grid-cols-2"
-                choices={packagingIds.map((id) => ({
-                  id,
-                  label: t(`studio.packaging.${id}.label`),
-                  sub: t(`studio.packaging.${id}.sub`),
-                }))}
               />
             )}
 
