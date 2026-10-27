@@ -266,6 +266,77 @@ describe("upload: limits", () => {
   });
 });
 
+describe("upload: a request that is not a good form", () => {
+  const standardError = (code: string) => ({ code, message: "The upload request isn't valid.", details: [] });
+
+  it("answers 400 when there are more text fields than the 20 that are allowed, and stores nothing", async () => {
+    const call = request(appWith(upload())).post("/upload");
+    for (let index = 0; index < 21; index += 1) call.field(`field${index}`, "x");
+    const res = await call.attach("brandAssets", png, { filename: "logo.png", contentType: "image/png" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(standardError("INVALID_UPLOAD"));
+    expect(await filesLeft()).toEqual([]);
+  });
+
+  it("answers 400 when a text field is huge, and stores nothing", async () => {
+    const res = await request(appWith(upload()))
+      .post("/upload")
+      .field("notes", "n".repeat(2 * 1024 * 1024))
+      .attach("brandAssets", png, { filename: "logo.png", contentType: "image/png" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(standardError("INVALID_UPLOAD"));
+    expect(await filesLeft()).toEqual([]);
+  });
+
+  it("answers 400 for a multipart request without a boundary", async () => {
+    const res = await request(appWith(upload())).post("/upload").set("Content-Type", "multipart/form-data").send("this is not a form");
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(standardError("INVALID_UPLOAD"));
+  });
+
+  it("answers 400 for a form whose parts are not closed properly", async () => {
+    const res = await request(appWith(upload()))
+      .post("/upload")
+      .set("Content-Type", "multipart/form-data; boundary=xyz")
+      .send('--xyz\r\nContent-Disposition: form-data; name="brandAssets"; filename="a.png"\r\nContent-Type: image/png\r\n\r\nnot finished');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(standardError("INVALID_UPLOAD"));
+    expect(await filesLeft()).toEqual([]);
+  });
+
+  it("answers 400 when a file name has a null character in it", async () => {
+    const res = await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename: "bad\u0000.png", contentType: "image/png" });
+
+    expect(res.status).toBe(400);
+    expect(await filesLeft()).toEqual([]);
+  });
+
+  it("is not tricked by a field named like a part of the object chain", async () => {
+    const res = await request(appWith(upload()))
+      .post("/upload")
+      .field("__proto__[polluted]", "yes")
+      .field("constructor[prototype][polluted]", "yes")
+      .attach("brandAssets", png, { filename: "logo.png", contentType: "image/png" });
+
+    expect(res.status).toBe(200);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("answers with the standard 500 when its own temporary folder cannot be made, and stores nothing", async () => {
+    // a plain file where the folder should go
+    await writeFile(path.join(base, "tmp"), "in the way");
+    const res = await request(appWith(upload())).post("/upload").attach("brandAssets", png, { filename: "logo.png", contentType: "image/png" });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toEqual({ code: "INTERNAL_ERROR", message: "Something went wrong on our side.", details: [] });
+    expect(await filesLeft()).toEqual(["tmp"]);
+  });
+});
+
 describe("upload: cleanup after a failure", () => {
   const files = (req: request.Test) =>
     req
@@ -425,6 +496,15 @@ describe("upload: the uploads folder is private", () => {
         const res = await request(app).get(url);
         expect(res.status, url).toBe(404);
         expect(res.body).not.toEqual(png);
+      }
+
+      // not the folder, its temporary folder or a way around the address either, and not with HEAD or OPTIONS
+      for (const url of ["/uploads", "/uploads/", "/uploads/tmp/", `/files/${name}`, `/public/${name}`, `/%2e%2e/uploads/${name}`, `/api/b2b/uploads/${name}`, `/api/b2b/${name}`]) {
+        for (const method of ["get", "head", "options"] as const) {
+          const res = await request(app)[method](url);
+          expect(res.status, `${method.toUpperCase()} ${url}`).toBe(404);
+          expect(Buffer.isBuffer(res.body) ? res.body.equals(png) : false).toBe(false);
+        }
       }
     } finally {
       await rm(path.join(folder, name), { force: true });
