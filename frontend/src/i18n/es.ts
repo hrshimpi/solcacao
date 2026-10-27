@@ -21,6 +21,7 @@ export const es: typeof en = {
     minLength: "Usa al menos {{count}} caracteres.",
     maxLength: "Usa como máximo {{count}} caracteres.",
     minNumber: "Escribe {{count}} o más.",
+    maxNumber: "Escribe {{count, number}} o menos.",
     wholeNumber: "Escribe un número entero.",
     phone: "Escribe un número de teléfono válido.",
     fileType: "{{name}} no es un archivo compatible. Use PDF, AI, EPS o PNG.",

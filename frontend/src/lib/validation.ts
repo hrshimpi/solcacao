@@ -6,6 +6,7 @@ export interface FieldError {
     | "errors.minLength"
     | "errors.maxLength"
     | "errors.minNumber"
+    | "errors.maxNumber"
     | "errors.wholeNumber"
     | "errors.phone";
   params?: Record<string, number>;
@@ -40,6 +41,13 @@ export const minNumber =
     !value.trim() || !/^\d+$/.test(value.trim()) || Number(value) >= count
       ? null
       : { key: "errors.minNumber", params: { count } };
+
+export const maxNumber =
+  (count: number): Rule =>
+  (value) =>
+    !value.trim() || !/^\d+$/.test(value.trim()) || Number(value) <= count
+      ? null
+      : { key: "errors.maxNumber", params: { count } };
 
 // returns the first rule that fails, or null when the value is fine
 export function validateValue(value: string, rules: Rule[]): FieldError | null {

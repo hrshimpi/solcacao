@@ -19,6 +19,7 @@ export const en = {
     minLength: "Use at least {{count}} characters.",
     maxLength: "Use no more than {{count}} characters.",
     minNumber: "Enter {{count}} or more.",
+    maxNumber: "Enter {{count, number}} or less.",
     wholeNumber: "Enter a whole number.",
     phone: "Enter a valid phone number.",
     fileType: "{{name}} is not a supported file. Use PDF, AI, EPS or PNG.",
