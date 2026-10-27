@@ -220,6 +220,11 @@ export const en = {
     step4Desc: "Full itemised summary, and you can edit before submitting.",
     ctaTitle: "Ready to build your chocolate programme?",
     ctaSub: "Most enquiries are answered within two business days.",
+    accessTitle: "The studio is for business accounts",
+    accessBody:
+      "You are signed in with a retail account. The Corporate Cacao Studio takes quote requests from business accounts only. Create a business account to continue.",
+    accessCreate: "Create a business account",
+    accessBack: "Back to wholesale",
   },
   studio: {
     eyebrow: "B2B · Wholesale",

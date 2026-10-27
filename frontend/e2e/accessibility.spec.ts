@@ -20,6 +20,24 @@ test.describe("axe scan of every route", () => {
   }
 });
 
+test.describe("axe scan of the studio access pages", () => {
+  test("the sign in page a guest is sent to", async ({ page }) => {
+    await openRoute(page, "/en/wholesale/studio", { account: null });
+    await expect(page).toHaveURL(/\/en\/account\/login\?next=%2Fwholesale%2Fstudio$/);
+
+    expect(await scan(page)).toEqual([]);
+  });
+
+  for (const path of ["/en/wholesale/studio", "/es/wholesale/studio"]) {
+    test(`the message for a retail account at ${path}`, async ({ page }) => {
+      await openRoute(page, path, { account: "retail" });
+      await expect(page.getByRole("link", { name: /^(Create a business account|Crear una cuenta de empresa)$/ })).toBeVisible();
+
+      expect(await scan(page)).toEqual([]);
+    });
+  }
+});
+
 test.describe("axe scan of open dialogs and steps", () => {
   test("the cart dialog", async ({ page }) => {
     await openRoute(page, "/en/shop?min=55");

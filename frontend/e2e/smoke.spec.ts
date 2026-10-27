@@ -127,6 +127,47 @@ test.describe("smoke flows", () => {
     await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
   });
 
+  test("a guest is sent to sign in and comes back to the studio as a business account", async ({ page }) => {
+    await openRoute(page, "/en/wholesale", { account: null });
+    await page.getByRole("main").getByRole("link", { name: "Enter the Corporate Cacao Studio" }).first().click();
+
+    await expect(page).toHaveURL(/\/en\/account\/login\?next=%2Fwholesale%2Fstudio$/);
+    const main = page.getByRole("main");
+    await chooseOption(page, "Business account");
+    await main.getByLabel(/Email/).fill("isabel@hacienda.example");
+    await main.getByLabel(/Password/).fill("a long password");
+    await main.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page).toHaveURL(/\/en\/wholesale\/studio$/);
+    await expect(page.getByRole("heading", { level: 1, name: "The Corporate Cacao Studio" })).toBeVisible();
+  });
+
+  test("a retail account sees the message and can start a business account", async ({ page }) => {
+    await openRoute(page, "/en/wholesale/studio", { account: "retail" });
+
+    await expect(page.getByRole("heading", { level: 1, name: "The studio is for business accounts" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Create a business account" }).click();
+    await expect(page).toHaveURL(/\/en\/account\/register\?type=business$/);
+    await expect(page.getByRole("main").getByRole("radio", { name: "Business account" })).toBeChecked();
+    await expect(page.getByRole("main").getByLabel(/Company/)).toBeVisible();
+  });
+
+  test("the wholesale page is open to a guest and all its studio buttons lead to the studio address", async ({ page }) => {
+    await openRoute(page, "/es/wholesale", { account: null });
+    const main = page.getByRole("main");
+
+    await expect(main).toBeVisible();
+    for (const name of ["Entrar al Estudio de Cacao Corporativo", "Empezar en el Estudio"]) {
+      for (const link of await main.getByRole("link", { name }).all()) {
+        await expect(link).toHaveAttribute("href", "/es/wholesale/studio");
+      }
+    }
+    await main.getByRole("link", { name: "Empezar en el Estudio" }).click();
+    await expect(page).toHaveURL(/\/es\/account\/login\?next=%2Fwholesale%2Fstudio$/);
+  });
+
   test("the contact form shows errors, then a confirmation", async ({ page }) => {
     await openRoute(page, "/en/contact");
     const main = page.getByRole("main");

@@ -10,6 +10,7 @@ import ProfilePage from "../features/profile/ProfilePage";
 import SamplerPage from "../features/sampler/SamplerPage";
 import NotFoundPage from "../features/shell/NotFoundPage";
 import StudioPage from "../features/studio/StudioPage";
+import StudioAccessGuard from "../features/wholesale/components/StudioAccessGuard";
 import WholesalePage from "../features/wholesale/WholesalePage";
 import AppLayout from "./AppLayout";
 import LangGate from "./LangGate";
@@ -28,7 +29,14 @@ export const routes: RouteObject[] = [
           { path: "shop", element: <CatalogPage /> },
           { path: "shop/:slug", element: <ProductDetailPage /> },
           { path: "wholesale", element: <WholesalePage /> },
-          { path: "wholesale/studio", element: <StudioPage /> },
+          {
+            path: "wholesale/studio",
+            element: (
+              <StudioAccessGuard>
+                <StudioPage />
+              </StudioAccessGuard>
+            ),
+          },
           { path: "sampler", element: <SamplerPage /> },
           { path: "contact", element: <ContactPage /> },
           { path: "account/login", element: <LoginPage /> },

@@ -2,6 +2,7 @@
 // It also scrolls to the top and moves focus to the page heading when the page changes.
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Outlet, useLocation } from "react-router";
+import { AuthProvider } from "../features/auth/AuthContext";
 import CartDrawer from "../features/cart/CartDrawer";
 import { CartProvider } from "../features/cart/CartContext";
 import Footer from "../features/shell/Footer";
@@ -73,9 +74,11 @@ export default function AppLayout() {
   return (
     <LanguageProvider>
       <AnnounceProvider>
-        <CartProvider>
-          <Shell />
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Shell />
+          </CartProvider>
+        </AuthProvider>
       </AnnounceProvider>
     </LanguageProvider>
   );
