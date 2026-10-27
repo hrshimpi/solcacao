@@ -2,6 +2,7 @@
 // Accept-Language header, gives up after a few seconds, and turns every kind of failure (no network, a bad
 // status, an answer that is not JSON) into one ApiError, so screens only need one catch.
 import type { Lang } from "../i18n";
+import { getAuthToken } from "./authToken";
 
 export class ApiError extends Error {
   // the HTTP status, or 0 when there was no answer at all
@@ -17,14 +18,31 @@ export class ApiError extends Error {
   }
 }
 
+// the standard error answer of the server is { error: { code, message, details } }. Anything else only gives the status.
+export function errorFrom(status: number, body: unknown) {
+  const error = typeof body === "object" && body !== null ? (body as { error?: unknown }).error : undefined;
+  const { code, message } = typeof error === "object" && error !== null ? (error as { code?: unknown; message?: unknown }) : {};
+
+  if (typeof message === "string" && message) return new ApiError(message, status, typeof code === "string" ? code : undefined);
+  return new ApiError(`The server answered ${status}.`, status);
+}
+
+// the headers every call sends. The token is only sent when the call asks for it, so public calls never carry it.
+export function requestHeaders(lang: Lang, auth = false): Record<string, string> {
+  const token = auth ? getAuthToken() : null;
+  return { Accept: "application/json", "Accept-Language": lang, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
 interface ApiOptions {
   lang: Lang;
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   timeoutMs?: number;
+  // send the token of the signed in person (for the endpoints that need one)
+  auth?: boolean;
 }
 
-export async function apiFetch<T>(path: string, { lang, query = {}, signal, timeoutMs = 8000 }: ApiOptions): Promise<T> {
+export async function apiFetch<T>(path: string, { lang, query = {}, signal, timeoutMs = 8000, auth = false }: ApiOptions): Promise<T> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) params.set(key, String(value));
@@ -43,10 +61,10 @@ export async function apiFetch<T>(path: string, { lang, query = {}, signal, time
 
   try {
     const response = await fetch(url, {
-      headers: { Accept: "application/json", "Accept-Language": lang },
+      headers: requestHeaders(lang, auth),
       signal: controller.signal,
     });
-    if (!response.ok) throw new ApiError(`The server answered ${response.status}.`, response.status);
+    if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => undefined));
     try {
       return (await response.json()) as T;
     } catch {

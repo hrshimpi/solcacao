@@ -1,9 +1,10 @@
-// Calls to our own API that need more than apiFetch does. api.upload sends a form with files and reports the
-// progress while the files go up, which fetch cannot do. Like apiFetch it sends the language and turns every kind of
-// failure (no network, a bad status, an answer that is not JSON) into one ApiError. It also sends the token of the
-// person who is signed in, for the endpoints that need one.
+// Calls to our own API for the endpoints of a signed in person. They all send the language and the token, and turn
+// every kind of failure (no network, a bad status, an answer that is not JSON) into one ApiError.
+//   api.get       reads JSON, like apiFetch, with the token
+//   api.upload    sends a form with files and reports the progress while the files go up, which fetch cannot do
+//   api.download  fetches a file with the token, as a Blob, because a plain link cannot send the Authorization header
 import type { Lang } from "../i18n";
-import { ApiError } from "./apiFetch";
+import { ApiError, apiFetch, errorFrom, requestHeaders } from "./apiFetch";
 import { getAuthToken } from "./authToken";
 
 interface UploadOptions {
@@ -13,13 +14,28 @@ interface UploadOptions {
   signal?: AbortSignal;
 }
 
-// the standard error answer of the server is { error: { code, message, details } }
-function errorFrom(status: number, body: unknown) {
-  const error = typeof body === "object" && body !== null ? (body as { error?: unknown }).error : undefined;
-  const { code, message } = typeof error === "object" && error !== null ? (error as { code?: unknown; message?: unknown }) : {};
+interface GetOptions {
+  lang: Lang;
+  query?: Record<string, string | number | boolean | undefined>;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
 
-  if (typeof message === "string" && message) return new ApiError(message, status, typeof code === "string" ? code : undefined);
-  return new ApiError(`The server answered ${status}.`, status);
+function get<T>(path: string, options: GetOptions): Promise<T> {
+  return apiFetch<T>(path, { ...options, auth: true });
+}
+
+async function download(path: string, { lang, signal }: { lang: Lang; signal?: AbortSignal }): Promise<Blob> {
+  if (signal?.aborted) throw new ApiError("The request was cancelled.");
+
+  try {
+    const response = await fetch(`/api${path}`, { headers: requestHeaders(lang, true), signal });
+    if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => undefined));
+    return await response.blob();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(signal?.aborted ? "The request was cancelled." : "The server could not be reached.");
+  }
 }
 
 function upload<T>(path: string, body: FormData, { lang, onProgress, signal }: UploadOptions): Promise<T> {
@@ -77,4 +93,4 @@ function upload<T>(path: string, body: FormData, { lang, onProgress, signal }: U
   });
 }
 
-export const api = { upload };
+export const api = { get, upload, download };

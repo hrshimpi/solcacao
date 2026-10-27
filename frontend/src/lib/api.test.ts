@@ -222,3 +222,102 @@ describe("api.upload", () => {
     });
   });
 });
+
+// ---------- the calls that use fetch ----------
+
+function stubFetch(answer: () => Response | Promise<Response>) {
+  const fetchMock = vi.fn<typeof fetch>(async () => answer());
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+const headersOf = (fetchMock: ReturnType<typeof stubFetch>) => (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+
+describe("api.get", () => {
+  it("reads JSON from the address under /api, with the language and the token", async () => {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+    const fetchMock = stubFetch(() => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+
+    const answer = await api.get("/b2b/requests", { lang: "es", query: { limit: 100 } });
+
+    expect(answer).toEqual({ items: [] });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/b2b/requests?limit=100");
+    expect(headersOf(fetchMock)).toEqual({ Accept: "application/json", "Accept-Language": "es", Authorization: "Bearer abc.def.ghi" });
+  });
+
+  it("sends no Authorization header when nobody has a token", async () => {
+    const fetchMock = stubFetch(() => new Response("{}", { status: 200 }));
+
+    await api.get("/b2b/requests", { lang: "en" });
+
+    expect(headersOf(fetchMock)).not.toHaveProperty("Authorization");
+  });
+
+  it("is an ApiError with the status, the code and the message of the server", async () => {
+    stubFetch(() => new Response(JSON.stringify({ error: { code: "UNAUTHENTICATED", message: "Please sign in to do that.", details: [] } }), { status: 401 }));
+
+    const error = await failure(api.get("/b2b/requests", { lang: "en" }));
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect([error.status, error.code, error.message]).toEqual([401, "UNAUTHENTICATED", "Please sign in to do that."]);
+  });
+});
+
+describe("api.download", () => {
+  it("fetches the file with the token in the Authorization header and gives it back as a Blob", async () => {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+    const fetchMock = stubFetch(() => new Response("%PDF-1.4", { status: 200, headers: { "Content-Type": "application/pdf" } }));
+
+    const file = await api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/b2b/requests/66a1/assets/one.pdf");
+    expect(headersOf(fetchMock).Authorization).toBe("Bearer abc.def.ghi");
+    expect(file).toBeInstanceOf(Blob);
+    expect(await file.text()).toBe("%PDF-1.4");
+  });
+
+  it.each([
+    [401, "UNAUTHENTICATED", "Please sign in to do that."],
+    [404, "FILE_NOT_FOUND", "That file doesn't exist."],
+  ])("is an ApiError with the message of the server for a %i answer", async (status, code, message) => {
+    stubFetch(() => new Response(JSON.stringify({ error: { code, message, details: [] } }), { status }));
+
+    const error = await failure(api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en" }));
+
+    expect([error.status, error.code, error.message]).toEqual([status, code, message]);
+  });
+
+  it("is an ApiError that only knows the status when the answer is not in the usual shape", async () => {
+    stubFetch(() => new Response("<html>Bad gateway</html>", { status: 502 }));
+
+    const error = await failure(api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en" }));
+
+    expect([error.status, error.message, error.code]).toEqual([502, "The server answered 502.", undefined]);
+  });
+
+  it("is an ApiError with status 0 when the server cannot be reached", async () => {
+    stubFetch(() => Promise.reject(new TypeError("Failed to fetch")));
+
+    const error = await failure(api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en" }));
+
+    expect([error.status, error.message]).toEqual([0, "The server could not be reached."]);
+  });
+
+  it("says it was cancelled when the signal is aborted, and does not even ask when it was aborted before", async () => {
+    const controller = new AbortController();
+    const fetchMock = stubFetch(
+      () =>
+        new Promise<Response>((_resolve, reject) => {
+          controller.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }),
+    );
+
+    const running = failure(api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en", signal: controller.signal }));
+    controller.abort();
+    expect((await running).message).toBe("The request was cancelled.");
+
+    fetchMock.mockClear();
+    expect((await failure(api.download("/x", { lang: "en", signal: controller.signal }))).message).toBe("The request was cancelled.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
