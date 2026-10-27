@@ -99,3 +99,34 @@ backend/
   src/middleware/ error handling
 docs/             accessibility report, cross browser test sheet
 ```
+
+## Email
+
+The backend can send three emails: a message to the team when someone writes through the site (wholesale inquiries go to the wholesale address, everything else to support), a notice to a customer when their quote is ready, and a welcome for new newsletter subscribers in English or Spanish. The code is in `backend/src/services/mail.service.ts` and the templates are in `mail-templates.ts`. Sending an email never breaks a request: if something goes wrong the function returns `false` and the error message is written to the log.
+
+**Without a mail server (the default).** When `SMTP_HOST` is empty, which is how `.env.example` ships, nothing is sent. Nodemailer's JSON transport only builds the message, and the server log shows who it was for, the subject and the text. The tests work the same way, so you don't need an account to develop or to run them.
+
+The settings go in `backend/.env` (see `.env.example`):
+
+| Setting | What it is |
+|---|---|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | the mail server. Leave `SMTP_HOST` empty to only log. Port 465 uses TLS from the start, other ports (587, 2525) switch to it when the server allows it |
+| `MAIL_FROM` | the sender, like `SolCacao <no-reply@yourdomain.com>` |
+| `MAIL_TO_SUPPORT`, `MAIL_TO_WHOLESALE` | where the inquiries go |
+
+**Try it with a test inbox.** A test inbox catches the emails, so nothing reaches a real person.
+
+- Mailtrap: make a free account, open Email Testing, then Inboxes, pick your inbox and look at its SMTP settings. Copy the host, port, username and password into `.env`.
+- Ethereal: go to https://ethereal.email and press "Create Ethereal Account". It gives you a host (`smtp.ethereal.email`), port 587, a username and a password. Put them in `.env`, then log in to the same site and open "Messages" to see what arrived.
+
+Then send one from the `backend` folder (the endpoints that use these functions come later):
+
+```
+node --input-type=module -e "import { sendNewsletterWelcome } from './src/services/mail.service.ts'; console.log(await sendNewsletterWelcome('you@example.com', 'en'))"
+```
+
+It prints `true` when the server accepted the message. Then look in the inbox. If it prints `false`, the log says why (wrong host, port, username or password are the usual reasons). Change `'en'` to `'es'` for the Spanish welcome.
+
+**With Gmail.** Turn on 2-step verification for the account, then create an app password (Google Account, Security, App passwords). Use `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587` (or 465), your address as `SMTP_USER` and the 16 character app password as `SMTP_PASS`, written without spaces. Use the same address in `MAIL_FROM`, because Gmail replaces other senders. Your normal Gmail password does not work here, and Gmail limits how many emails you can send per day, so it is fine for trying things out but not for the real shop.
+
+The screens of these services change now and then. If the names above don't match, search for "SMTP" in their help pages.
