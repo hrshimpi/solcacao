@@ -1,6 +1,6 @@
 // Browser tests of the main flows (language, filters, cart, sampler, studio, forms, skip link).
 import { expect, test } from "@playwright/test";
-import { goToPage, openRoute, chooseOption } from "./helpers";
+import { chooseOption, failFeaturedProducts, goToPage, mockFeaturedProducts, openRoute } from "./helpers";
 
 test.describe("smoke flows", () => {
   test("the address / goes to a language page", async ({ page }) => {
@@ -236,6 +236,44 @@ test.describe("smoke flows", () => {
 
     await expect(main.getByRole("heading", { name: "Message received." })).toBeVisible();
   });
+
+  test("the home showcase shows the five featured products from the API", async ({ page }) => {
+    await mockFeaturedProducts(page);
+    await openRoute(page, "/en");
+
+    const cards = page.getByRole("article");
+    await expect(cards).toHaveCount(5);
+    await expect(cards.first().getByRole("heading", { name: "Ecuador 72%" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /See a Batch Passport/ })).toHaveAttribute("href", "/en/shop/ecuador-72");
+
+    await cards.nth(1).getByRole("link", { name: "Peru 68%" }).click();
+    await expect(page).toHaveURL(/\/en\/shop\/peru-68$/);
+  });
+
+  test("the home showcase shows placeholders while it loads", async ({ page }) => {
+    await mockFeaturedProducts(page, { delayMs: 1500 });
+    await page.goto("/en", { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("Loading the seasonal showcase")).toBeAttached();
+    await expect(page.getByRole("article")).toHaveCount(0);
+    await expect(page.getByRole("article")).toHaveCount(5, { timeout: 10000 });
+    await expect(page.getByText("Loading the seasonal showcase")).toHaveCount(0);
+  });
+
+  for (const how of ["error", "offline"] as const) {
+    test(`the home page works and hides the showcase when the API is down (${how})`, async ({ page }) => {
+      await failFeaturedProducts(page, how);
+      const crashes: string[] = [];
+      page.on("pageerror", (error) => crashes.push(error.message));
+
+      await openRoute(page, "/en");
+      await expect(page.getByRole("heading", { name: "Custom chocolate for your brand, produced at scale without compromise." })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Seasonal showcase" })).toHaveCount(0);
+      await expect(page.getByRole("article")).toHaveCount(0);
+      await expect(page.getByRole("link", { name: /See a Batch Passport/ })).toHaveAttribute("href", "/en/shop");
+      expect(crashes).toEqual([]);
+    });
+  }
 
   test("an unknown address shows the not found page", async ({ page }) => {
     await page.goto("/en/nothing-here");

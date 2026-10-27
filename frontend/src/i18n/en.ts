@@ -172,6 +172,7 @@ export const en = {
     exploreWholesale: "Explore Wholesale",
     showcaseTitle: "Seasonal showcase",
     showcaseSub: "Current harvest, September 2024",
+    showcaseLoading: "Loading the seasonal showcase",
     viewAll: "View all origins",
     philosophy: "Our philosophy",
     storyTitle: "The cacao pod is a field document. We treat it that way.",
