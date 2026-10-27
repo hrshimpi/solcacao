@@ -1,6 +1,6 @@
 // The Corporate Cacao Studio: a four step wizard (cacao profile, packaging, brand files, review).
 // What you typed is kept when you go back and in a draft that survives a refresh, each step is checked before
-// Continue, the browser asks before the tab is closed with something unsent, and sending is simulated.
+// Continue, the browser asks before the tab is closed with something unsent, and the last step sends the request.
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLang } from "../../i18n/LanguageContext";
 import { useBeforeUnload } from "../../lib/useBeforeUnload";
@@ -9,7 +9,11 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { useAnnounce } from "../../ui/LiveRegion";
 import LocaleLink from "../../ui/LocaleLink";
 import { useAuth } from "../auth/AuthContext";
+import SendFailure from "./components/SendFailure";
+import SendProgress from "./components/SendProgress";
+import SentScreen from "./components/SentScreen";
 import WizardSteps from "./components/WizardSteps";
+import { isReady } from "./quoteRequest";
 import AssetsStep from "./steps/AssetsStep";
 import PackagingStep from "./steps/PackagingStep";
 import ProfileStep from "./steps/ProfileStep";
@@ -17,6 +21,7 @@ import ReviewStep from "./steps/ReviewStep";
 import { clearDraft, hasChanges, saveDraft, startingPoint, toDraft } from "./studioDraft";
 import type { PackagingId, ProfileId } from "./studioOptions";
 import { reviewRules, type ReviewField } from "./studioRules";
+import { useQuoteSubmit } from "./useQuoteSubmit";
 
 const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
@@ -37,15 +42,19 @@ export default function StudioPage() {
   // the files of the draft were not kept by the refresh, so their names are shown until new files are added
   const [lostFiles, setLostFiles] = useState(start.fileNames);
   const [stepError, setStepError] = useState("");
-  const [status, setStatus] = useState<"editing" | "sending" | "sent">("editing");
+  const { status, progress, failure, reference, send } = useQuoteSubmit();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
   const announcedRestore = useRef(false);
 
   const form = useForm<ReviewField>({
     initial: start.fields,
     rules: reviewRules,
-    onSubmit: () => setStatus("sending"),
+    onSubmit: (values) => {
+      const state = { profile, packaging, files, ...values };
+      if (isReady(state)) void send(state);
+    },
   });
 
   const dirty = hasChanges({ profile, packaging, files, ...form.values }, start.prefill);
@@ -67,23 +76,20 @@ export default function StudioPage() {
     }
   }, [start.restored, announce, t]);
 
-  useEffect(() => {
-    if (status !== "sending") return;
-    const timer = window.setTimeout(() => {
-      setStatus("sent");
-      announce(t("studio.sentAnnounce"));
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [status, announce, t]);
-
   // move focus to the step heading when the step (or the confirmation) changes
+  const sent = status === "sent";
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
       return;
     }
     headingRef.current?.focus();
-  }, [step, status]);
+  }, [step, sent]);
+
+  // a request that could not be sent: focus goes to the message
+  useEffect(() => {
+    if (failure) alertRef.current?.focus();
+  }, [failure]);
 
   function focusFirstChoice() {
     requestAnimationFrame(() => document.querySelector<HTMLElement>("[role=radiogroup] input")?.focus());
@@ -124,23 +130,14 @@ export default function StudioPage() {
       </div>
 
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-12">
-        {status === "sent" ? (
-          <div className="mx-auto max-w-md border border-ink-cacao bg-clay-surface p-8 text-center sm:p-12">
-            <p className="mb-4 font-sans text-[11px] uppercase tracking-[0.2em] text-ink-cacao/70">{t("studio.sentEyebrow")}</p>
-            <h2 ref={headingRef} tabIndex={-1} className="mb-4 font-spectral text-3xl font-semibold text-ink-cacao">
-              {t("studio.sentTitle")}
-            </h2>
-            <p className="mb-4 font-spectral leading-relaxed text-ink-cacao/80">
-              {t("studio.sentBody", { company: form.values.companyName, profile: profileLabel, quantity: form.values.units })}
-            </p>
-            <p className="mb-8 font-sans text-xs text-ink-cacao/70">{t("studio.sentPreview")}</p>
-            <LocaleLink
-              to="/wholesale"
-              className="inline-flex min-h-11 items-center border border-ink-cacao px-6 py-2.5 font-sans text-sm font-medium text-ink-cacao hover:bg-ink-cacao hover:text-stone-paper"
-            >
-              {t("studio.backToWholesale")}
-            </LocaleLink>
-          </div>
+        {sent ? (
+          <SentScreen
+            headingRef={headingRef}
+            company={form.values.companyName}
+            profile={profileLabel}
+            units={form.values.units}
+            reference={reference}
+          />
         ) : (
           <form ref={form.formRef} onSubmit={step === 3 ? form.handleSubmit : goNext} noValidate>
             <h2 id="step-heading" ref={headingRef} tabIndex={-1} className="mb-2 font-spectral text-xl text-ink-cacao">
@@ -153,43 +150,49 @@ export default function StudioPage() {
               </p>
             )}
 
-            {step === 0 && (
-              <ProfileStep
-                headingId="step-heading"
-                value={profile}
-                onChange={(id) => {
-                  setProfile(id);
-                  setStepError("");
-                }}
-                error={stepError}
-              />
-            )}
+            {/* while the request is on its way nothing can be changed, because what is being sent was already read */}
+            <fieldset disabled={status === "sending"} className="m-0 min-w-0 border-0 p-0">
+              {step === 0 && (
+                <ProfileStep
+                  headingId="step-heading"
+                  value={profile}
+                  onChange={(id) => {
+                    setProfile(id);
+                    setStepError("");
+                  }}
+                  error={stepError}
+                />
+              )}
 
-            {step === 1 && (
-              <PackagingStep
-                headingId="step-heading"
-                value={packaging}
-                onChange={(id) => {
-                  setPackaging(id);
-                  setStepError("");
-                }}
-                error={stepError}
-              />
-            )}
+              {step === 1 && (
+                <PackagingStep
+                  headingId="step-heading"
+                  value={packaging}
+                  onChange={(id) => {
+                    setPackaging(id);
+                    setStepError("");
+                  }}
+                  error={stepError}
+                />
+              )}
 
-            {step === 2 && (
-              <AssetsStep
-                files={files}
-                onChange={(next) => {
-                  setFiles(next);
-                  setLostFiles([]);
-                }}
-              />
-            )}
+              {step === 2 && (
+                <AssetsStep
+                  files={files}
+                  onChange={(next) => {
+                    setFiles(next);
+                    setLostFiles([]);
+                  }}
+                />
+              )}
 
-            {step === 3 && (
-              <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, files }} field={form.field} />
-            )}
+              {step === 3 && (
+                <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, files }} field={form.field} />
+              )}
+            </fieldset>
+
+            {status === "sending" && <SendProgress progress={progress} />}
+            {failure && <SendFailure detail={failure.detail} alertRef={alertRef} />}
 
             <div className="mt-12 flex flex-col-reverse gap-3 border-t border-ink-cacao/15 pt-8 sm:flex-row sm:items-center sm:justify-between">
               {step === 0 ? (
@@ -202,8 +205,9 @@ export default function StudioPage() {
               ) : (
                 <button
                   type="button"
+                  disabled={status === "sending"}
                   onClick={() => setStep((current) => current - 1)}
-                  className="min-h-11 w-full font-sans text-sm text-ink-cacao underline underline-offset-4 sm:w-auto"
+                  className="min-h-11 w-full font-sans text-sm text-ink-cacao underline underline-offset-4 disabled:opacity-70 sm:w-auto"
                 >
                   {t("studio.previous")}
                 </button>

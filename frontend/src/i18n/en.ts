@@ -303,7 +303,6 @@ export const en = {
     sentEyebrow: "Submission received",
     sentTitle: "We have your brief.",
     sentBody: "A quote for {{company}} ({{profile}}, {{quantity}} units) will be sent to you within two business days.",
-    sentPreview: "This is a preview, so nothing was actually sent.",
     sentAnnounce: "Your request was received.",
   },
   b2b: {
@@ -321,6 +320,23 @@ export const en = {
     },
     review: {
       smallRun: "That is under our usual minimum of {{min}} units. You can still send the request, and we will tell you what is possible.",
+    },
+    submit: {
+      sendingAnnounce: "Sending your request.",
+      progress: "Sending your files: {{percent}}%",
+      waiting: "Files sent. Waiting for the server...",
+      failedTitle: "We could not send your request.",
+      keptNote: "Your answers are still here, so you can try again.",
+      errors: {
+        network: "We could not reach the server. Check your connection and try again.",
+        signedOut: "The server does not know who you are. Please sign in again, then send the request once more.",
+        notBusiness: "Only business accounts can send a quote request.",
+        tooBig: "One of your files is too big. Each file can be up to {{size}} MB.",
+        rateLimited: "You have sent a lot of requests. Please try again later.",
+        unknown: "Something went wrong. Please try again.",
+      },
+      referenceLabel: "Request reference",
+      myRequests: "My quote requests",
     },
   },
   sampler: {

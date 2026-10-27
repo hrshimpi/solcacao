@@ -305,7 +305,6 @@ export const es: typeof en = {
     sentEyebrow: "Solicitud recibida",
     sentTitle: "Recibimos su solicitud.",
     sentBody: "Le enviaremos una cotización para {{company}} ({{profile}}, {{quantity}} unidades) en un plazo de dos días hábiles.",
-    sentPreview: "Esto es una vista previa, así que en realidad no se envió nada.",
     sentAnnounce: "Se recibió su solicitud.",
   },
   b2b: {
@@ -324,6 +323,23 @@ export const es: typeof en = {
     },
     review: {
       smallRun: "Es menos que nuestro mínimo habitual de {{min}} unidades. Aun así puede enviar la solicitud y le diremos qué es posible.",
+    },
+    submit: {
+      sendingAnnounce: "Enviando su solicitud.",
+      progress: "Enviando sus archivos: {{percent}}%",
+      waiting: "Archivos enviados. Esperando la respuesta del servidor...",
+      failedTitle: "No pudimos enviar su solicitud.",
+      keptNote: "Sus respuestas siguen aquí, así que puede intentarlo de nuevo.",
+      errors: {
+        network: "No pudimos conectarnos con el servidor. Revise su conexión e inténtelo de nuevo.",
+        signedOut: "El servidor no sabe quién es usted. Inicie sesión de nuevo y envíe la solicitud otra vez.",
+        notBusiness: "Solo las cuentas de empresa pueden enviar una solicitud de cotización.",
+        tooBig: "Uno de sus archivos es demasiado grande. Cada archivo puede pesar hasta {{size}} MB.",
+        rateLimited: "Ha enviado muchas solicitudes. Inténtelo de nuevo más tarde.",
+        unknown: "Algo salió mal. Inténtelo de nuevo.",
+      },
+      referenceLabel: "Referencia de la solicitud",
+      myRequests: "Mis solicitudes de cotización",
     },
   },
   sampler: {
