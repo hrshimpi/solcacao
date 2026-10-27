@@ -11,7 +11,8 @@ import ChoiceCards from "./components/ChoiceCards";
 import FileDrop from "./components/FileDrop";
 import ReviewStep, { type StudioFields } from "./components/ReviewStep";
 import WizardSteps from "./components/WizardSteps";
-import { MIN_UNITS, packagingIds, profileColors, profileIds, type PackagingId, type ProfileId, type StudioFile } from "./studioOptions";
+import ProfileStep from "./steps/ProfileStep";
+import { MIN_UNITS, packagingIds, type PackagingId, type ProfileId, type StudioFile } from "./studioOptions";
 
 const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
@@ -122,22 +123,14 @@ export default function StudioPage() {
             <p className="mb-8 font-sans text-xs text-ink-cacao/70">{t(`studio.hints.${stepKeys[step]}`)}</p>
 
             {step === 0 && (
-              <ChoiceCards
-                name="profile"
-                labelledBy="step-heading"
+              <ProfileStep
+                headingId="step-heading"
                 value={profile}
                 onChange={(id) => {
-                  setProfile(id as ProfileId);
+                  setProfile(id);
                   setStepError("");
                 }}
                 error={stepError}
-                className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
-                choices={profileIds.map((id) => ({
-                  id,
-                  label: t(`studio.profiles.${id}.label`),
-                  sub: t(`studio.profiles.${id}.sub`),
-                  color: profileColors[id],
-                }))}
               />
             )}
 
@@ -147,7 +140,7 @@ export default function StudioPage() {
                 labelledBy="step-heading"
                 value={packaging}
                 onChange={(id) => {
-                  setPackaging(id as PackagingId);
+                  setPackaging(id);
                   setStepError("");
                 }}
                 error={stepError}
