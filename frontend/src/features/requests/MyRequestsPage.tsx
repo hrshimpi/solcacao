@@ -26,11 +26,14 @@ export default function MyRequestsPage() {
 
   // choosing a request moves focus to its details. A request that was already open when the page loaded does not take the focus.
   const detailsHeading = useRef<HTMLHeadingElement>(null);
+  // The effect follows the id, not the request: reading the list again gives new objects for the same requests, and
+  // that must not take the focus. Choosing the request that is already open does not either, nothing changes then.
   const picked = useRef(false);
+  const openId = selected?.id ?? null;
   useEffect(() => {
-    if (picked.current && selected) detailsHeading.current?.focus();
+    if (picked.current && openId) detailsHeading.current?.focus();
     picked.current = false;
-  }, [selected]);
+  }, [openId]);
 
   const problem = error ? problemMessage(error, t) : "";
 
@@ -100,8 +103,8 @@ export default function MyRequestsPage() {
               <RequestList
                 items={list.items}
                 selectedId={selected?.id ?? null}
-                onPick={() => {
-                  picked.current = true;
+                onPick={(id) => {
+                  picked.current = id !== openId;
                 }}
               />
               {list.total > list.items.length && (
