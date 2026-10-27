@@ -4,15 +4,15 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLang } from "../../i18n/LanguageContext";
 import { useForm } from "../../lib/useForm";
 import { usePageTitle } from "../../lib/usePageTitle";
-import { maxLength, minNumber, required, wholeNumber } from "../../lib/validation";
 import { useAnnounce } from "../../ui/LiveRegion";
 import LocaleLink from "../../ui/LocaleLink";
-import ReviewStep, { type StudioFields } from "./components/ReviewStep";
 import WizardSteps from "./components/WizardSteps";
 import AssetsStep from "./steps/AssetsStep";
 import PackagingStep from "./steps/PackagingStep";
 import ProfileStep from "./steps/ProfileStep";
-import { MIN_UNITS, type PackagingId, type ProfileId } from "./studioOptions";
+import ReviewStep from "./steps/ReviewStep";
+import type { PackagingId, ProfileId } from "./studioOptions";
+import { reviewRules, type ReviewField } from "./studioRules";
 
 const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
@@ -30,14 +30,9 @@ export default function StudioPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
 
-  const form = useForm<StudioFields>({
-    initial: { company: "", contact: "", quantity: "", notes: "" },
-    rules: {
-      company: [required, maxLength(80)],
-      contact: [required, maxLength(80)],
-      quantity: [required, wholeNumber, minNumber(MIN_UNITS)],
-      notes: [maxLength(500)],
-    },
+  const form = useForm<ReviewField>({
+    initial: { companyName: "", contactName: "", units: "", notes: "" },
+    rules: reviewRules,
     onSubmit: () => setStatus("sending"),
   });
 
@@ -105,7 +100,7 @@ export default function StudioPage() {
               {t("studio.sentTitle")}
             </h2>
             <p className="mb-4 font-spectral leading-relaxed text-ink-cacao/80">
-              {t("studio.sentBody", { company: form.values.company, profile: profileLabel, quantity: form.values.quantity })}
+              {t("studio.sentBody", { company: form.values.companyName, profile: profileLabel, quantity: form.values.units })}
             </p>
             <p className="mb-8 font-sans text-xs text-ink-cacao/70">{t("studio.sentPreview")}</p>
             <LocaleLink
@@ -149,7 +144,7 @@ export default function StudioPage() {
             {step === 2 && <AssetsStep files={files} onChange={setFiles} />}
 
             {step === 3 && (
-              <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, fileCount: files.length }} field={form.field} />
+              <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, files }} field={form.field} />
             )}
 
             <div className="mt-12 flex flex-col-reverse gap-3 border-t border-ink-cacao/15 pt-8 sm:flex-row sm:items-center sm:justify-between">

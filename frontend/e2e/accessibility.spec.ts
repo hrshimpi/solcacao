@@ -83,6 +83,21 @@ test.describe("axe scan of open dialogs and steps", () => {
     expect(await scan(page)).toEqual([]);
   });
 
+  test("the review step with the small run warning showing", async ({ page }) => {
+    await openRoute(page, "/en/wholesale/studio");
+    await chooseOption(page, /Ecuador 72%/);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await chooseOption(page, /Paper sleeve/);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByLabel(/Estimated units/).fill("100");
+    await page.getByLabel(/Company name/).focus();
+    await expect(page.getByLabel(/Estimated units/)).toHaveAccessibleDescription(/under our usual minimum of 500 units/);
+
+    expect(await scan(page)).toEqual([]);
+  });
+
   test("forms with error messages showing", async ({ page }) => {
     await openRoute(page, "/en/contact");
     await page.getByRole("main").getByRole("button", { name: "Send message" }).click();

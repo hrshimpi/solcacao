@@ -293,7 +293,7 @@ export const es: typeof en = {
     company: "Nombre de la empresa",
     contact: "Nombre de contacto",
     units: "Unidades estimadas",
-    unitsHint: "La tirada mínima es de 500 unidades.",
+    unitsHint: "Nuestra tirada mínima habitual es de {{min}} unidades.",
     notes: "Notas adicionales",
     notesPlaceholder: "Requisitos específicos, plazos o preguntas...",
     previous: "Paso anterior",
@@ -312,6 +312,9 @@ export const es: typeof en = {
       empty: "{{name}} está vacío.",
       tooMany: "Puede agregar hasta {{max}} archivos. No se agregó {{name}}.",
       counter: "{{used}} de {{max}} archivos",
+    },
+    review: {
+      smallRun: "Es menos que nuestro mínimo habitual de {{min}} unidades. Aun así puede enviar la solicitud y le diremos qué es posible.",
     },
   },
   sampler: {

@@ -96,10 +96,23 @@ describe("studio wizard", () => {
     const company = screen.getByLabelText(/Company name/);
     expect(company).toHaveAttribute("aria-invalid", "true");
     expect(company).toHaveFocus();
-    expect(screen.getByLabelText(/Estimated units/)).toHaveAccessibleDescription(/minimum run is 500 units/);
+    expect(screen.getByLabelText(/Estimated units/)).toHaveAccessibleDescription(/usual minimum run is 500 units/);
   });
 
-  it("asks for at least 500 units", async () => {
+  it("asks for at least one unit", async () => {
+    const user = await openStudio();
+    await reachReview(user);
+
+    await user.type(screen.getByLabelText(/Company name/), "Hacienda Brands");
+    await user.type(screen.getByLabelText(/Contact name/), "Isabel");
+    await user.type(screen.getByLabelText(/Estimated units/), "0");
+    await user.click(screen.getByRole("button", { name: "Submit for quote" }));
+
+    expect(screen.getByText("Enter 1 or more.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Estimated units/)).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("warns about fewer than 500 units but still sends the request", async () => {
     const user = await openStudio();
     await reachReview(user);
 
@@ -108,7 +121,7 @@ describe("studio wizard", () => {
     await user.type(screen.getByLabelText(/Estimated units/), "100");
     await user.click(screen.getByRole("button", { name: "Submit for quote" }));
 
-    expect(screen.getByText("Enter 500 or more.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "We have your brief." }, { timeout: 3000 })).toBeInTheDocument();
   });
 
   it("shows the confirmation after a valid submit", async () => {

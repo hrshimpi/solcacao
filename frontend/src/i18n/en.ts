@@ -291,7 +291,7 @@ export const en = {
     company: "Company name",
     contact: "Contact name",
     units: "Estimated units",
-    unitsHint: "The minimum run is 500 units.",
+    unitsHint: "Our usual minimum run is {{min}} units.",
     notes: "Additional notes",
     notesPlaceholder: "Any specific requirements, timeline, or questions...",
     previous: "Previous step",
@@ -310,6 +310,9 @@ export const en = {
       empty: "{{name}} is empty.",
       tooMany: "You can add up to {{max}} files. {{name}} was not added.",
       counter: "{{used}} of {{max}} files",
+    },
+    review: {
+      smallRun: "That is under our usual minimum of {{min}} units. You can still send the request, and we will tell you what is possible.",
     },
   },
   sampler: {
