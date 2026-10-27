@@ -23,7 +23,7 @@ export const es: typeof en = {
     minNumber: "Escribe {{count}} o más.",
     wholeNumber: "Escribe un número entero.",
     phone: "Escribe un número de teléfono válido.",
-    fileType: "{{name}} no es un archivo compatible. Usa PDF, AI o PNG.",
+    fileType: "{{name}} no es un archivo compatible. Use PDF, AI, EPS o PNG.",
     fileSize: "{{name}} pesa más de {{size}} MB.",
     fixErrors: "Corrige los campos marcados.",
   },
@@ -217,7 +217,7 @@ export const es: typeof en = {
     step2Title: "Elija empaque y marca",
     step2Desc: "Caja rígida, envoltura de foil o inserto de tarjeta de ejemplar. Marca blanca o marca compartida.",
     step3Title: "Suba sus materiales de marca",
-    step3Desc: "PDF, AI o PNG. Preparamos una maqueta digital en 48 horas.",
+    step3Desc: "PDF, AI, EPS o PNG. Preparamos una maqueta digital en 48 horas.",
     step4Title: "Revise y envíe para cotizar",
     step4Desc: "Resumen detallado completo, que puede editar antes de enviar.",
     ctaTitle: "¿Listo para crear su programa de chocolate?",
@@ -254,7 +254,7 @@ export const es: typeof en = {
     hints: {
       profile: "Elige un solo origen o pide una mezcla personalizada.",
       packaging: "Todos los formatos están disponibles en marca blanca o con marca compartida.",
-      assets: "Formatos aceptados: PDF, AI, PNG. Máximo 50 MB por archivo. También puedes omitir este paso.",
+      assets: "Formatos aceptados: PDF, AI, EPS, PNG. Máximo 50 MB por archivo, hasta 5 archivos. También puede omitir este paso.",
       review: "Edita cualquier campo antes de enviar. Te responderemos con una cotización en dos días hábiles.",
     },
     profiles: {
@@ -275,7 +275,7 @@ export const es: typeof en = {
     errorPackaging: "Elige una opción de empaque para continuar.",
     dropText: "Arrastra archivos aquí o elige un archivo",
     chooseFile: "Elegir archivo",
-    fileRules: "PDF, AI, PNG · Máx. {{size}} MB",
+    fileRules: "PDF, AI, EPS, PNG · Máx. {{size}} MB cada uno · Hasta {{max}} archivos",
     selectedFiles: "Archivos seleccionados",
     removeFile: "Quitar {{name}}",
     filesAdded_one: "Se agregó {{count}} archivo.",
@@ -305,6 +305,13 @@ export const es: typeof en = {
     sentBody: "Te enviaremos una cotización para {{company}} ({{profile}}, {{quantity}} unidades) en un plazo de dos días hábiles.",
     sentPreview: "Esto es una vista previa, así que en realidad no se envió nada.",
     sentAnnounce: "Se recibió tu solicitud.",
+  },
+  b2b: {
+    files: {
+      empty: "{{name}} está vacío.",
+      tooMany: "Puede agregar hasta {{max}} archivos. No se agregó {{name}}.",
+      counter: "{{used}} de {{max}} archivos",
+    },
   },
   sampler: {
     cartName: "Muestrario personalizado",

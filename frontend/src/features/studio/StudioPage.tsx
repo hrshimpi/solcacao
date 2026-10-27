@@ -7,12 +7,12 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { maxLength, minNumber, required, wholeNumber } from "../../lib/validation";
 import { useAnnounce } from "../../ui/LiveRegion";
 import LocaleLink from "../../ui/LocaleLink";
-import FileDrop from "./components/FileDrop";
 import ReviewStep, { type StudioFields } from "./components/ReviewStep";
 import WizardSteps from "./components/WizardSteps";
+import AssetsStep from "./steps/AssetsStep";
 import PackagingStep from "./steps/PackagingStep";
 import ProfileStep from "./steps/ProfileStep";
-import { MIN_UNITS, type PackagingId, type ProfileId, type StudioFile } from "./studioOptions";
+import { MIN_UNITS, type PackagingId, type ProfileId } from "./studioOptions";
 
 const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
@@ -24,7 +24,7 @@ export default function StudioPage() {
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<ProfileId | null>(null);
   const [packaging, setPackaging] = useState<PackagingId | null>(null);
-  const [files, setFiles] = useState<StudioFile[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [stepError, setStepError] = useState("");
   const [status, setStatus] = useState<"editing" | "sending" | "sent">("editing");
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -146,7 +146,7 @@ export default function StudioPage() {
               />
             )}
 
-            {step === 2 && <FileDrop files={files} onChange={setFiles} />}
+            {step === 2 && <AssetsStep files={files} onChange={setFiles} />}
 
             {step === 3 && (
               <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, fileCount: files.length }} field={form.field} />

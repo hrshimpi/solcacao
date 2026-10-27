@@ -21,7 +21,7 @@ export const en = {
     minNumber: "Enter {{count}} or more.",
     wholeNumber: "Enter a whole number.",
     phone: "Enter a valid phone number.",
-    fileType: "{{name}} is not a supported file. Use PDF, AI or PNG.",
+    fileType: "{{name}} is not a supported file. Use PDF, AI, EPS or PNG.",
     fileSize: "{{name}} is larger than {{size}} MB.",
     fixErrors: "Please fix the highlighted fields.",
   },
@@ -215,7 +215,7 @@ export const en = {
     step2Title: "Select packaging & branding",
     step2Desc: "Rigid box, foil wrap, or specimen card insert. White label or co-branded.",
     step3Title: "Upload your brand assets",
-    step3Desc: "PDF, AI, or PNG. We prepare a digital mockup within 48 hours.",
+    step3Desc: "PDF, AI, EPS, or PNG. We prepare a digital mockup within 48 hours.",
     step4Title: "Review & submit for quote",
     step4Desc: "Full itemised summary, and you can edit before submitting.",
     ctaTitle: "Ready to build your chocolate programme?",
@@ -252,7 +252,7 @@ export const en = {
     hints: {
       profile: "Select a single origin or request a custom blend.",
       packaging: "All formats available in white-label or co-branded configurations.",
-      assets: "Accepted formats: PDF, AI, PNG. Max 50 MB per file. You can also skip this step.",
+      assets: "Accepted formats: PDF, AI, EPS, PNG. Max 50 MB per file, up to 5 files. You can also skip this step.",
       review: "Edit any field before submitting. A quote will be returned within two business days.",
     },
     profiles: {
@@ -273,7 +273,7 @@ export const en = {
     errorPackaging: "Choose a packaging option to continue.",
     dropText: "Drag files here or choose a file",
     chooseFile: "Choose file",
-    fileRules: "PDF, AI, PNG · Max {{size}} MB",
+    fileRules: "PDF, AI, EPS, PNG · Max {{size}} MB each · Up to {{max}} files",
     selectedFiles: "Selected files",
     removeFile: "Remove {{name}}",
     filesAdded_one: "{{count}} file added.",
@@ -303,6 +303,13 @@ export const en = {
     sentBody: "A quote for {{company}} ({{profile}}, {{quantity}} units) will be sent to you within two business days.",
     sentPreview: "This is a preview, so nothing was actually sent.",
     sentAnnounce: "Your request was received.",
+  },
+  b2b: {
+    files: {
+      empty: "{{name}} is empty.",
+      tooMany: "You can add up to {{max}} files. {{name}} was not added.",
+      counter: "{{used}} of {{max}} files",
+    },
   },
   sampler: {
     cartName: "Custom sampler",
