@@ -1,20 +1,25 @@
-// Who is signed in. There is no account system yet, so this is a small stand-in for it: signing in on the preview
-// forms keeps the email and the account type until the browser tab is closed. It only decides what the pages
-// show. Anything that really needs protecting is checked again by the server, so the real sign in can replace
-// this file and keep the same useAuth().
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type { AccountType } from "./components/AuthShell";
 
 export interface AuthUser {
+  id?: string;
+  fullName?: string;
   email: string;
   accountType: AccountType;
+  phone?: string;
+  companyName?: string;
 }
 
+export type AuthStatus = "loading" | "guest" | "authenticated";
+
 interface AuthValue {
-  // null when nobody is signed in
   user: AuthUser | null;
+  status: AuthStatus;
   signIn: (user: AuthUser) => void;
   signOut: () => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (data: Partial<AuthUser> & { password: string }) => Promise<boolean>;
+  logout: () => void;
 }
 
 export const AUTH_STORAGE_KEY = "sc_user";
@@ -25,20 +30,36 @@ function savedUser(): AuthUser | null {
   try {
     const saved: unknown = JSON.parse(sessionStorage.getItem(AUTH_STORAGE_KEY) ?? "null");
     if (typeof saved !== "object" || saved === null) return null;
-    const { email, accountType } = saved as Record<string, unknown>;
-    if (typeof email === "string" && (accountType === "retail" || accountType === "business")) return { email, accountType };
+    const { email, accountType, fullName, id, companyName, phone } = saved as Record<string, unknown>;
+    if (typeof email === "string" && (accountType === "retail" || accountType === "business")) {
+      return {
+        email,
+        accountType,
+        fullName: typeof fullName === "string" ? fullName : email.split("@")[0],
+        id: typeof id === "string" ? id : "usr_demo",
+        companyName: typeof companyName === "string" ? companyName : undefined,
+        phone: typeof phone === "string" ? phone : undefined
+      };
+    }
   } catch {
-    // a missing or broken saved value just means nobody is signed in
+    // missing or broken stored session
   }
   return null;
 }
 
 function remember(user: AuthUser | null) {
   try {
-    if (user) sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-    else sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    if (user) {
+      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+      localStorage.setItem("solcacao_user", JSON.stringify(user));
+      localStorage.setItem("solcacao_token", "demo_jwt_token");
+    } else {
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem("solcacao_user");
+      localStorage.removeItem("solcacao_token");
+    }
   } catch {
-    // saving is a convenience only, the page works without it
+    // storage fallback
   }
 }
 
@@ -55,7 +76,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo<AuthValue>(() => ({ user, signIn, signOut }), [user, signIn, signOut]);
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    if (!email || !password) return false;
+    const isBusiness = email.toLowerCase().includes("business") || email.toLowerCase().includes("corp");
+    const nextUser: AuthUser = {
+      id: "usr_mock_1",
+      fullName: email.split("@")[0],
+      email,
+      accountType: isBusiness ? "business" : "retail",
+      companyName: isBusiness ? "Enterprise Partner" : undefined
+    };
+    signIn(nextUser);
+    return true;
+  }, [signIn]);
+
+  const register = useCallback(async (data: Partial<AuthUser> & { password: string }): Promise<boolean> => {
+    if (!data.email || !data.password) return false;
+    const nextUser: AuthUser = {
+      id: `usr_${Date.now()}`,
+      fullName: data.fullName ?? data.email.split("@")[0],
+      email: data.email,
+      accountType: data.accountType ?? "retail",
+      companyName: data.companyName,
+      phone: data.phone
+    };
+    signIn(nextUser);
+    return true;
+  }, [signIn]);
+
+  const status: AuthStatus = user ? "authenticated" : "guest";
+
+  const value = useMemo<AuthValue>(
+    () => ({
+      user,
+      status,
+      signIn,
+      signOut,
+      login,
+      register,
+      logout: signOut
+    }),
+    [user, status, signIn, signOut, login, register]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
