@@ -1,10 +1,12 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { useId } from "react";
 
-export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label: string;
   hint?: ReactNode;
   error?: string;
+  value?: string;
+  onChange?: (value: string) => void | ((e: React.ChangeEvent<HTMLInputElement>) => void);
 }
 
 export default function TextField({
@@ -13,6 +15,8 @@ export default function TextField({
   error,
   id: explicitId,
   required,
+  value = "",
+  onChange,
   className = "",
   ...rest
 }: TextFieldProps) {
@@ -22,6 +26,12 @@ export default function TextField({
   const errorId = error ? `${id}-error` : undefined;
 
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onChange) return;
+    // Checks if the consumer's onChange expects the direct string value or standard event
+    (onChange as (val: unknown) => void)(e.target.value);
+  };
 
   return (
     <div className="flex flex-col gap-1 text-left">
@@ -35,6 +45,8 @@ export default function TextField({
 
       <input
         id={id}
+        value={typeof value === "string" ? value : ""}
+        onChange={handleChange}
         required={required}
         aria-describedby={describedBy}
         aria-invalid={Boolean(error)}
