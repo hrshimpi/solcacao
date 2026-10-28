@@ -1,6 +1,6 @@
 // Checks the layout at different screen sizes: no sideways scroll, grid and footer columns, step strip, target sizes.
 import { expect, test } from "@playwright/test";
-import { openRoute, routes, chooseOption } from "./helpers";
+import { chooseOption, e2eFile, e2eRequest, mockRequestsApi, openRoute, routes, withToken } from "./helpers";
 
 // These tests set their own screen sizes, so one browser is enough.
 test.beforeEach(async ({ browserName, isMobile }) => {
@@ -9,18 +9,23 @@ test.beforeEach(async ({ browserName, isMobile }) => {
 
 const widths = [320, 375, 768, 1024, 1440];
 
+// One test for each page and width. They used to be one test for each width that opened every page one after the other,
+// which took about 26 of the 30 seconds a test is given, so a slower machine made them fail without anything being wrong.
 test.describe("no sideways scroll", () => {
   for (const width of widths) {
-    test(`at ${width}px wide`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 800 });
-
+    test.describe(`at ${width}px wide`, () => {
       for (const path of routes) {
-        await openRoute(page, path);
-        const sizes = await page.evaluate(() => ({
-          page: document.documentElement.scrollWidth,
-          window: document.documentElement.clientWidth,
-        }));
-        expect(sizes.page, `${path} is wider than the screen at ${width}px`).toBeLessThanOrEqual(sizes.window);
+        test(path, async ({ page }) => {
+          await page.setViewportSize({ width, height: 800 });
+
+          await openRoute(page, path);
+
+          const sizes = await page.evaluate(() => ({
+            page: document.documentElement.scrollWidth,
+            window: document.documentElement.clientWidth,
+          }));
+          expect(sizes.page, `${path} is wider than the screen at ${width}px`).toBeLessThanOrEqual(sizes.window);
+        });
       }
     });
   }
@@ -113,5 +118,67 @@ test.describe("touch targets", () => {
       });
       expect(small, `controls under 24px on ${path}`).toEqual([]);
     }
+  });
+});
+
+test.describe("My quote requests layout", () => {
+  const longName = "a-very-long-brand-guideline-file-name-for-the-hacienda-winter-collection-final-version-seven-approved.pdf";
+  const requests = [
+    e2eRequest("66a1b2c3d4e5f60718293a4b", { status: "submitted" }),
+    e2eRequest("66a1b2c3d4e5f60718293a4c", {
+      status: "quoted",
+      quoteAmount: 125000,
+      quoteNote: "Includes shipping and the printing of the labels, valid for thirty days from today.",
+      notes: "Gold foil on the lid, matte inside, and a ribbon in the colours of the hacienda please",
+      brandAssets: [e2eFile("one.pdf", longName)],
+    }),
+  ];
+
+  for (const width of widths) {
+    test(`has no sideways scroll at ${width}px wide, even with a long file name`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await mockRequestsApi(page, requests);
+      await withToken(page);
+
+      for (const lang of ["en", "es"]) {
+        await openRoute(page, `/${lang}/account/requests?request=66a1b2c3d4e5f60718293a4c`);
+        await expect(page.getByText(longName)).toBeVisible();
+        const sizes = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, window: document.documentElement.clientWidth }));
+        expect(sizes.page, `/${lang}/account/requests is wider than the screen at ${width}px`).toBeLessThanOrEqual(sizes.window);
+      }
+    });
+  }
+
+  test("puts the list beside the details from lg (1024px), and the details below the list on a narrower screen", async ({ page }) => {
+    await mockRequestsApi(page, requests);
+    await withToken(page);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openRoute(page, "/en/account/requests?request=66a1b2c3d4e5f60718293a4c");
+    const wideList = await page.getByRole("region", { name: "Your quote requests" }).boundingBox();
+    const wideDetails = await page.getByRole("region", { name: "Request SC-18293A4C" }).boundingBox();
+    expect(wideDetails!.x).toBeGreaterThan(wideList!.x + wideList!.width - 1);
+    expect(Math.abs(wideDetails!.y - wideList!.y)).toBeLessThan(40);
+
+    await page.setViewportSize({ width: 600, height: 900 });
+    const narrowList = await page.getByRole("region", { name: "Your quote requests" }).boundingBox();
+    const narrowDetails = await page.getByRole("region", { name: "Request SC-18293A4C" }).boundingBox();
+    expect(narrowDetails!.y).toBeGreaterThan(narrowList!.y + narrowList!.height - 1);
+  });
+
+  test("has controls of at least 44px for the rows of the list and the buttons, on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await mockRequestsApi(page, requests);
+    await withToken(page);
+    await openRoute(page, "/en/account/requests?request=66a1b2c3d4e5f60718293a4c");
+
+    const heights = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("main a[href*='request='], main button")].map((element) => ({
+        name: (element.textContent ?? "").trim().slice(0, 24),
+        height: Math.round(element.getBoundingClientRect().height),
+      })),
+    );
+    expect(heights.length).toBeGreaterThan(3);
+    for (const control of heights) expect(control.height, `${control.name} is ${control.height}px high`).toBeGreaterThanOrEqual(44);
   });
 });

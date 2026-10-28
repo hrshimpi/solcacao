@@ -1,4 +1,4 @@
-import { email, maxLength, minLength, minNumber, phone, required, validateValue, wholeNumber } from "./validation";
+import { email, maxLength, maxNumber, minLength, minNumber, phone, required, validateValue, wholeNumber } from "./validation";
 
 describe("validation rules", () => {
   it("required fails on empty and on spaces only", () => {
@@ -18,6 +18,7 @@ describe("validation rules", () => {
     expect(phone("")).toBeNull();
     expect(wholeNumber("")).toBeNull();
     expect(minNumber(500)("")).toBeNull();
+    expect(maxNumber(500)("")).toBeNull();
   });
 
   it("phone accepts digits, spaces, plus and dashes", () => {
@@ -37,6 +38,12 @@ describe("validation rules", () => {
     expect(wholeNumber("120")).toBeNull();
     expect(minNumber(500)("499")).toEqual({ key: "errors.minNumber", params: { count: 500 } });
     expect(minNumber(500)("500")).toBeNull();
+  });
+
+  it("maxNumber reports the limit and leaves text that is not a number to the whole number rule", () => {
+    expect(maxNumber(500)("501")).toEqual({ key: "errors.maxNumber", params: { count: 500 } });
+    expect(maxNumber(500)("500")).toBeNull();
+    expect(maxNumber(500)("12.5")).toBeNull();
   });
 
   it("validateValue returns the first failing rule", () => {

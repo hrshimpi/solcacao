@@ -1,24 +1,24 @@
 // A group of cards where exactly one can be chosen. They are real radio buttons, so the arrow keys work.
 import { useId } from "react";
 
-interface Choice {
-  id: string;
+interface Choice<T extends string> {
+  id: T;
   label: string;
   sub: string;
   color?: string;
 }
 
-interface ChoiceCardsProps {
+interface ChoiceCardsProps<T extends string> {
   name: string;
   labelledBy: string;
-  choices: Choice[];
-  value: string | null;
-  onChange: (id: string) => void;
+  choices: Choice<T>[];
+  value: T | null;
+  onChange: (id: T) => void;
   className: string;
   error?: string;
 }
 
-export default function ChoiceCards({ name, labelledBy, choices, value, onChange, className, error }: ChoiceCardsProps) {
+export default function ChoiceCards<T extends string>({ name, labelledBy, choices, value, onChange, className, error }: ChoiceCardsProps<T>) {
   const errorId = useId();
 
   return (

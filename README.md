@@ -11,12 +11,12 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - English and Spanish. Every page lives under `/en` or `/es`, and the EN and ES buttons keep you on the same page
 - Home page, shop with filters (cacao percentage, origin, category, tasting notes) and product pages with a batch passport and origin story. The filters are kept in the address, so a filtered shop can be shared
 - A cart in a dialog that is saved in the browser. Checkout isn't available, the button says so
-- Wholesale page and the four step Corporate Cacao Studio form for business quotes. The wholesale page is open to everybody, the studio is for business accounts (see "Trying the studio" below)
+- Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
 - Sign in and create account screens, a profile page (with sample data), a sampler builder (pick 4 to 6 and add them as one cart item) and a contact page
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
 - A backend with a health check and a standard error format
 
-The forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with the database, real accounts and emails.
+The quote form of the studio sends its request, with the brand files, to the backend (see "Trying the studio" below). The other forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with real accounts.
 
 ## Tech
 
@@ -64,6 +64,7 @@ Use `/es` instead of `/en` for the Spanish version.
 | Sign in | http://localhost:5173/en/account/login |
 | Create account | http://localhost:5173/en/account/register |
 | Profile | http://localhost:5173/en/profile |
+| My quote requests (business accounts) | http://localhost:5173/en/account/requests |
 | Backend health check | http://localhost:4000/api/health |
 
 **Trying the studio.** There are no real accounts yet, so signing in is a preview: the form doesn't check anything, it only remembers the account type chosen above the form (retail or business) and the email, until you close the browser tab. The studio then works like this:
@@ -72,7 +73,25 @@ Use `/es` instead of `/en` for the Spanish version.
 - Signed in with a retail account: a message says the studio is for business accounts, with a link to create a business account (`/en/account/register?type=business` opens the form on the business choice).
 - Signed in with a business account: the studio opens.
 
-To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use. The backend checks the account type again when a quote request is sent.
+To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use.
+
+The last step sends the request to the backend (`POST /api/b2b/quote`) as a multipart form, and shows how much of the files has gone up. The backend checks the account type again, with a token, and the preview sign in does not give one yet. Without it the studio says that the server does not know who you are, and keeps everything that was typed. To send a request for real, run the backend with a database, make a business token (the command is in the "B2B quotes" section below) and put it in the browser tab, from the developer console of the studio page:
+
+```
+sessionStorage.setItem("sc_token", "<token>")
+```
+
+Once there is a real sign in, it should put the token there by itself. A few more things to know:
+
+- What was entered is kept in a draft in the browser tab, so a refresh brings it back. The files are not kept, so after a refresh the page lists the files to add again. The browser asks before the tab is closed with something unsent.
+- The company and contact start from the name and company that were given when the account was created in this tab, when there are any.
+- When the request is saved the page shows its reference (like `SC-1A2B3C4D`, the end of its id) and a link to that request in "My quote requests".
+
+**My quote requests.** `/en/account/requests` is for business accounts (a guest signs in first and comes back, a retail account gets a short message). It lists the requests the account sent, newest first, each with its date, cacao profile, packaging, units and status (submitted, quoted, approved or rejected), and the amount once it was quoted. Choosing one opens its details on the right (below the list on a phone): the notes, the note from our team and the files that were sent. The chosen request is in the address (`?request=<id>`), so the link can be shared. The account page links to it too, for business accounts only.
+
+- The page needs the same token as the studio (see above) to read the requests. Without it, it says that the server does not know who you are.
+- An admin changes a status on the server (see "Reading and changing the requests" below). The page reads the list again when you come back to the tab and when you press Refresh, and a screen reader is told which request changed.
+- A file cannot be opened with a plain link, because the server wants the token in the `Authorization` header. The Download button fetches the file with the token and saves it under the name it was uploaded with.
 
 Other commands, run inside `frontend` or `backend`:
 
@@ -167,17 +186,21 @@ The tests do not need a database. One group of tests checks the real MongoDB cod
 MONGODB_TEST_URI=mongodb://127.0.0.1:27017/solcacao_test pnpm test
 ```
 
-## Quote requests API
+## B2B quotes
+
+A company asks for custom chocolate in the Corporate Cacao Studio. The studio sends one multipart form to the backend, the wholesale address gets an email, and the company follows its request in "My quote requests". This section is about the backend side: sending a request, the files, where they are kept and the status of a request.
+
+### Sending a quote request
 
 A business account sends a quote request from the Corporate Cacao Studio as one multipart form: the text fields and up to 5 brand files.
 
-`POST /api/b2b/quote` needs a business account, which means a token with `accountType: "b2b"`. A guest gets `401` and a retail account gets `403`. Each user can send 10 requests per hour, then it is `429`.
+`POST /api/b2b/quote` needs a business account, which means a token with `accountType: "b2b"`. A guest gets `401` and a retail account gets `403`. Each user can send 10 requests per hour, then it is `429`. Every request counts, also one that was refused, because even a refused one can carry big files.
 
 | Field | Notes |
 |---|---|
-| `cacaoProfile` | an origin like `Ecuador`, or `custom` |
+| `cacaoProfile` | text, up to 60 characters. The studio sends the name of the card, like `Ecuador 72%` or `Custom blend` |
 | `packagingType` | `foil_wrap`, `rigid_box`, `specimen_card` or `paper_sleeve` |
-| `quantityEstimate` | a whole number, 1 or more |
+| `quantityEstimate` | a whole number, from 1 to 10,000,000, written with digits only (`800`, not `1e3` or `0x20`) |
 | `companyName`, `contactName` | taken from the user's profile when the form leaves them out |
 | `notes` | optional, up to 2000 characters |
 | `brandAssets` | 0 to 5 files (PDF, AI, EPS or PNG), 50 MB each. It is one field name, repeated for each file |
@@ -198,9 +221,75 @@ curl -X POST http://localhost:4000/api/b2b/quote \
   -F "brandAssets=@logo.png;type=image/png"
 ```
 
-The answer is `201 { "request": { ... } }` with the saved request (status `submitted`, no quote yet) and the stored name of each file. Mistakes come back in the same error shape as the inquiries: `400` with a message for each field, and `413` for a file that is too big. A request is either saved with all its files or not at all: if anything fails after the files were stored, they are deleted again. The wholesale address gets an email about each new request, and if that email fails the request still works.
+The answer is `201 { "request": { ... } }` with the saved request (status `submitted`, no quote yet) and the stored name of each file. Mistakes come back in the same error shape as the inquiries (see the table below). A request is either saved with all its files or not at all: if anything fails after the files were stored, they are deleted again. The wholesale address gets an email about each new request, and if that email fails the request still works.
 
 Until the account code exists, the company, contact name and email are read from the `users` collection (`name`, or `firstName` and `lastName`; `companyName` or `b2bProfile.companyName`; `email`). Those field names are a guess and will be replaced by the real profile code.
+
+### Files
+
+The brand files go in the field `brandAssets`, the same field name for each file. A file is only accepted when three things agree: its extension, the type the browser says it is, and its first bytes. So a program that was renamed `invoice.png` is refused, and so is a real PNG sent as `application/pdf`.
+
+| Kind | Extension | The file has to start with |
+|---|---|---|
+| PDF | `.pdf` | `%PDF-` |
+| Illustrator | `.ai` | `%PDF-` (newer files) or `%!` (older files, which are PostScript) |
+| EPS | `.eps` | `%!` |
+| PNG | `.png` | the 8 bytes every PNG starts with |
+
+The limits:
+
+- At most 5 files, 50 MB each, and no file that is empty. The numbers come from `MAX_UPLOAD_FILES` and `MAX_UPLOAD_MB` in `.env`.
+- Up to 20 text fields in the form, and no text field bigger than 1 MB. A JSON body (which only works when there are no files) can be up to 100 KB.
+- If one file of the request is not good, none of them is stored, and `details` of the error lists every bad file with its name and code.
+
+The name a person gave a file is only used to show it and as the name of the download, never as a place on the disk. Folders are cut off, control characters and the hidden marks that change the direction of text are taken out (they can make the end of a name be drawn backwards, so it looks like it ends in another extension than it really does), and a name over 100 characters is shortened, keeping its extension. The file itself is stored under a random name with the same extension, like `0b73ddeb-b341-4dc6-b260-f8bf2fee61b8.pdf`.
+
+What can go wrong when a request is sent:
+
+| Status | Code | When |
+|---|---|---|
+| `400` | `VALIDATION_ERROR` | a text field is not valid. `details` has a message for each field |
+| `400` | `UNSUPPORTED_FILE_TYPE` | the extension or the type is not one of the four |
+| `400` | `FILE_CONTENT_MISMATCH` | the file does not start the way its extension says |
+| `400` | `EMPTY_FILE` | the file has no bytes |
+| `400` | `TOO_MANY_FILES` | more than 5 files |
+| `400` | `UNEXPECTED_FILE_FIELD` | a file in another field than `brandAssets` |
+| `400` | `INVALID_UPLOAD` | the form is cut off or broken, has more than 20 text fields, or has a text field that is too big |
+| `401` | `UNAUTHENTICATED` | no token, or one that is not good |
+| `403` | `FORBIDDEN` | a signed in user who has no business account |
+| `413` | `FILE_TOO_LARGE`, `PAYLOAD_TOO_LARGE` | a file over the limit, or a JSON body over 100 KB |
+| `429` | `RATE_LIMITED` | more than 10 requests in an hour |
+| `503` | `DATABASE_UNAVAILABLE` | the server cannot reach the database |
+
+### Where the files are kept
+
+`UPLOAD_DIR` in `.env` is the folder for the files. The default is `./uploads`, and the folder is made the first time a file is saved.
+
+- It is relative to the folder where the server was started, so with `pnpm dev` inside `backend` it is `backend/uploads`. Give an absolute path when the server is started from somewhere else, or when the files should live outside the project, which is the better choice on a real server, on a disk that is backed up.
+- While a form is being read, its files wait in `UPLOAD_DIR/tmp`. They are moved into the folder once every file has passed, and removed when the request fails or the person leaves.
+- Git ignores it. `.gitignore` has `uploads/`, which matches a folder with that name anywhere in the project, so `backend/uploads` is never committed. A test asks git itself, and also checks the folder that `.env.example` gives. If you choose another folder inside the project (say `data/brand-files`), add it to `.gitignore` yourself.
+- It is not public. No route serves the folder, and a test tries a list of addresses (`/uploads/...`, `/api/uploads/...`, the folder itself, the temporary folder, with GET, HEAD and OPTIONS) and expects a `404` for each. The only way to get a file is the download route in the next part, with the token of the owner of the request or an admin.
+- Nothing deletes a file after the request was saved. The API has no way yet to remove a request or its files, so on a real server the folder only grows.
+
+### The status of a request
+
+A request starts as `submitted`. An admin moves it on with `PATCH /api/b2b/requests/:id`, and the owner sees the new status in "My quote requests".
+
+```
+submitted --> quoted --> approved
+    |            |
+    |            +-----> rejected
+    +------------------> rejected
+```
+
+| From | Can move to |
+|---|---|
+| `submitted` | `quoted` or `rejected` |
+| `quoted` | `approved` or `rejected` |
+| `approved` | nothing, it is final |
+| `rejected` | nothing, it is final |
+
+Any other change, also to the same status, is `400` with the code `INVALID_TRANSITION`, and the message says where the request can go. `quoted` needs a `quoteAmount`, a whole number of cents (`125000` is 1,250.00), which is set once: the other statuses do not take one, and the amount stays on the request. A `quoteNote` can come with any change. If two admins change the same request at the same moment, one of them wins and the other gets `409`.
 
 ### Reading and changing the requests
 
@@ -213,10 +302,8 @@ Until the account code exists, the company, contact name and email are read from
 
 - A guest gets `401`. The list is for business accounts, so a retail account gets `403` there. Changing a status is for admins only: everybody else gets `403`, also the owner of the request.
 - Somebody else's request answers `404`, exactly like a request that does not exist, so nobody can find out which ids are in use. The same goes for a file name that does not belong to that request. An id that is not 24 letters and numbers is a `400`.
-- The files are never public. The only way to get one is the download route above, which needs the owner's or an admin's token. It is sent with `Content-Disposition: attachment`, so the browser saves it and does not open it, and with `Cache-Control: private, no-store`. A stored name in the response is only a name: it does not tell where the file is kept.
-- Statuses move one way: `submitted` to `quoted` or `rejected`, and `quoted` to `approved` or `rejected`. `approved` and `rejected` are final. Any other change is `400` with the code `INVALID_TRANSITION`, and the message says where the request can go.
-- `quoted` needs a `quoteAmount` (a whole number of cents, so `125000` is 1,250.00). It is set once, so the other statuses do not take one, and the amount stays on the request. A `quoteNote` can come with any change.
-- If two admins change the same request at the same moment, one of them wins and the other gets `409`.
+- The files are never public. The download route needs the owner's or an admin's token. It is sent with `Content-Disposition: attachment`, so the browser saves it and does not open it, with `X-Content-Type-Options: nosniff`, and with `Cache-Control: private, no-store`. A stored name in the response is only a name: it does not tell where the file is kept.
+- If a stored file cannot be read, the answer is the standard `500`, not a file and not a dropped connection. If it breaks in the middle of a download, the connection is ended and the server goes on.
 
 Try it with an admin token (from the `backend` folder, same command as for the inquiries) and the id from the quote request answer:
 

@@ -7,6 +7,8 @@ import ContactPage from "../features/contact/ContactPage";
 import HomePage from "../features/home/HomePage";
 import ProductDetailPage from "../features/product/ProductDetailPage";
 import ProfilePage from "../features/profile/ProfilePage";
+import MyRequestsPage from "../features/requests/MyRequestsPage";
+import RequestsAccessGuard from "../features/requests/RequestsAccessGuard";
 import SamplerPage from "../features/sampler/SamplerPage";
 import NotFoundPage from "../features/shell/NotFoundPage";
 import StudioPage from "../features/studio/StudioPage";
@@ -41,6 +43,14 @@ export const routes: RouteObject[] = [
           { path: "contact", element: <ContactPage /> },
           { path: "account/login", element: <LoginPage /> },
           { path: "account/register", element: <RegisterPage /> },
+          {
+            path: "account/requests",
+            element: (
+              <RequestsAccessGuard>
+                <MyRequestsPage />
+              </RequestsAccessGuard>
+            ),
+          },
           { path: "profile", element: <ProfilePage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
