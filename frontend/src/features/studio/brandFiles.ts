@@ -6,10 +6,11 @@ export interface FileProblem {
   name: string;
 }
 
-// a name with no dot has no extension, so a file that is just called "pdf" is not a pdf
+// a name with no dot has no extension, so a file that is just called "pdf" is not a pdf. A dot at the very start is not
+// an extension either: ".png" is a name without a name, which the server refuses (like Node does for its own paths).
 function extensionOf(name: string) {
   const dot = name.lastIndexOf(".");
-  return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
+  return dot <= 0 ? "" : name.slice(dot + 1).toLowerCase();
 }
 
 function isSameFile(a: File, b: File) {

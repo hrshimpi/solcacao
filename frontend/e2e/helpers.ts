@@ -51,7 +51,8 @@ export async function openRoute(page: Page, path: string, options: { account?: A
   if (account) await signInAs(page, account);
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+  // the fonts come from the network, so a slow or missing connection must not hold a test until it times out
+  await page.evaluate(() => Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 8000))]));
   await page.evaluate(() => Promise.allSettled(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished)));
 }
 
@@ -79,7 +80,13 @@ export async function mockQuoteApi(page: Page, options: { answer?: QuoteAnswer; 
     // the body is only read as text to look for the names of the fields and files, never to rebuild them
     state.requests.push({ headers: request.headers(), body: request.postDataBuffer()?.toString("latin1") ?? "" });
     if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-    await route.fulfill({ status: state.answer.status, contentType: "application/json", body: JSON.stringify(state.answer.body) });
+    // a text body is sent as a page, which is how a proxy or a broken server answers
+    const asPage = typeof state.answer.body === "string";
+    await route.fulfill({
+      status: state.answer.status,
+      contentType: asPage ? "text/html" : "application/json",
+      body: asPage ? (state.answer.body as string) : JSON.stringify(state.answer.body),
+    });
   });
   return state;
 }

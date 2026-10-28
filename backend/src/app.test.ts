@@ -26,6 +26,16 @@ describe("api", () => {
     expect(Array.isArray(res.body.error.details)).toBe(true);
   });
 
+  it("answers 413 in the standard shape for a JSON body that is too big, before anything else looks at it", async () => {
+    const res = await request(app)
+      .post("/api/b2b/quote")
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify({ notes: "x".repeat(300_000) }));
+
+    expect(res.status).toBe(413);
+    expect(res.body.error).toEqual({ code: "PAYLOAD_TOO_LARGE", message: "The request body is too large.", details: [] });
+  });
+
   it("rejects a body that isn't valid json", async () => {
     const res = await request(app)
       .post("/api/health")

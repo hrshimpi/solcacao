@@ -43,6 +43,16 @@ export function useQuoteSubmit() {
     return t("b2b.submit.errors.unknown");
   }
 
+  // the request exists now, so what the draft held is not needed any more, even if the page was left meanwhile.
+  // Without an id the request is still saved: there is only no reference to show.
+  function saved(id: unknown) {
+    clearDraft();
+    setReference(typeof id === "string" ? requestReference(id) : "");
+    setRequestId(typeof id === "string" ? id : "");
+    setStatus("sent");
+    announce(t("studio.sentAnnounce"));
+  }
+
   async function send(state: ReadyWizardState) {
     if (busy.current) return;
     busy.current = true;
@@ -56,21 +66,26 @@ export function useQuoteSubmit() {
         lang,
         onProgress: state.files.length > 0 ? setProgress : undefined,
       });
-      // the request exists now, so what the draft held is not needed any more, even if the page was left meanwhile
-      clearDraft();
-      const id = answer?.request?.id;
-      // an answer without an id is still a saved request, so it is not shown as a failure (that would invite a second one)
-      setReference(typeof id === "string" ? requestReference(id) : "");
-      setRequestId(typeof id === "string" ? id : "");
-      setStatus("sent");
-      announce(t("studio.sentAnnounce"));
+      saved(answer?.request?.id);
     } catch (error) {
-      setFailure({ detail: describe(error) });
-      setStatus("editing");
+      // A 2xx answer means the server saved the request, even when the answer cannot be read (a proxy that answers 201
+      // with a page of its own, for example). That is a success without a reference. Showing it as a failure would invite
+      // a second request, which would be a copy.
+      if (error instanceof ApiError && error.status >= 200 && error.status < 300) {
+        saved(undefined);
+      } else {
+        setFailure({ detail: describe(error) });
+        setStatus("editing");
+      }
     } finally {
       busy.current = false;
     }
   }
 
-  return { status, progress, failure, reference, requestId, send };
+  // the message about a request that could not be sent belongs to the screen it was shown on
+  function dismissFailure() {
+    setFailure(null);
+  }
+
+  return { status, progress, failure, reference, requestId, send, dismissFailure };
 }

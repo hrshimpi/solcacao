@@ -75,6 +75,8 @@ test.describe("axe scan of open dialogs and steps", () => {
   });
 
   test("every step of the studio wizard", async ({ page }) => {
+    // four scans and the clicks between them take about 15 seconds in WebKit, half of what a test is given
+    test.slow();
     await openRoute(page, "/en/wholesale/studio");
     expect(await scan(page)).toEqual([]);
 

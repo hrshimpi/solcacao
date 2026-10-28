@@ -118,6 +118,24 @@ describe("quote request: what is wrong", () => {
       expect(problems({ ...valid, quantityEstimate })).toEqual(["quantityEstimate: Please enter how many units you need, as a whole number."]);
     });
 
+    // JavaScript can read these as numbers (0x10 is 16, 1e3 is 1000), but nobody means that when they write the units
+    it.each(["0x10", "0X1F", "0b11", "0o17", "1e3", "8E2", "+800", "800.", "800.0", ".8e3", "1_000", "1,000", "٨٠٠"])(
+      "needs plain digits, not another way of writing a number: %j",
+      (quantityEstimate) => {
+        expect(problems({ ...valid, quantityEstimate })).toEqual(["quantityEstimate: Please enter how many units you need, as a whole number."]);
+      },
+    );
+
+    it.each([
+      ["800", 800],
+      [" 800 ", 800],
+      ["0800", 800],
+      ["00000000001", 1],
+      [800, 800],
+    ])("takes the digits %j as %j", (quantityEstimate, expected) => {
+      expect(parsed({ ...valid, quantityEstimate }).quantityEstimate).toBe(expected);
+    });
+
     it("has an upper limit, with a way out", () => {
       expect(problems({ ...valid, quantityEstimate: "10000000" })).toEqual([]);
       expect(problems({ ...valid, quantityEstimate: "10000001" })).toEqual([

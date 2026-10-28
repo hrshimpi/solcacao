@@ -21,8 +21,10 @@ const packagingType = z.preprocess(
 );
 
 const unitsMessage = "Please enter how many units you need, as a whole number.";
+// Number("0x10") is 16 and Number("1e3") is 1000, but nobody means that when they type the units. Only plain digits are
+// read as a number (a minus sign too, so that -5 is told it is under 1), anything else is left as text and refused.
 const quantityEstimate = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() !== "" ? Number(value) : value),
+  (value) => (typeof value === "string" && /^-?\d+$/.test(value.trim()) ? Number(value.trim()) : value),
   z
     .number({ error: unitsMessage })
     .int(unitsMessage)

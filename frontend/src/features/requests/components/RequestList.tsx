@@ -10,8 +10,8 @@ import StatusBadge from "./StatusBadge";
 interface RequestListProps {
   items: QuoteRequest[];
   selectedId: string | null;
-  // called when a request was chosen, so the page can move focus to its details
-  onPick: () => void;
+  // called with the id of the request that was chosen, so the page can move focus to its details
+  onPick: (id: string) => void;
 }
 
 export default function RequestList({ items, selectedId, onPick }: RequestListProps) {
@@ -26,7 +26,7 @@ export default function RequestList({ items, selectedId, onPick }: RequestListPr
             <LocaleLink
               to={`/account/requests?request=${encodeURIComponent(request.id)}`}
               aria-current={selected ? "true" : undefined}
-              onClick={onPick}
+              onClick={() => onPick(request.id)}
               className={`block min-h-11 border-l-2 px-3 py-4 hover:bg-clay-surface/60 ${
                 selected ? "border-pod-wine bg-clay-surface" : "border-transparent"
               }`}

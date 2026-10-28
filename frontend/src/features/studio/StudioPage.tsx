@@ -42,7 +42,7 @@ export default function StudioPage() {
   // the files of the draft were not kept by the refresh, so their names are shown until new files are added
   const [lostFiles, setLostFiles] = useState(start.fileNames);
   const [stepError, setStepError] = useState("");
-  const { status, progress, failure, reference, requestId, send } = useQuoteSubmit();
+  const { status, progress, failure, reference, requestId, send, dismissFailure } = useQuoteSubmit();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const alertRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
@@ -95,6 +95,13 @@ export default function StudioPage() {
     requestAnimationFrame(() => document.querySelector<HTMLElement>("[role=radiogroup] input")?.focus());
   }
 
+  // a message belongs to the step it was shown on, so it does not follow the person to another step
+  function moveTo(target: number) {
+    setStepError("");
+    dismissFailure();
+    setStep(target);
+  }
+
   function goNext(event: FormEvent) {
     event.preventDefault();
     if (step === 0 && !profile) {
@@ -107,8 +114,7 @@ export default function StudioPage() {
       focusFirstChoice();
       return;
     }
-    setStepError("");
-    setStep((current) => current + 1);
+    moveTo(step + 1);
   }
 
   const names = stepKeys.map((key) => t(`studio.steps.${key}`));
@@ -123,7 +129,7 @@ export default function StudioPage() {
           <p className="mb-2 font-sans text-[11px] uppercase tracking-[0.2em] text-ink-cacao/70">{t("studio.eyebrow")}</p>
           <h1 className="font-spectral text-3xl font-semibold text-ink-cacao">{t("studio.title")}</h1>
           {status === "editing" && (
-            <WizardSteps names={names} shortNames={shortNames} current={step} onGoTo={setStep} />
+            <WizardSteps names={names} shortNames={shortNames} current={step} onGoTo={moveTo} />
           )}
           {status !== "editing" && <div className="h-8" />}
         </div>
@@ -207,7 +213,7 @@ export default function StudioPage() {
                 <button
                   type="button"
                   disabled={status === "sending"}
-                  onClick={() => setStep((current) => current - 1)}
+                  onClick={() => moveTo(step - 1)}
                   className="min-h-11 w-full font-sans text-sm text-ink-cacao underline underline-offset-4 disabled:opacity-70 sm:w-auto"
                 >
                   {t("studio.previous")}

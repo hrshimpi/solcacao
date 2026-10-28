@@ -179,6 +179,65 @@ test.describe("smoke flows", () => {
     expect(quote.requests).toHaveLength(2);
   });
 
+  for (const [status, code, shown] of [
+    [401, "UNAUTHENTICATED", "The server does not know who you are."],
+    [403, "FORBIDDEN", "Only business accounts can send a quote request."],
+    [413, "FILE_TOO_LARGE", "One of your files is too big. Each file can be up to 50 MB."],
+    [429, "RATE_LIMITED", "You have sent a lot of requests. Please try again later."],
+    [503, "DATABASE_UNAVAILABLE", "We can't reach the database right now."],
+  ] as const) {
+    test(`the studio explains a ${status} answer of the server, and keeps what was typed`, async ({ page }) => {
+      await mockQuoteApi(page, { answer: { status, body: { error: { code, message: "We can't reach the database right now.", details: [] } } } });
+      await openRoute(page, "/en/wholesale/studio");
+      await fillStudio(page);
+
+      await page.getByRole("button", { name: "Submit for quote" }).click();
+
+      await expect(page.getByRole("alert")).toContainText(shown);
+      await expect(page.getByLabel(/Company name/)).toHaveValue("Hacienda Brands");
+      await expect(page.getByLabel(/Estimated units/)).toHaveValue("800");
+      await expect(page.getByRole("button", { name: "Submit for quote" })).toBeEnabled();
+    });
+  }
+
+  test("a request that the server saved, but whose answer cannot be read, is shown as saved", async ({ page }) => {
+    const quote = await mockQuoteApi(page, { answer: { status: 201, body: "<html>Created</html>" } });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+
+    await expect(page.getByRole("heading", { name: "We have your brief." })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    expect(quote.requests).toHaveLength(1);
+  });
+
+  test("the message about a request that could not be sent stays on the review step", async ({ page }) => {
+    await mockQuoteApi(page, { answer: quoteFailed });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+    await expect(page.getByRole("alert")).toBeVisible();
+
+    await page.getByRole("button", { name: "Previous step" }).click();
+
+    await expect(page.getByRole("heading", { name: "Upload your brand assets" })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+
+  test("an error of one step does not follow the person back to the step before", async ({ page }) => {
+    await openRoute(page, "/en/wholesale/studio");
+    await chooseOption(page, /Ecuador 72%/);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("Choose a packaging option to continue.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Previous step" }).click();
+
+    await expect(page.getByRole("heading", { name: "Choose your cacao profile" })).toBeVisible();
+    await expect(page.getByText("Choose a packaging option to continue.")).toHaveCount(0);
+  });
+
   test("a double click on Submit sends one request", async ({ page }) => {
     const quote = await mockQuoteApi(page, { delayMs: 600 });
     await openRoute(page, "/en/wholesale/studio");
