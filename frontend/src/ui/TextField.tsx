@@ -1,105 +1,64 @@
-// A form field with a visible label, a hint, an error message and the right aria attributes.
-import { useId, type HTMLInputTypeAttribute } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
+import { useId } from "react";
 
-interface TextFieldProps {
+export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-  onBlur?: () => void;
+  hint?: ReactNode;
   error?: string;
-  hint?: string;
-  // a gentle note about a value that is allowed, unlike an error it does not mark the field as invalid
-  warning?: string;
-  type?: HTMLInputTypeAttribute;
-  autoComplete?: string;
-  required?: boolean;
-  multiline?: boolean;
-  rows?: number;
-  placeholder?: string;
-  inputMode?: "text" | "numeric" | "email" | "tel";
-  readOnly?: boolean;
-  tone?: "light" | "dark";
 }
 
 export default function TextField({
   label,
-  name,
-  value,
-  onChange,
-  onBlur,
-  error,
   hint,
-  warning,
-  type = "text",
-  autoComplete,
+  error,
+  id: explicitId,
   required,
-  multiline,
-  rows = 4,
-  placeholder,
-  inputMode,
-  readOnly,
-  tone = "light",
+  className = "",
+  ...rest
 }: TextFieldProps) {
-  const id = useId();
-  const hintId = `${id}-hint`;
-  const warningId = `${id}-warning`;
-  const errorId = `${id}-error`;
-  const describedBy = [hint ? hintId : "", warning ? warningId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined;
-  const dark = tone === "dark";
+  const generatedId = useId();
+  const id = explicitId || generatedId;
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
 
-  const common = {
-    id,
-    name,
-    value,
-    required,
-    readOnly,
-    placeholder,
-    autoComplete,
-    onBlur,
-    "aria-invalid": error ? true : undefined,
-    "aria-describedby": describedBy,
-    onChange: (event: { target: { value: string } }) => onChange(event.target.value),
-    className: `block w-full bg-transparent py-1.5 font-sans text-sm ${
-      dark ? "text-paper-text placeholder:text-paper-text/70" : "text-ink-cacao placeholder:text-ink-cacao/70"
-    }`,
-  };
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
 
   return (
-    <div
-      className={`border-b ${
-        readOnly ? "border-ink-cacao/20" : dark ? "border-paper-text/60" : "border-ink-cacao/60"
-      } ${error ? "border-pod-wine" : ""} pb-1`}
-    >
+    <div className="flex flex-col gap-1 text-left">
       <label
         htmlFor={id}
-        className={`mb-1 block font-sans text-[11px] uppercase tracking-widest ${dark ? "text-paper-text/70" : "text-ink-cacao/70"}`}
+        className="font-sans text-xs font-semibold uppercase tracking-wider text-ink-cacao"
       >
         {label}
-        {required && <span aria-hidden="true"> *</span>}
+        {required && <span className="ml-0.5 text-pod-wine">*</span>}
       </label>
-      {multiline ? (
-        <textarea {...common} rows={rows} className={`${common.className} resize-none`} />
-      ) : (
-        <input {...common} type={type} inputMode={inputMode} />
-      )}
+
+      <input
+        id={id}
+        required={required}
+        aria-describedby={describedBy}
+        aria-invalid={Boolean(error)}
+        className={`w-full border-b border-ink-cacao/40 bg-transparent py-2 font-sans text-sm text-ink-cacao placeholder:text-ink-cacao/40 focus:border-ink-cacao focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+          error ? "border-red-600" : ""
+        } ${className}`}
+        {...rest}
+      />
+
       {hint && (
-        <p id={hintId} className={`mt-1 font-sans text-xs ${dark ? "text-paper-text/70" : "text-ink-cacao/70"}`}>
+        <p
+          id={hintId}
+          className="pointer-events-none mt-1 font-sans text-xs text-ink-cacao/70"
+        >
           {hint}
         </p>
       )}
-      {warning && (
-        <p
-          id={warningId}
-          className={`mt-1 border-l-2 pl-2 font-sans text-xs font-medium ${
-            dark ? "border-sun-gold text-sun-gold" : "border-gold-deep text-gold-deep"
-          }`}
-        >
-          {warning}
-        </p>
-      )}
+
       {error && (
-        <p id={errorId} className="mt-1 font-sans text-xs font-medium text-pod-wine">
+        <p
+          id={errorId}
+          role="alert"
+          className="mt-1 font-sans text-xs font-medium text-red-600"
+        >
           {error}
         </p>
       )}
