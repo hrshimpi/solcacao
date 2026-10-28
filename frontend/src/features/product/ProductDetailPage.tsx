@@ -4,9 +4,11 @@ import { useParams } from "react-router";
 import { getProductBySlug, originName, type Product } from "../../data/products";
 import { formatPrice } from "../../i18n/format";
 import { useLang } from "../../i18n/LanguageContext";
+import { stockStatus } from "../../lib/stock";
 import { usePageTitle } from "../../lib/usePageTitle";
 import LocaleLink from "../../ui/LocaleLink";
 import QuantityStepper from "../../ui/QuantityStepper";
+import StockBadge from "../../ui/StockBadge";
 import { useCart } from "../cart/CartContext";
 import NotFoundPage from "../shell/NotFoundPage";
 import BatchPassport from "./components/BatchPassport";
@@ -27,6 +29,11 @@ function ProductDetail({ product }: { product: Product }) {
   const { addProduct } = useCart();
   const [quantity, setQuantity] = useState(1);
   usePageTitle(product.name);
+
+  const stock = stockStatus(product.stock);
+  const soldOut = stock === "out";
+  // the stepper never offers more than we have
+  const maxQuantity = Math.min(99, product.stock);
 
   return (
     <div className="bg-stone-paper">
@@ -58,7 +65,13 @@ function ProductDetail({ product }: { product: Product }) {
             {originName(product.origin, lang)} · {t(`categories.${product.category}`)}
           </p>
           <h1 className="mb-1 font-spectral text-4xl font-semibold text-ink-cacao">{product.name}</h1>
-          <p className="mb-6 font-sans text-2xl font-medium text-gold-deep">{formatPrice(product.price, lang)}</p>
+          <p className="mb-2 font-sans text-2xl font-medium text-gold-deep">{formatPrice(product.price, lang)}</p>
+          <div className="mb-6 min-h-6">
+            {stock === "low" && (
+              <p className="font-sans text-sm font-medium text-pod-wine">{t("stock.fewLeft", { count: product.stock })}</p>
+            )}
+            {soldOut && <StockBadge status={stock} />}
+          </div>
 
           <p className="mb-6 font-spectral text-base leading-relaxed text-ink-cacao/90">{product.description}</p>
 
@@ -72,18 +85,22 @@ function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <QuantityStepper
-              value={quantity}
-              onChange={setQuantity}
-              decreaseLabel={t("product.decrease")}
-              increaseLabel={t("product.increase")}
-            />
+            {!soldOut && (
+              <QuantityStepper
+                value={quantity}
+                onChange={setQuantity}
+                max={maxQuantity}
+                decreaseLabel={t("product.decrease")}
+                increaseLabel={t("product.increase")}
+              />
+            )}
             <button
               type="button"
               onClick={() => addProduct(product.id, quantity)}
-              className="min-h-11 flex-1 bg-sun-gold px-6 py-2.5 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90"
+              disabled={soldOut}
+              className="min-h-11 flex-1 bg-sun-gold px-6 py-2.5 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-sun-gold"
             >
-              {t("catalog.addToCart")}
+              {soldOut ? t("stock.out") : t("catalog.addToCart")}
             </button>
           </div>
 
