@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { LOW_STOCK_THRESHOLD, stockStatus } from "./stock";
 
 describe("stockStatus", () => {
