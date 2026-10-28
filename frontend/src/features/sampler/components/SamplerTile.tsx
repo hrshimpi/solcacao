@@ -1,7 +1,9 @@
 // One specimen you can pick for the sampler. It is a toggle button, and the tasting notes show on hover, focus or when picked.
 import type { Product } from "../../../data/products";
 import { useLang } from "../../../i18n/LanguageContext";
+import { stockStatus } from "../../../lib/stock";
 import { CheckIcon } from "../../../ui/Icons";
+import StockBadge from "../../../ui/StockBadge";
 
 interface SamplerTileProps {
   product: Product;
@@ -12,7 +14,8 @@ interface SamplerTileProps {
 
 export default function SamplerTile({ product, selected, full, onToggle }: SamplerTileProps) {
   const { t } = useLang();
-  const blocked = full && !selected;
+  const soldOut = stockStatus(product.stock) === "out";
+  const blocked = (full || soldOut) && !selected;
   const detailId = `sampler-detail-${product.id}`;
 
   return (
@@ -46,6 +49,7 @@ export default function SamplerTile({ product, selected, full, onToggle }: Sampl
         </span>
         <span className="font-spectral text-sm font-semibold leading-tight text-ink-cacao">{product.name}</span>
       </button>
+      {soldOut && <StockBadge status="out" />}
       <p
         id={detailId}
         className={`min-h-8 font-sans text-xs leading-snug text-ink-cacao/70 group-focus-within:visible group-hover:visible ${
@@ -53,7 +57,8 @@ export default function SamplerTile({ product, selected, full, onToggle }: Sampl
         }`}
       >
         {product.tastingSummary}
-        {blocked && <span className="sr-only"> {t("sampler.full")}</span>}
+        {soldOut && <span className="sr-only"> {t("stock.out")}</span>}
+        {blocked && !soldOut && <span className="sr-only"> {t("sampler.full")}</span>}
       </p>
     </li>
   );
