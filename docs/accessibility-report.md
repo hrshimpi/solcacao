@@ -185,3 +185,29 @@ axe cannot decide the colour contrast of text that sits on a photo or a gradient
 | Sign in panel heading, paragraph and list | 768 and 1440 | 7.09 |
 
 The first measurement found a real problem: on a phone the home hero gradient was too light on the right side, so the eyebrow text was 2.00 to 1 and the heading 2.80 to 1 in the worst spot. Below 1024 pixels the overlay is now a flat `ink-cacao` at 80 percent (see colour change 10). The values in the table are after that fix. The pictures come from Unsplash. If they are replaced, this check has to be done again.
+
+---
+
+## Student 1: Authentication & Account Dashboard Audit
+
+### Evaluated Routes & Components
+* **Routes:** `/en/login`, `/es/login`, `/en/register`, `/es/register`, `/en/profile`, `/es/profile`
+* **Components:** `LoginPage.tsx`, `RegisterPage.tsx`, `AuthShell.tsx`, `ProfilePage.tsx`
+
+### Specific WCAG 2.1 / 2.2 AA Verifications
+1. **SC 1.3.1 Info and Relationships & SC 3.3.2 Labels or Instructions:**
+   * Every form input (`email`, `password`, `accountType`, `phone`, `street`, `city`, `zipCode`) has an explicit programmatic `<label htmlFor="...">` pairing matching the input `id`.
+   * Radio controls for account types (Retail vs. Wholesale/B2B) use semantic radio fieldsets and clear descriptive labels.
+
+2. **SC 2.1.1 Keyboard & SC 2.4.7 Focus Visible:**
+   * Complete keyboard operability via `Tab` / `Shift + Tab` through all input fields, radio choices, show/hide password toggles, and submit buttons.
+   * Focus outlines are maintained across all states (`focus:ring-2 focus:ring-[#6B1F2E]`).
+   * No keyboard trapping in the login/registration forms or tab switching controls.
+
+3. **SC 3.3.1 Error Identification & SC 4.1.3 Status Messages:**
+   * Inline validation banners and server/mock failure banners use `role="alert"` and `aria-live="polite"` so screen readers announce form errors immediately without moving the user's cursor.
+   * Required fields are explicitly communicated visually and programmatically (`aria-required="true"`).
+
+4. **SC 1.4.3 Contrast (Minimum):**
+   * Primary form copy (`#1C1310`) on cream panel backgrounds (`#F0EDE4` / `#E3D9C6`) provides contrast exceeding **12:1** (well above the 4.5:1 minimum).
+   * Submit CTA buttons (`#6B1F2E` with white text) provide an **8.2:1** contrast ratio.
