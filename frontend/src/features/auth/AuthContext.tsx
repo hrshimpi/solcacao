@@ -8,6 +8,9 @@ import type { AccountType } from "./components/AuthShell";
 export interface AuthUser {
   email: string;
   accountType: AccountType;
+  // only known after an account was created in this tab, the pages that use them (the studio form) work without them
+  name?: string;
+  companyName?: string;
 }
 
 interface AuthValue {
@@ -25,8 +28,15 @@ function savedUser(): AuthUser | null {
   try {
     const saved: unknown = JSON.parse(sessionStorage.getItem(AUTH_STORAGE_KEY) ?? "null");
     if (typeof saved !== "object" || saved === null) return null;
-    const { email, accountType } = saved as Record<string, unknown>;
-    if (typeof email === "string" && (accountType === "retail" || accountType === "business")) return { email, accountType };
+    const { email, accountType, name, companyName } = saved as Record<string, unknown>;
+    if (typeof email === "string" && (accountType === "retail" || accountType === "business")) {
+      return {
+        email,
+        accountType,
+        ...(typeof name === "string" && name ? { name } : {}),
+        ...(typeof companyName === "string" && companyName ? { companyName } : {}),
+      };
+    }
   } catch {
     // a missing or broken saved value just means nobody is signed in
   }

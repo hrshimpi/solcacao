@@ -100,6 +100,43 @@ describe("profile page", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
   });
 
+  describe("the link to the quote requests", () => {
+    it("is there for a business account, and leads to the page", async () => {
+      const user = userEvent.setup();
+      const { router } = renderAt("/en/profile", { account: "business" });
+
+      const section = within(await screen.findByRole("region", { name: "Wholesale" }));
+      const link = section.getByRole("link", { name: /My quote requests/ });
+      expect(link).toHaveAttribute("href", "/en/account/requests");
+      expect(link).toHaveAccessibleName(/Follow the quotes you asked for in the Studio/);
+
+      await user.click(link);
+      expect(router.state.location.pathname).toBe("/en/account/requests");
+    });
+
+    it("is not there for a retail account", async () => {
+      renderAt("/en/profile", { account: "retail" });
+      await screen.findByRole("heading", { level: 1, name: "Your profile" });
+
+      expect(screen.queryByRole("region", { name: "Wholesale" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /My quote requests/ })).not.toBeInTheDocument();
+    });
+
+    it("is not there for somebody who is not signed in", async () => {
+      renderAt("/en/profile");
+      await screen.findByRole("heading", { level: 1, name: "Your profile" });
+
+      expect(screen.queryByRole("link", { name: /My quote requests/ })).not.toBeInTheDocument();
+    });
+
+    it("is in Spanish on the Spanish address", async () => {
+      renderAt("/es/profile", { account: "business" });
+
+      const section = within(await screen.findByRole("region", { name: "Venta por mayor" }));
+      expect(section.getByRole("link", { name: /Mis solicitudes de cotización/ })).toHaveAttribute("href", "/es/account/requests");
+    });
+  });
+
   it("is reachable from the account icon", async () => {
     const user = userEvent.setup();
     const { router } = renderAt("/en");

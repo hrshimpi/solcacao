@@ -149,3 +149,43 @@ describe("apiFetch: cancelling and waiting", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+describe("apiFetch: the token", () => {
+  it("is sent when the call asks for it and there is one", async () => {
+    sessionStorage.setItem("sc_token", "abc.def.ghi");
+    const fetchMock = answer("{}");
+
+    await apiFetch("/b2b/requests", { lang: "en", auth: true });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.headers).toEqual({ Accept: "application/json", "Accept-Language": "en", Authorization: "Bearer abc.def.ghi" });
+  });
+
+  it("is never sent by a public call, even when there is one", async () => {
+    sessionStorage.setItem("sc_token", "abc.def.ghi");
+    const fetchMock = answer("{}");
+
+    await apiFetch("/products", { lang: "en" });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.headers).not.toHaveProperty("Authorization");
+  });
+});
+
+describe("apiFetch: the message of the server", () => {
+  it("is in the ApiError, with its code, when the error answer has the usual shape", async () => {
+    answer(JSON.stringify({ error: { code: "RATE_LIMITED", message: "Please try again in an hour.", details: [] } }), 429);
+
+    const error = await failure(apiFetch("/b2b/requests", { lang: "en", auth: true }));
+
+    expect([error.status, error.code, error.message]).toEqual([429, "RATE_LIMITED", "Please try again in an hour."]);
+  });
+
+  it("is not made up when the answer has no message", async () => {
+    answer("<html>Bad gateway</html>", 502);
+
+    const error = await failure(apiFetch("/products", { lang: "en" }));
+
+    expect([error.status, error.code, error.message]).toEqual([502, undefined, "The server answered 502."]);
+  });
+});

@@ -34,7 +34,10 @@ export default function WizardSteps({ names, shortNames, current, onGoTo }: Wiza
                 {String(index + 1).padStart(2, "0")}
                 {done && <CheckIcon size={12} />}
               </span>
-              <span className={`font-sans text-xs leading-tight ${active ? "font-medium" : ""}`}>{name}</span>
+              <span className={`font-sans text-xs leading-tight ${active ? "font-medium" : ""}`}>
+                {name}
+                {done && <span className="sr-only">, {t("b2b.steps.done")}</span>}
+              </span>
             </>
           );
           return (

@@ -69,3 +69,70 @@ export function mockFeaturedPending() {
   vi.stubGlobal("fetch", fetchMock);
   return { fetchMock, answer: (items: unknown[]) => release(jsonResponse({ items })) };
 }
+
+// ---------- the quote requests of a business account ----------
+
+// a quote request as the API sends it
+export function apiRequest(id: string, extra: Record<string, unknown> = {}) {
+  return {
+    id,
+    userId: "66a1b2c3d4e5f60718290000",
+    companyName: "Hacienda Brands",
+    contactName: "Isabel Vasquez",
+    cacaoProfile: "Ecuador 72%",
+    packagingType: "rigid_box",
+    quantityEstimate: 800,
+    notes: "",
+    brandAssets: [],
+    status: "submitted",
+    quoteAmount: null,
+    createdAt: "2026-10-26T12:00:00.000Z",
+    updatedAt: "2026-10-26T12:00:00.000Z",
+    ...extra,
+  };
+}
+
+export function apiAsset(storedName: string, originalName: string, extra: Record<string, unknown> = {}) {
+  return { originalName, storedName, mimeType: "application/pdf", sizeBytes: 2048, uploadedAt: "2026-10-26T12:00:00.000Z", ...extra };
+}
+
+// The server of the quote requests. Change its fields between calls to play an admin changing a request.
+//   items         what the list answers with
+//   total         the total the list says (the number of items when left out)
+//   list          set to answer the list in another way (an error, or a wrong shape)
+//   file          set to answer a file download in another way
+//   fileContent   what a file contains
+//   calls         every call that was made, with its address and headers
+export function mockRequestsApi(items: unknown[] = []) {
+  const server = {
+    items,
+    total: undefined as number | undefined,
+    list: undefined as (() => Response | Promise<Response>) | undefined,
+    file: undefined as (() => Response | Promise<Response>) | undefined,
+    fileContent: "%PDF-1.4 file",
+    calls: [] as { url: string; headers: Record<string, string> }[],
+    fetchMock: undefined as unknown as ReturnType<typeof vi.fn>,
+  };
+
+  server.fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    server.calls.push({ url, headers: { ...(init?.headers as Record<string, string> | undefined) } });
+    const { pathname } = new URL(url, "http://localhost");
+
+    if (pathname === "/api/b2b/requests") {
+      if (server.list) return server.list();
+      return jsonResponse({ items: server.items, page: 1, limit: 100, total: server.total ?? server.items.length, totalPages: 1 });
+    }
+    if (/^\/api\/b2b\/requests\/[^/]+\/assets\/[^/]+$/.test(pathname)) {
+      if (server.file) return server.file();
+      return new Response(server.fileContent, { status: 200, headers: { "Content-Type": "application/pdf" } });
+    }
+    return jsonResponse({ error: { code: "NOT_FOUND", message: "Not found.", details: [] } }, 404);
+  });
+  vi.stubGlobal("fetch", server.fetchMock);
+  return server;
+}
+
+export function errorResponse(status: number, code: string, message: string) {
+  return jsonResponse({ error: { code, message, details: [] } }, status);
+}

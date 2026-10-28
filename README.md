@@ -11,12 +11,12 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - English and Spanish. Every page lives under `/en` or `/es`, and the EN and ES buttons keep you on the same page
 - Home page, shop with filters (cacao percentage, origin, category, tasting notes) and product pages with a batch passport and origin story. The filters are kept in the address, so a filtered shop can be shared
 - A cart in a dialog that is saved in the browser. Checkout isn't available, the button says so
-- Wholesale page and the four step Corporate Cacao Studio form for business quotes. The wholesale page is open to everybody, the studio is for business accounts (see "Trying the studio" below)
+- Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
 - Sign in and create account screens, a profile page (with sample data), a sampler builder (pick 4 to 6 and add them as one cart item) and a contact page
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
 - A backend with a health check and a standard error format
 
-The forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with the database, real accounts and emails.
+The quote form of the studio sends its request, with the brand files, to the backend (see "Trying the studio" below). The other forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with real accounts.
 
 ## Tech
 
@@ -64,6 +64,7 @@ Use `/es` instead of `/en` for the Spanish version.
 | Sign in | http://localhost:5173/en/account/login |
 | Create account | http://localhost:5173/en/account/register |
 | Profile | http://localhost:5173/en/profile |
+| My quote requests (business accounts) | http://localhost:5173/en/account/requests |
 | Backend health check | http://localhost:4000/api/health |
 
 **Trying the studio.** There are no real accounts yet, so signing in is a preview: the form doesn't check anything, it only remembers the account type chosen above the form (retail or business) and the email, until you close the browser tab. The studio then works like this:
@@ -72,7 +73,25 @@ Use `/es` instead of `/en` for the Spanish version.
 - Signed in with a retail account: a message says the studio is for business accounts, with a link to create a business account (`/en/account/register?type=business` opens the form on the business choice).
 - Signed in with a business account: the studio opens.
 
-To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use. The backend checks the account type again when a quote request is sent.
+To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use.
+
+The last step sends the request to the backend (`POST /api/b2b/quote`) as a multipart form, and shows how much of the files has gone up. The backend checks the account type again, with a token, and the preview sign in does not give one yet. Without it the studio says that the server does not know who you are, and keeps everything that was typed. To send a request for real, run the backend with a database, make a business token (the command is in the "Quote requests API" section below) and put it in the browser tab, from the developer console of the studio page:
+
+```
+sessionStorage.setItem("sc_token", "<token>")
+```
+
+Once there is a real sign in, it should put the token there by itself. A few more things to know:
+
+- What was entered is kept in a draft in the browser tab, so a refresh brings it back. The files are not kept, so after a refresh the page lists the files to add again. The browser asks before the tab is closed with something unsent.
+- The company and contact start from the name and company that were given when the account was created in this tab, when there are any.
+- When the request is saved the page shows its reference (like `SC-1A2B3C4D`, the end of its id) and a link to that request in "My quote requests".
+
+**My quote requests.** `/en/account/requests` is for business accounts (a guest signs in first and comes back, a retail account gets a short message). It lists the requests the account sent, newest first, each with its date, cacao profile, packaging, units and status (submitted, quoted, approved or rejected), and the amount once it was quoted. Choosing one opens its details on the right (below the list on a phone): the notes, the note from our team and the files that were sent. The chosen request is in the address (`?request=<id>`), so the link can be shared. The account page links to it too, for business accounts only.
+
+- The page needs the same token as the studio (see above) to read the requests. Without it, it says that the server does not know who you are.
+- An admin changes a status on the server (see "Reading and changing the requests" below). The page reads the list again when you come back to the tab and when you press Refresh, and a screen reader is told which request changed.
+- A file cannot be opened with a plain link, because the server wants the token in the `Authorization` header. The Download button fetches the file with the token and saves it under the name it was uploaded with.
 
 Other commands, run inside `frontend` or `backend`:
 
@@ -175,7 +194,7 @@ A business account sends a quote request from the Corporate Cacao Studio as one 
 
 | Field | Notes |
 |---|---|
-| `cacaoProfile` | an origin like `Ecuador`, or `custom` |
+| `cacaoProfile` | text, up to 60 characters. The studio sends the name of the card, like `Ecuador 72%` or `Custom blend` |
 | `packagingType` | `foil_wrap`, `rigid_box`, `specimen_card` or `paper_sleeve` |
 | `quantityEstimate` | a whole number, 1 or more |
 | `companyName`, `contactName` | taken from the user's profile when the form leaves them out |
