@@ -3,7 +3,9 @@
 import type { Product } from "../../../data/products";
 import { formatPrice } from "../../../i18n/format";
 import { useLang } from "../../../i18n/LanguageContext";
+import { stockStatus } from "../../../lib/stock";
 import LocaleLink from "../../../ui/LocaleLink";
+import StockBadge from "../../../ui/StockBadge";
 import { useCart } from "../../cart/CartContext";
 
 interface ProductCardProps {
@@ -15,10 +17,12 @@ interface ProductCardProps {
 export default function ProductCard({ product, variant = "full", priority = false }: ProductCardProps) {
   const { t, lang } = useLang();
   const { addProduct } = useCart();
+  const stock = stockStatus(product.stock);
+  const soldOut = stock === "out";
 
   return (
     <article className="group relative flex h-full flex-col border border-ink-cacao bg-stone-paper">
-      <div className="aspect-[4/5] overflow-hidden bg-clay-surface">
+      <div className="relative aspect-[4/5] overflow-hidden bg-clay-surface">
         <img
           src={product.image}
           alt={product.imageAlt}
@@ -27,6 +31,7 @@ export default function ProductCard({ product, variant = "full", priority = fals
           loading={priority ? "eager" : "lazy"}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
+        <StockBadge status={stock} className="absolute left-2 top-2" />
       </div>
       <div className="flex flex-1 flex-col border-t border-ink-cacao p-4">
         <div className="mb-1 flex items-start justify-between gap-2">
@@ -45,10 +50,11 @@ export default function ProductCard({ product, variant = "full", priority = fals
           <button
             type="button"
             onClick={() => addProduct(product.id)}
-            aria-label={t("catalog.addNamed", { name: product.name })}
-            className="relative z-10 mt-auto min-h-11 w-full border border-ink-cacao py-2 font-sans text-xs font-medium text-ink-cacao hover:bg-ink-cacao hover:text-stone-paper"
+            disabled={soldOut}
+            aria-label={soldOut ? t("stock.soldOutNamed", { name: product.name }) : t("catalog.addNamed", { name: product.name })}
+            className="relative z-10 mt-auto min-h-11 w-full border border-ink-cacao py-2 font-sans text-xs font-medium text-ink-cacao hover:bg-ink-cacao hover:text-stone-paper disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-ink-cacao"
           >
-            {t("catalog.addToCart")}
+            {soldOut ? t("stock.out") : t("catalog.addToCart")}
           </button>
         )}
       </div>

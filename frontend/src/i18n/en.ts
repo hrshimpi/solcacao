@@ -44,6 +44,14 @@ export const en = {
     openLabel_other: "Cart, {{count}} items",
     openLabelEmpty: "Cart, empty",
   },
+  stock: {
+    low: "Low stock",
+    out: "Sold out",
+    fewLeft_one: "Only {{count}} left",
+    fewLeft_other: "Only {{count}} left",
+    soldOutNamed: "{{name}} is sold out",
+    limited: "Only {{count}} of {{name}} in stock, so the quantity in your cart was lowered.",
+  },
   nav: {
     mainLabel: "Main",
     menuLabel: "Menu links",
