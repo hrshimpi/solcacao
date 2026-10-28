@@ -6,7 +6,7 @@ import { useLang } from "../../i18n/LanguageContext";
 import Drawer from "../../ui/Drawer";
 import LocaleLink from "../../ui/LocaleLink";
 import QuantityStepper from "../../ui/QuantityStepper";
-import { linePrice, useCart, type CartLine } from "./CartContext";
+import { lineLimit, linePrice, useCart, type CartLine } from "./CartContext";
 
 export default function CartDrawer() {
   const { t, lang } = useLang();
@@ -55,6 +55,7 @@ export default function CartDrawer() {
                       tone="dark"
                       value={line.quantity}
                       onChange={(quantity) => setQuantity(line.id, quantity)}
+                      max={lineLimit(line)}
                       decreaseLabel={t("cart.decrease", { name })}
                       increaseLabel={t("cart.increase", { name })}
                     />

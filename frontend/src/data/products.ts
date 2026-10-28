@@ -17,6 +17,8 @@ export interface Product {
   percentage: number;
   category: Category;
   price: number;
+  // units left in the warehouse, 0 means sold out
+  stock: number;
   notes: NoteId[];
   caption: string;
   tastingSummary: string;
@@ -47,6 +49,7 @@ interface ProductRecord {
   percentage: number;
   category: Category;
   price: number;
+  stock: number;
   notes: NoteId[];
   image: string;
   batchCode: string;
@@ -65,6 +68,7 @@ const records: ProductRecord[] = [
     percentage: 72,
     category: "bar",
     price: 12,
+    stock: 120,
     notes: ["fruity", "floral"],
     image: unsplash("photo-1575377427642-087cf684f29d"),
     batchCode: "SC-2024-ECU-072",
@@ -98,6 +102,7 @@ const records: ProductRecord[] = [
     percentage: 68,
     category: "bar",
     price: 11,
+    stock: 60,
     notes: ["nutty", "earthy"],
     image: unsplash("photo-1613669146965-507d0e72a688"),
     batchCode: "SC-2024-PER-068",
@@ -131,6 +136,7 @@ const records: ProductRecord[] = [
     percentage: 76,
     category: "bar",
     price: 15,
+    stock: 6,
     notes: ["floral", "smoky"],
     image: unsplash("photo-1646303339019-a57056b180ae"),
     batchCode: "SC-2024-VEN-076",
@@ -164,6 +170,7 @@ const records: ProductRecord[] = [
     percentage: 64,
     category: "bar",
     price: 10,
+    stock: 45,
     notes: ["fruity", "nutty"],
     image: unsplash("photo-1610740655993-3080279a0022"),
     batchCode: "SC-2024-COL-064",
@@ -197,6 +204,7 @@ const records: ProductRecord[] = [
     percentage: 80,
     category: "bar",
     price: 14,
+    stock: 30,
     notes: ["fruity", "floral"],
     image: unsplash("photo-1573710661345-610f790e1218"),
     batchCode: "SC-2024-MDG-080",
@@ -230,6 +238,7 @@ const records: ProductRecord[] = [
     percentage: 70,
     category: "truffle",
     price: 18,
+    stock: 18,
     notes: ["earthy", "smoky"],
     image: unsplash("photo-1744136943096-adae60aff987"),
     batchCode: "SC-2024-TRF-001",
@@ -263,6 +272,7 @@ const records: ProductRecord[] = [
     percentage: 68,
     category: "seasonal",
     price: 13,
+    stock: 0,
     notes: ["fruity", "floral"],
     image: unsplash("photo-1760307207865-c49d6670e572"),
     batchCode: "SC-2024-SEA-001",

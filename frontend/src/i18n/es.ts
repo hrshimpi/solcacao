@@ -46,6 +46,14 @@ export const es: typeof en = {
     openLabel_other: "Carrito, {{count}} productos",
     openLabelEmpty: "Carrito, vacío",
   },
+  stock: {
+    low: "Pocas unidades",
+    out: "Agotado",
+    fewLeft_one: "Solo queda {{count}}",
+    fewLeft_other: "Solo quedan {{count}}",
+    soldOutNamed: "Agotado: {{name}}",
+    limited: "Solo hay {{count}} de {{name}} disponibles, así que bajamos la cantidad en tu carrito.",
+  },
   nav: {
     mainLabel: "Principal",
     menuLabel: "Enlaces del menú",
