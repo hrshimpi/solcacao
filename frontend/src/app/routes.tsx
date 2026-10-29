@@ -5,6 +5,7 @@ import RegisterPage from "../features/auth/RegisterPage";
 import CatalogPage from "../features/catalog/CatalogPage";
 import ContactPage from "../features/contact/ContactPage";
 import HomePage from "../features/home/HomePage";
+import InfoPage from "../features/info/InfoPage";
 import ProductDetailPage from "../features/product/ProductDetailPage";
 import ProfilePage from "../features/profile/ProfilePage";
 import MyRequestsPage from "../features/requests/MyRequestsPage";
@@ -41,6 +42,7 @@ export const routes: RouteObject[] = [
           },
           { path: "sampler", element: <SamplerPage /> },
           { path: "contact", element: <ContactPage /> },
+          { path: "info/:topic", element: <InfoPage /> },
           { path: "account/login", element: <LoginPage /> },
           { path: "account/register", element: <RegisterPage /> },
           {

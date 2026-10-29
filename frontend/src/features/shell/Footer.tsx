@@ -7,7 +7,7 @@ import LocaleLink from "../../ui/LocaleLink";
 import { useAnnounce } from "../../ui/LiveRegion";
 import TextField from "../../ui/TextField";
 
-const whatsappUrl = "https://wa.me/15551234567";
+const whatsappNumber = "15551234567";
 
 const columns = [
   {
@@ -28,6 +28,16 @@ const columns = [
     ],
   },
   {
+    title: "footer.company",
+    links: [
+      { key: "footer.story", to: "/info/story" },
+      { key: "footer.sustainability", to: "/info/sustainability" },
+      { key: "footer.partners", to: "/info/partners" },
+      { key: "footer.press", to: "/info/press" },
+      { key: "footer.careers", to: "/info/careers" },
+    ],
+  },
+  {
     title: "footer.account",
     links: [
       { key: "footer.signIn", to: "/account/login" },
@@ -42,6 +52,7 @@ const linkClass =
 
 export default function Footer() {
   const { t } = useLang();
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(t("footer.whatsappMessage"))}`;
   const announce = useAnnounce();
   const [subscribed, setSubscribed] = useState(false);
 
@@ -58,7 +69,7 @@ export default function Footer() {
   return (
     <footer className="on-dark bg-ink-cacao text-paper-text">
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:px-6">
-        <nav aria-label={t("footer.navLabel")} className="mb-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+        <nav aria-label={t("footer.navLabel")} className="mb-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-5">
           {columns.map((column) => (
             <div key={column.title}>
               <h2 className="mb-4 font-sans text-xs font-medium uppercase tracking-widest text-paper-text/70">
@@ -80,6 +91,31 @@ export default function Footer() {
               {t("footer.support")}
             </h2>
             <ul className="flex flex-col">
+              <li>
+                <LocaleLink to="/info/faq" className={linkClass}>
+                  {t("footer.faq")}
+                </LocaleLink>
+              </li>
+              <li>
+                <LocaleLink to="/info/shipping" className={linkClass}>
+                  {t("footer.shipping")}
+                </LocaleLink>
+              </li>
+              <li>
+                <LocaleLink to="/info/returns" className={linkClass}>
+                  {t("footer.returns")}
+                </LocaleLink>
+              </li>
+              <li>
+                <LocaleLink to="/info/privacy" className={linkClass}>
+                  {t("footer.privacy")}
+                </LocaleLink>
+              </li>
+              <li>
+                <LocaleLink to="/info/terms" className={linkClass}>
+                  {t("footer.terms")}
+                </LocaleLink>
+              </li>
               <li>
                 <LocaleLink to="/contact" className={linkClass}>
                   {t("footer.contact")}

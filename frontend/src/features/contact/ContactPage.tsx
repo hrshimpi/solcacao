@@ -12,12 +12,13 @@ import TextField from "../../ui/TextField";
 const categoryIds = ["general", "wholesale", "support"] as const;
 type CategoryId = (typeof categoryIds)[number];
 
-const whatsappUrl = "https://wa.me/15551234567";
+const whatsappNumber = "15551234567";
 
 export default function ContactPage() {
   const { t } = useLang();
   const announce = useAnnounce();
   usePageTitle(t("titles.contact"));
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(t("footer.whatsappMessage"))}`;
 
   const [category, setCategory] = useState<CategoryId>("general");
   const [sent, setSent] = useState(false);
