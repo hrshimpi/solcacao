@@ -186,6 +186,60 @@ describe("api.upload", () => {
     });
   });
 
+  describe("the success status that the caller asked for", () => {
+    // a host that answers every address with its own page (a single page site without a backend behind it) answers 200
+    // to a request that nobody handled, and that must not be taken for the answer of the server
+    it("accepts that status", async () => {
+      const { promise, xhr } = start({ successStatus: 201 });
+
+      xhr.answer(201, { request: { id: "1" } });
+
+      await expect(promise).resolves.toEqual({ request: { id: "1" } });
+    });
+
+    it.each([
+      ["a 200 with a page of its own", 200, "<html>home page</html>"],
+      ["a 200 with JSON", 200, { status: "ok" }],
+      ["a 202", 202, { request: { id: "1" } }],
+      ["a 204", 204, ""],
+    ])("refuses %s, with the status it came with, because it is not the answer to this request", async (_label, status, body) => {
+      const { promise, xhr } = start({ successStatus: 201 });
+
+      xhr.answer(status, body);
+
+      const error = await failure(promise);
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.status).toBe(status);
+      expect(error.message).toBe(`The server answered ${status}, which is not the answer to this request.`);
+    });
+
+    it("still gives a 201 that cannot be read as an ApiError with status 201, so the caller can tell it was created", async () => {
+      const { promise, xhr } = start({ successStatus: 201 });
+
+      xhr.answer(201, "<html></html>");
+
+      const error = await failure(promise);
+      expect([error.status, error.message]).toEqual([201, "The answer was not valid JSON."]);
+    });
+
+    it("still reads an error answer in the usual way", async () => {
+      const { promise, xhr } = start({ successStatus: 201 });
+
+      xhr.answer(429, standardError("RATE_LIMITED", "Please try again in an hour."));
+
+      const error = await failure(promise);
+      expect([error.status, error.code]).toEqual([429, "RATE_LIMITED"]);
+    });
+
+    it("takes any 2xx when nothing was asked for", async () => {
+      const { promise, xhr } = start();
+
+      xhr.answer(200, { fine: true });
+
+      await expect(promise).resolves.toEqual({ fine: true });
+    });
+  });
+
   describe("cancelling", () => {
     it("stops the request when the signal is aborted, and says it was cancelled", async () => {
       const controller = new AbortController();

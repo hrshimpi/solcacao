@@ -59,11 +59,11 @@ test.describe("layout changes with the screen size", () => {
     }
   });
 
-  test("the footer columns stack, then 2, then 4", async ({ page }) => {
+  test("the footer columns stack, then 2, then 5", async ({ page }) => {
     const expected: [number, number][] = [
       [375, 1],
       [768, 2],
-      [1280, 4],
+      [1280, 5],
     ];
 
     for (const [width, columns] of expected) {

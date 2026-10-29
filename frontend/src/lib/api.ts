@@ -12,6 +12,10 @@ interface UploadOptions {
   // called with a number from 0 to 1 while the form goes up. It reaches 1 when everything was sent, and the server may still be working.
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
+  // The one status that means the request worked, like 201 for a request that creates something. Any other 2xx is
+  // refused. Without it every 2xx counts, which is a risk when something between the page and the server answers for
+  // it, like a host that sends every address its home page with a 200.
+  successStatus?: number;
 }
 
 interface GetOptions {
@@ -38,7 +42,7 @@ async function download(path: string, { lang, signal }: { lang: Lang; signal?: A
   }
 }
 
-function upload<T>(path: string, body: FormData, { lang, onProgress, signal }: UploadOptions): Promise<T> {
+function upload<T>(path: string, body: FormData, { lang, onProgress, signal, successStatus }: UploadOptions): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     // already cancelled before we start: there is nothing to send
     if (signal?.aborted) {
@@ -74,7 +78,9 @@ function upload<T>(path: string, body: FormData, { lang, onProgress, signal }: U
       }
 
       if (request.status >= 200 && request.status < 300) {
-        if (isJson) resolve(answer as T);
+        if (successStatus !== undefined && request.status !== successStatus) {
+          reject(new ApiError(`The server answered ${request.status}, which is not the answer to this request.`, request.status));
+        } else if (isJson) resolve(answer as T);
         else reject(new ApiError("The answer was not valid JSON.", request.status));
       } else {
         reject(errorFrom(request.status, answer));

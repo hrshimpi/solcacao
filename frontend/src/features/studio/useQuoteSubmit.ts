@@ -65,13 +65,15 @@ export function useQuoteSubmit() {
       const answer = await api.upload<QuoteAnswer>("/b2b/quote", buildQuoteForm(state), {
         lang,
         onProgress: state.files.length > 0 ? setProgress : undefined,
+        // only a 201 means the request was created. A 200 can be a host answering every address with its home page.
+        successStatus: 201,
       });
       saved(answer?.request?.id);
     } catch (error) {
-      // A 2xx answer means the server saved the request, even when the answer cannot be read (a proxy that answers 201
-      // with a page of its own, for example). That is a success without a reference. Showing it as a failure would invite
-      // a second request, which would be a copy.
-      if (error instanceof ApiError && error.status >= 200 && error.status < 300) {
+      // A 201 means the server created the request, even when the answer cannot be read (a proxy that answers 201 with
+      // a page of its own, for example). That is a success without a reference. Showing it as a failure would invite
+      // a second request, which would be a copy. Any other 2xx is not the server's answer, so nothing is known to be saved.
+      if (error instanceof ApiError && error.status === 201) {
         saved(undefined);
       } else {
         setFailure({ detail: describe(error) });
