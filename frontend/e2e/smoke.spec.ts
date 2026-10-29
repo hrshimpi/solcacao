@@ -212,6 +212,19 @@ test.describe("smoke flows", () => {
     expect(quote.requests).toHaveLength(1);
   });
 
+  test("a 200 with a page of its own is not shown as saved, like a host with no backend that answers every address", async ({ page }) => {
+    const quote = await mockQuoteApi(page, { answer: { status: 200, body: "<html>home page</html>" } });
+    await openRoute(page, "/en/wholesale/studio");
+    await fillStudio(page);
+
+    await page.getByRole("button", { name: "Submit for quote" }).click();
+
+    await expect(page.getByRole("alert")).toContainText("We could not send your request.");
+    await expect(page.getByRole("heading", { name: "We have your brief." })).toHaveCount(0);
+    await expect(page.getByLabel(/Company name/)).toHaveValue("Hacienda Brands");
+    expect(quote.requests).toHaveLength(1);
+  });
+
   test("the message about a request that could not be sent stays on the review step", async ({ page }) => {
     await mockQuoteApi(page, { answer: quoteFailed });
     await openRoute(page, "/en/wholesale/studio");

@@ -155,7 +155,27 @@ describe("a request that could not be sent", () => {
 });
 
 describe("an answer of the server that is not the usual one", () => {
-  it("is a success when it is a 2xx that cannot be read, because the request was saved, and no second request is invited", async () => {
+  // A single page site on a host with no backend behind it answers every address with its home page, and a request
+  // to /api/b2b/quote then gets a 200. Nothing was saved, so the person must not be told that it was.
+  it.each([
+    ["a 200 with a page of its own", 200, "<html>home page</html>"],
+    ["a 200 with JSON that is not the answer", 200, { status: "ok" }],
+    ["a 202 that says nothing about a saved request", 202, { request: { id: "66a1b2c3d4e5f60718293a4b" } }],
+  ])("is not a success when it is %s", async (_label, status, body) => {
+    FakeXhr.autoAnswer = { status, body };
+    const user = await toReviewStep();
+    await fillReview(user);
+
+    await submit(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not send your request.");
+    expect(screen.queryByRole("heading", { name: "We have your brief." })).not.toBeInTheDocument();
+    // everything that was typed is still there, so the person can try again
+    expect(screen.getByLabelText(/Company name/)).toHaveValue("Hacienda Brands");
+    expect(sessionStorage.getItem(DRAFT_KEY)).not.toBeNull();
+  });
+
+  it("is a success when it is a 201 that cannot be read, because the request was created, and no second request is invited", async () => {
     // for example a proxy that answers 201 with a page of its own
     FakeXhr.autoAnswer = { status: 201, body: "<html>Created</html>" };
     const user = await toReviewStep();
