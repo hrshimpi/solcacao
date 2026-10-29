@@ -1,0 +1,8 @@
+# Rules for Netlify. The first rule that matches an address is the one that is used.
+
+# No backend is connected to this site yet, so every /api address answers 404. Without this rule the rule below would
+# answer them with the home page, and the site would take a page for an answer from the server.
+/api/*  /404.html  404
+
+# Every other address is a page of the app (/en, /es/shop, ...), so a refresh or a shared link opens it.
+/*      /index.html  200
