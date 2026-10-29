@@ -31,7 +31,12 @@ export default function RegisterPage() {
       password: [required, minLength(8)],
     },
     onSubmit: (values) => {
-      signIn({ email: values.email, accountType });
+      signIn({
+        email: values.email,
+        accountType,
+        name: values.name.trim(),
+        companyName: accountType === "business" ? values.company.trim() : undefined,
+      });
       announce(t("auth.created"));
       navigate(path("/"));
     },
