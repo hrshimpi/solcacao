@@ -1,5 +1,6 @@
 // Every address in the app. All pages live under /en or /es.
 import type { RouteObject } from "react-router";
+import RequireAuth from "../features/auth/components/RequireAuth";
 import ForgotPasswordPage from "../features/auth/ForgotPasswordPage";
 import LoginPage from "../features/auth/LoginPage";
 import RegisterPage from "../features/auth/RegisterPage";
@@ -9,6 +10,7 @@ import ContactPage from "../features/contact/ContactPage";
 import HomePage from "../features/home/HomePage";
 import InfoPage from "../features/info/InfoPage";
 import ProductDetailPage from "../features/product/ProductDetailPage";
+import AddressesPage from "../features/profile/AddressesPage";
 import ProfilePage from "../features/profile/ProfilePage";
 import MyRequestsPage from "../features/requests/MyRequestsPage";
 import RequestsAccessGuard from "../features/requests/RequestsAccessGuard";
@@ -57,7 +59,22 @@ export const routes: RouteObject[] = [
               </RequestsAccessGuard>
             ),
           },
-          { path: "profile", element: <ProfilePage /> },
+          {
+            path: "profile",
+            element: (
+              <RequireAuth>
+                <ProfilePage />
+              </RequireAuth>
+            ),
+          },
+          {
+            path: "profile/addresses",
+            element: (
+              <RequireAuth>
+                <AddressesPage />
+              </RequireAuth>
+            ),
+          },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

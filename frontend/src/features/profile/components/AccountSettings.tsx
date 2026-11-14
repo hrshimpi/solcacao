@@ -1,18 +1,130 @@
-// Account settings: a password reset panel, the notifications switch and the log out link.
-import { useState } from "react";
+// Account settings: a password change, the notifications switch and the log out button. The password change asks for the
+// current password, ends the sign in of every other device, and keeps this one signed in with a new token.
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { useLang } from "../../../i18n/LanguageContext";
-import { ArrowRightIcon } from "../../../ui/Icons";
+import { api } from "../../../lib/api";
+import { ApiError } from "../../../lib/apiFetch";
+import { setAuthToken } from "../../../lib/authToken";
+import { readSession, readServerUser } from "../../../lib/session";
+import { useForm } from "../../../lib/useForm";
+import { newPassword, required } from "../../../lib/validation";
+import { ArrowRightIcon, CheckIcon } from "../../../ui/Icons";
 import { useAnnounce } from "../../../ui/LiveRegion";
-import LocaleLink from "../../../ui/LocaleLink";
+import TextField from "../../../ui/TextField";
+import { toAuthUser, useAuth } from "../../auth/AuthContext";
 
 const rowClass = "group flex min-h-14 w-full items-center justify-between border-b border-ink-cacao/20 py-4 text-left";
 
+function PasswordPanel({ onChanged }: { onChanged: () => void }) {
+  const { t, lang } = useLang();
+  const { user, updateUser } = useAuth();
+  const announce = useAnnounce();
+  const [problem, setProblem] = useState("");
+  const problemRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (problem) problemRef.current?.focus();
+  }, [problem]);
+
+  const form = useForm({
+    initial: { current: "", next: "" },
+    rules: { current: [required], next: [required, newPassword] },
+    onSubmit: async (values) => {
+      setProblem("");
+      if (values.current === values.next) {
+        form.setFieldErrors({ next: t("profile.passwordPanel.same") });
+        return;
+      }
+      try {
+        const answer = await api.patch<unknown>("/users/me/password", { lang, json: { currentPassword: values.current, newPassword: values.next } });
+        // the other devices were signed out, and this one gets a new sign in
+        const session = readSession(answer);
+        if (!session) throw new ApiError("The answer was not valid.");
+        setAuthToken(session.accessToken);
+        updateUser(toAuthUser(session.user, { companyName: user?.companyName, verificationStatus: user?.verificationStatus }));
+        announce(t("profile.passwordPanel.changed"));
+        onChanged();
+      } catch (error) {
+        if (error instanceof ApiError && error.code === "WRONG_PASSWORD") {
+          form.setFieldErrors({ current: t("profile.passwordPanel.wrong") });
+          return;
+        }
+        if (error instanceof ApiError && error.code === "VALIDATION_ERROR" && error.details.some((detail) => detail.field === "newPassword")) {
+          form.setFieldErrors({ next: t("errors.password") });
+          return;
+        }
+        if (error instanceof ApiError && (error.status === 429 || error.code === "RATE_LIMITED")) setProblem(t("auth.errors.tooMany"));
+        else setProblem(error instanceof ApiError && error.status === 0 ? t("profile.errors.network") : t("profile.errors.save"));
+      }
+    },
+  });
+
+  useEffect(() => {
+    requestAnimationFrame(() => form.formRef.current?.querySelector("input")?.focus());
+    // only when it opens
+  }, []);
+
+  return (
+    <form
+      ref={form.formRef}
+      id="password-panel"
+      onSubmit={form.handleSubmit}
+      noValidate
+      aria-busy={form.submitting}
+      className="space-y-6 border-b border-ink-cacao/20 bg-clay-surface px-5 py-5"
+    >
+      {problem && (
+        <div ref={problemRef} role="alert" tabIndex={-1} className="border-l-4 border-pod-wine bg-stone-paper px-4 py-3 font-sans text-sm text-ink-cacao">
+          {problem}
+        </div>
+      )}
+      <TextField label={t("profile.passwordPanel.current")} type="password" autoComplete="current-password" required {...form.field("current")} />
+      <TextField label={t("profile.passwordPanel.new")} type="password" autoComplete="new-password" required hint={t("auth.passwordHint")} {...form.field("next")} />
+      <button
+        type="submit"
+        className="min-h-11 border border-ink-cacao px-4 py-2 font-sans text-xs font-medium text-ink-cacao hover:bg-ink-cacao hover:text-paper-text"
+      >
+        {form.submitting ? t("profile.passwordPanel.saving") : t("profile.passwordPanel.submit")}
+      </button>
+    </form>
+  );
+}
+
 export default function AccountSettings() {
-  const { t } = useLang();
+  const { t, lang, path } = useLang();
+  const { user, updateUser, signOut } = useAuth();
+  const navigate = useNavigate();
   const announce = useAnnounce();
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-  const [notifications, setNotifications] = useState(true);
+  const [passwordChanged, setPasswordChanged] = useState(false);
+  const [notificationsProblem, setNotificationsProblem] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  if (!user) return null;
+  const notifications = user.marketingEmails;
+
+  async function toggleNotifications() {
+    if (saving) return;
+    setSaving(true);
+    setNotificationsProblem(false);
+    try {
+      const answer = await api.patch<{ user: unknown }>("/users/me", { lang, json: { marketingEmails: !notifications } });
+      const saved = readServerUser(answer.user);
+      if (!saved) throw new ApiError("The answer was not valid.");
+      updateUser({ marketingEmails: saved.marketingEmails });
+    } catch {
+      setNotificationsProblem(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function logOut() {
+    await signOut();
+    announce(t("profile.logout"));
+    navigate(path("/account/login"));
+  }
 
   return (
     <section aria-labelledby="profile-settings" className="mt-14 md:mt-16">
@@ -25,7 +137,10 @@ export default function AccountSettings() {
 
       <button
         type="button"
-        onClick={() => setPasswordOpen((open) => !open)}
+        onClick={() => {
+          setPasswordChanged(false);
+          setPasswordOpen((open) => !open);
+        }}
         aria-expanded={passwordOpen}
         aria-controls="password-panel"
         className={rowClass}
@@ -37,26 +152,20 @@ export default function AccountSettings() {
         <ArrowRightIcon className={`text-ink-cacao/70 group-hover:text-pod-wine ${passwordOpen ? "rotate-90" : ""}`} />
       </button>
 
+      {passwordChanged && (
+        <p className="flex items-center gap-2 border-b border-ink-cacao/20 py-4 font-sans text-sm text-ink-cacao">
+          <CheckIcon size={16} className="text-canopy-green" />
+          {t("profile.passwordPanel.changed")}
+        </p>
+      )}
+
       {passwordOpen && (
-        <div
-          id="password-panel"
-          className="flex flex-col justify-between gap-4 border-b border-ink-cacao/20 bg-clay-surface px-5 py-5 sm:flex-row sm:items-center"
-        >
-          <div>
-            <p className="font-spectral font-semibold text-ink-cacao">{t("profile.passwordPanel")}</p>
-            <p className="mt-1 font-sans text-xs text-ink-cacao/70">{t("profile.passwordBody")}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setResetSent(true);
-              announce(t("profile.resetSentAnnounce"));
-            }}
-            className="min-h-11 shrink-0 border border-ink-cacao px-4 py-2 font-sans text-xs font-medium text-ink-cacao hover:bg-ink-cacao hover:text-paper-text"
-          >
-            {resetSent ? t("profile.resetSent") : t("profile.send")}
-          </button>
-        </div>
+        <PasswordPanel
+          onChanged={() => {
+            setPasswordOpen(false);
+            setPasswordChanged(true);
+          }}
+        />
       )}
 
       <div className="flex items-center justify-between border-b border-ink-cacao/20 py-4">
@@ -67,6 +176,11 @@ export default function AccountSettings() {
           <p id="notifications-hint" className="mt-1 font-sans text-xs text-ink-cacao/70">
             {t("profile.notificationsHint")}
           </p>
+          {notificationsProblem && (
+            <p role="alert" className="mt-1 font-sans text-xs font-medium text-pod-wine">
+              {t("profile.notificationsError")}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -74,7 +188,8 @@ export default function AccountSettings() {
           aria-checked={notifications}
           aria-labelledby="notifications-label"
           aria-describedby="notifications-hint"
-          onClick={() => setNotifications((on) => !on)}
+          aria-busy={saving}
+          onClick={toggleNotifications}
           className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
         >
           <span
@@ -89,13 +204,13 @@ export default function AccountSettings() {
         </button>
       </div>
 
-      <LocaleLink to="/account/login" className={rowClass}>
+      <button type="button" onClick={logOut} className={rowClass}>
         <span>
           <span className="block font-sans text-sm font-medium text-pod-wine">{t("profile.logout")}</span>
           <span className="mt-1 block font-sans text-xs text-ink-cacao/70">{t("profile.logoutHint")}</span>
         </span>
         <ArrowRightIcon className="text-pod-wine group-hover:translate-x-1" />
-      </LocaleLink>
+      </button>
     </section>
   );
 }

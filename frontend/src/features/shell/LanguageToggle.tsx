@@ -1,7 +1,10 @@
 // The EN and ES buttons. The pressed one is the current language, and each button names its own language.
+// When somebody is signed in, the language they choose is also saved with their account.
 import { Fragment } from "react";
 import { useLang } from "../../i18n/LanguageContext";
 import type { Lang } from "../../i18n";
+import { api } from "../../lib/api";
+import { useAuth } from "../auth/AuthContext";
 
 const options: { code: Lang; label: "common.english" | "common.spanish" }[] = [
   { code: "en", label: "common.english" },
@@ -10,6 +13,16 @@ const options: { code: Lang; label: "common.english" | "common.spanish" }[] = [
 
 export default function LanguageToggle() {
   const { lang, t, switchTo } = useLang();
+  const { user, updateUser } = useAuth();
+
+  function choose(code: Lang) {
+    switchTo(code);
+    if (user && user.preferredLanguage !== code) {
+      updateUser({ preferredLanguage: code });
+      // saving it is a convenience: the page is in the language either way
+      api.patch("/users/me", { lang: code, json: { preferredLanguage: code } }).catch(() => {});
+    }
+  }
 
   return (
     <div role="group" aria-label={t("common.languageGroup")} className="flex items-center font-sans text-xs">
@@ -25,7 +38,7 @@ export default function LanguageToggle() {
             lang={option.code}
             aria-pressed={lang === option.code}
             aria-label={`${option.code.toUpperCase()}, ${t(option.label)}`}
-            onClick={() => switchTo(option.code)}
+            onClick={() => choose(option.code)}
             className={`flex min-h-11 min-w-11 items-center justify-center px-1 ${
               lang === option.code ? "font-semibold underline underline-offset-4" : "opacity-80 hover:opacity-100"
             }`}
