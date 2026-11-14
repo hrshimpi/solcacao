@@ -194,6 +194,21 @@ People sign up and sign in with an email and a password, as a retail or a busine
 | `POST /api/auth/forgot-password` | anyone | `{ email }` always answers `200 { ok: true }`, and sends a link when the address has an account. 3 per hour per address |
 | `POST /api/auth/reset-password` | anyone | `{ token, password }` from the link in the email: `204`, and every sign in of the account ends |
 
+The signed in person's own account is under `/api/users/me`. All of it needs an access token, and every call only ever touches records of the user in the token: an address or a request that belongs to somebody else is answered `404`, the same as one that does not exist.
+
+| Request | What it does |
+|---|---|
+| `GET /api/users/me` | `{ user, b2bProfile }` (the business details only for a business account) |
+| `PATCH /api/users/me` | `name`, `phone` (empty takes it away), `preferredLanguage`, `marketingEmails`. The email, role and type of account cannot be changed: sending them is a `400` |
+| `PATCH /api/users/me/password` | `{ currentPassword, newPassword }`. Ends every other sign in and answers like a sign in (`{ user, accessToken, expiresIn }` and a new cookie) so this device stays signed in. A wrong current password is `400 WRONG_PASSWORD`, and 5 wrong ones in 15 minutes are `429` |
+| `GET /api/users/me/addresses` | the saved addresses, the oldest first |
+| `POST /api/users/me/addresses` | `{ label, street, street2?, city, state, postalCode, country, isDefault? }`. Up to 10 per person (`409 ADDRESS_LIMIT`). The first one is the default |
+| `PATCH /api/users/me/addresses/:id` | changes parts of an address (an empty `street2` takes it away) |
+| `DELETE /api/users/me/addresses/:id` | `204`. When the default goes, the oldest address that is left becomes the default |
+| `POST /api/users/me/addresses/:id/default` | makes it the default. A database index keeps it at one default for each user |
+| `GET` and `PUT /api/users/me/b2b-profile` | business accounts only (`403` otherwise): `{ companyName, taxId?, industry? }`. The verification status (`pending`, `verified`, `rejected`) is not part of it |
+| `PATCH /api/staff/b2b-profiles/:userId` | the team only (an admin token, or the key in `STAFF_API_KEY` sent as `X-Staff-Key`): `{ verificationStatus }` |
+
 How signing in works:
 
 - A sign in gives two tokens. The **access token** is a signed JWT that works for 15 minutes and is sent as `Authorization: Bearer <token>`. The **refresh token** is a random text in a cookie called `sc_refresh` (`HttpOnly`, `SameSite=Strict`, only sent to `/api/auth`, `Secure` in production) that lasts 7 days. Scripts on the page cannot read it, and it never appears in an answer.
