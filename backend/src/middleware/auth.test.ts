@@ -6,12 +6,13 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { env } from "../config/env.ts";
 import { errorHandler } from "./errorHandler.ts";
-import { createRequireStaff, optionalAuth, requireAccountType, requireAdmin, requireAuth, signToken, staffKeyMatches } from "./auth.ts";
+import { authIfPresent, createRequireStaff, optionalAuth, requireAccountType, requireAdmin, requireAuth, signToken, staffKeyMatches } from "./auth.ts";
 
 const app = express();
 app.use(pinoHttp({ logger: pino({ level: "silent" }) }));
 app.get("/optional", optionalAuth, (req, res) => void res.json({ user: req.user ?? null }));
 app.get("/admin", requireAdmin, (req, res) => void res.json({ user: req.user }));
+app.get("/visitor-or-user", authIfPresent, (req, res) => void res.json({ user: req.user ?? null }));
 app.get("/signed-in", requireAuth, (req, res) => void res.json({ user: req.user }));
 app.get("/business", requireAuth, requireAccountType("b2b"), (req, res) => void res.json({ user: req.user }));
 app.get("/business-without-auth", requireAccountType("b2b"), (_req, res) => void res.json({ ok: true }));
@@ -293,5 +294,38 @@ describe("staffKeyMatches", () => {
     expect(staffKeyMatches(["abc"], "abc")).toBe(false);
     expect(staffKeyMatches(undefined, "abc")).toBe(false);
     expect(staffKeyMatches("", "")).toBe(false);
+  });
+});
+
+describe("authIfPresent", () => {
+  it("lets a request with no Authorization header through, as a visitor", async () => {
+    const res = await request(app).get("/visitor-or-user");
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeNull();
+  });
+
+  it("sets the user from a good token", async () => {
+    const res = await request(app).get("/visitor-or-user").set(bearer(await signToken(user)));
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toEqual(user);
+  });
+
+  it("refuses a token that ran out with TOKEN_EXPIRED, instead of treating the person as a visitor", async () => {
+    const res = await request(app).get("/visitor-or-user").set(bearer(await customToken({ expires: Math.floor(Date.now() / 1000) - 60 })));
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("TOKEN_EXPIRED");
+  });
+
+  it("refuses a token that is not good, and a header that is not a Bearer token, with UNAUTHENTICATED", async () => {
+    const wrongKey = new TextEncoder().encode("another secret that is long enough");
+
+    for (const header of ["Bearer not-a-token", `Bearer ${await customToken({ key: wrongKey })}`, "Basic dXNlcjpwYXNz", "Bearer", ""]) {
+      const res = await request(app).get("/visitor-or-user").set("Authorization", header);
+      expect(res.status, header).toBe(401);
+      expect(res.body.error.code, header).toBe("UNAUTHENTICATED");
+    }
   });
 });
