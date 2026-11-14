@@ -10,7 +10,9 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 
 - English and Spanish. Every page lives under `/en` or `/es`, and the EN and ES buttons keep you on the same page
 - Home page, shop with filters (cacao percentage, origin, category, tasting notes) and product pages with a batch passport and origin story. The filters are kept in the address, so a filtered shop can be shared
-- A cart in a dialog that is kept by the server: a visitor's cart in a cookie, a signed in person's cart in the account, and the visitor's cart is added to the account at sign in. The stock is checked by the server, and the page says so when there are fewer than asked for. Checkout isn't available, the button says so
+- A cart in a dialog that is kept by the server: a visitor's cart in a cookie, a signed in person's cart in the account, and the visitor's cart is added to the account at sign in. The stock is checked by the server, and the page says so when there are fewer than asked for. The Checkout button opens the checkout
+- A checkout for a signed in person: where to send the order (a saved address, or a new one added on the page), how fast (standard or express) and how to pay, with the order summary beside it. The payment is made up (see "Checkout and orders API"): use the card `4242 4242 4242 4242`, and `4000 0000 0000 0002` to see a card that is declined. The total, the shipping and the tax are always the ones of the server
+- Your orders, in your account: a list of everything bought, newest first, and a page for each order with what was bought, where it goes, how it was paid and how far along it is. An order that nobody started to pack can be cancelled there
 - Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
 - Real accounts: create an account (retail or business), sign in, forgot and reset password, and a profile page with the personal details, the language of the emails, a password change, the notifications switch, shipping addresses and (for a business account) the business details with their verification. A reload keeps you signed in
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
@@ -317,6 +319,9 @@ Rules the server keeps, whatever the client sends:
 - A request with a token that is not good, or ran out (`401 TOKEN_EXPIRED`), is refused and never taken for a visitor's. A request with no token at all is a visitor's. No answer is kept by a cache.
 
 ## The shop in the frontend
+
+- **Checkout** (`/checkout`, for a signed in person: a visitor is sent to sign in and comes back). The cart, the ways to ship with their prices and the tax come from `GET /api/checkout`, and the page never works out a price (the total beside the button is the subtotal plus the shipping that was chosen plus the tax of the server). The three steps are the addresses (the default one is chosen to begin with, and a new one can be added without leaving the page), the delivery and the card. The card is checked in the page first (number, date, code), and then by the server, and a problem it names is shown on its field. The place order button is in the summary and belongs to the form of the card with the `form` attribute, because the address form is a form too and forms cannot be nested. The page ignores a second press while an order is on its way, and the server makes one order for one cart.
+- **Orders** (`/account/orders` and `/account/orders/:id`). The list adds ten orders at a time. The page of an order says thank you right after a purchase, shows the steps that happened with their dates, and offers to cancel while the order is just paid. The profile page links to both.
 
 The pages never show a product they do not have from the server, and never show an empty shop as if it were a real one.
 
