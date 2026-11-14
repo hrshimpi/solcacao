@@ -3,6 +3,9 @@
 import mongoose from "mongoose";
 import { AppError } from "../errors/AppError.ts";
 
+// a value that holds a query operator (like { "$ne": null }) is taken as plain text, so nobody can turn a form field into a query
+mongoose.set("sanitizeFilter", true);
+
 export function isDatabaseReady(): boolean {
   return mongoose.connection.readyState === 1;
 }
