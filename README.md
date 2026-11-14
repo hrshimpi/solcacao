@@ -14,7 +14,7 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
 - Sign in and create account screens, a profile page (with sample data), a sampler builder (pick 4 to 6 and add them as one cart item) and a contact page
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
-- A backend with a health check and a standard error format
+- A backend with accounts (sign up, sign in, password reset), a health check, a standard error format and the protections listed under "Accounts and security"
 
 The quote form of the studio sends its request, with the brand files, to the backend (see "Trying the studio" below). The other forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with real accounts.
 
@@ -173,18 +173,54 @@ The body of a `POST` depends on the category (`general`, `wholesale`, `support`,
 - A newsletter address that is already subscribed gets the same `201` answer, with no second record and no second email. The language of the welcome email comes from the `Accept-Language` header.
 - A signed in user's id is saved with the message when the request has a good token (`Authorization: Bearer <token>`). A missing or bad token does not stop the message.
 - Mistakes come back as `400` with a message for each field: `{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [{ "field": "email", "message": "..." }] } }`.
-- The admin endpoints answer `401` without a token and `403` for a user who is not an admin. The login routes come later. Until then you can make an admin token yourself, from the `backend` folder (it uses `JWT_SECRET` from `.env`, and lasts an hour):
-
-```
-node --input-type=module -e "import { signToken } from './src/middleware/auth.ts'; console.log(await signToken({ id: '64b7f0c2a1b2c3d4e5f60718', role: 'admin' }))"
-curl -H "Authorization: Bearer <token>" "http://localhost:4000/api/inquiries?status=new"
-```
+- The admin endpoints answer `401` without a token and `403` for a user who is not an admin. Make an admin with `pnpm create-admin` (see "Accounts and security"), sign in as that admin and use the access token from the answer: `curl -H "Authorization: Bearer <token>" "http://localhost:4000/api/inquiries?status=new"`.
 
 The tests do not need a database. One group of tests checks the real MongoDB code and only runs when you give it a database, which is emptied first, so its name has to contain `test`:
 
 ```
 MONGODB_TEST_URI=mongodb://127.0.0.1:27017/solcacao_test pnpm test
 ```
+
+## Accounts and security
+
+People sign up and sign in with an email and a password, as a retail or a business account. Business accounts also keep their company details (and a verification status that only our team can change). Everything about accounts lives under `/api/auth`.
+
+| Request | Who | What it does |
+|---|---|---|
+| `POST /api/auth/register` | anyone | `{ name, email, password, accountType: "retail" \| "b2b", companyName (business only), preferredLanguage }`. Makes the account and signs it in: `201 { user, accessToken, expiresIn }`. 5 accounts per hour per address |
+| `POST /api/auth/login` | anyone | `{ email, password }` answers `200` like register. A wrong password and an unknown email give the same `401 INVALID_CREDENTIALS`. 5 wrong passwords in a row lock the account for 15 minutes (`429 TOO_MANY_ATTEMPTS`) |
+| `POST /api/auth/refresh` | the cookie | a new access token and a new cookie. `401 SESSION_EXPIRED` when the cookie is missing, old or used before |
+| `POST /api/auth/logout` | the cookie | ends the sign in of this device, `204` |
+| `POST /api/auth/forgot-password` | anyone | `{ email }` always answers `200 { ok: true }`, and sends a link when the address has an account. 3 per hour per address |
+| `POST /api/auth/reset-password` | anyone | `{ token, password }` from the link in the email: `204`, and every sign in of the account ends |
+
+How signing in works:
+
+- A sign in gives two tokens. The **access token** is a signed JWT that works for 15 minutes and is sent as `Authorization: Bearer <token>`. The **refresh token** is a random text in a cookie called `sc_refresh` (`HttpOnly`, `SameSite=Strict`, only sent to `/api/auth`, `Secure` in production) that lasts 7 days. Scripts on the page cannot read it, and it never appears in an answer.
+- A refresh token works once. Using it gives a new one, and showing an old one again (a copy was stolen) ends that whole sign in. Two tabs that ask in the same moment are told to try again instead.
+- An access token that ran out answers `401 TOKEN_EXPIRED`, which is the signal to call `/api/auth/refresh` and try again. Every other problem with a token is `401 UNAUTHENTICATED`, and a signed in user who may not do something gets `403 FORBIDDEN`.
+- Passwords are hashed with bcrypt and never returned or logged. A new password needs at least 10 characters with a letter and a number, at most 72 (what bcrypt reads), and not one of the very common ones.
+- The reset link is a random token. Only its hash is kept, it works once, and it stops working after an hour. The email goes out in the language of the account. With `SMTP_HOST` empty the email is only logged, and in development the log shows the link.
+
+What protects every request:
+
+- Security headers (helmet), no `X-Powered-By`, a limit of 100 kb on JSON bodies, and an id on every request (`X-Request-Id`, also in the log).
+- Only the addresses in `CLIENT_ORIGIN` may read answers from a browser (CORS) and send changes (POST, PATCH, PUT, DELETE). A change that comes from another website is refused with `403`, which stops other pages from using the cookie of a signed in person. Requests with no `Origin` header (curl, other servers) are not from a browser, so they pass.
+- A limit on requests for each visitor (`RATE_LIMIT_MAX` in `RATE_LIMIT_WINDOW_MINUTES`), and a stricter one on wrong tries at the sign in routes (`AUTH_RATE_LIMIT_MAX`). Answers are `429` with a `Retry-After` header.
+- Everything that comes in is checked with a schema first, only the named fields are read (nobody can name their own role), tags are stripped from text, and MongoDB filters are sanitized so `{ "$ne": null }` is only ever text.
+- Errors have one shape, `{ error: { code, message, details } }`. What the code does not expect is a `500` with no details, and the real error only goes to the log.
+- Answers that belong to one person are sent with `Cache-Control: no-store`.
+
+Making an admin (the sign up route can only make people and businesses):
+
+```
+cd backend
+ADMIN_PASSWORD='a long password 1' pnpm create-admin you@example.com "Your Name"
+```
+
+Settings in `backend/.env` for this part (all in `.env.example`): `CLIENT_ORIGIN`, `TRUST_PROXY`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS`, `BCRYPT_COST`, `COOKIE_SECURE`, `STAFF_API_KEY`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MINUTES` and `AUTH_RATE_LIMIT_MAX`. In production `JWT_SECRET` has to be your own text of at least 32 characters, and the server refuses to start without it.
+
+**Putting the site online.** The cookie only works when the page and the API are on the same site, so the frontend host has to send `/api/*` to the backend (a rewrite or proxy rule, see the hosting notes) and `CLIENT_ORIGIN` has to be the address people see in the browser. Behind a proxy set `TRUST_PROXY` to the number of proxies, or the limits count all visitors as one.
 
 ## B2B quotes
 
