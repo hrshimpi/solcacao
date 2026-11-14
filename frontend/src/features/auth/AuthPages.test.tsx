@@ -427,7 +427,8 @@ describe("reset password", () => {
       expect(await page.findByRole("alert"), search).toHaveTextContent("This reset link is not valid, or it has expired.");
       expect(page.queryByLabelText(/New password/), search).not.toBeInTheDocument();
       expect(page.getByRole("link", { name: "Ask for a new link" })).toHaveAttribute("href", "/en/account/forgot-password");
-      expect(server.calls).toHaveLength(0);
+      // nothing is sent to the account endpoints (the cart of the page is read as on every page)
+      expect(server.calls.filter((call) => call.path.startsWith("/api/auth"))).toEqual([]);
       unmount();
     }
   });

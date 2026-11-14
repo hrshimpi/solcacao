@@ -7,10 +7,12 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { routes } from "../app/routes";
 import { InitialAuthContext, toAuthUser, type AuthUser, type InitialAuth } from "../features/auth/AuthContext";
 import type { AccountType } from "../features/auth/components/AuthShell";
+import { InitialProductsContext } from "../features/catalog/ProductsContext";
 import { LanguageProvider } from "../i18n/LanguageContext";
 import { setAuthToken } from "../lib/authToken";
 import { AnnounceProvider } from "../ui/LiveRegion";
 import type { FakeAccount, FakeServer } from "./fakeServer";
+import { productsFor } from "./productFixtures";
 
 // a signed in user. The name is empty unless a test gives one, so the forms start empty as they would for an account
 // whose names the page does not know.
@@ -43,6 +45,8 @@ interface RenderOptions {
   names?: { name?: string; companyName?: string };
   // a user of your own, for what the helper above cannot say
   user?: AuthUser;
+  // the products come from the server (the fake one, or a fetch of the test) instead of being there from the start
+  productsFromServer?: boolean;
 }
 
 export function renderAt(path: string, options: RenderOptions = {}) {
@@ -57,7 +61,9 @@ export function renderAt(path: string, options: RenderOptions = {}) {
     router,
     ...render(
       <InitialAuthContext.Provider value={initial}>
-        <RouterProvider router={router} />
+        <InitialProductsContext.Provider value={options.productsFromServer ? undefined : productsFor}>
+          <RouterProvider router={router} />
+        </InitialProductsContext.Provider>
       </InitialAuthContext.Provider>,
     ),
   };

@@ -1,16 +1,19 @@
 // Four numbers about where the chocolate comes from. The origin count and cacao range come from the product data.
-import { getOriginIds, getProducts } from "../../../data/products";
 import { useLang } from "../../../i18n/LanguageContext";
+import { useProducts } from "../../catalog/ProductsContext";
 
 export default function ProvenanceStats() {
   const { t } = useLang();
-  const percentages = getProducts("en").map((product) => product.percentage);
+  const { products, origins } = useProducts();
+  const percentages = products.map((product) => product.percentage);
+  // before the products are there these two numbers are not known, and a dash stands in for them
+  const known = percentages.length > 0;
 
   const stats = [
-    { value: String(getOriginIds().length), label: t("home.statOrigins"), sub: t("home.statOriginsSub") },
+    { value: known ? String(origins.length) : "-", label: t("home.statOrigins"), sub: t("home.statOriginsSub") },
     { value: "40+", label: t("home.statFamilies"), sub: t("home.statFamiliesSub") },
     { value: "100%", label: t("home.statDirect"), sub: t("home.statDirectSub") },
-    { value: `${Math.min(...percentages)}-${Math.max(...percentages)}%`, label: t("home.statRange"), sub: t("home.statRangeSub") },
+    { value: known ? `${Math.min(...percentages)}-${Math.max(...percentages)}%` : "-", label: t("home.statRange"), sub: t("home.statRangeSub") },
   ];
 
   return (

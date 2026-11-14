@@ -48,6 +48,16 @@ export const en = {
     openLabel_one: "Cart, {{count}} item",
     openLabel_other: "Cart, {{count}} items",
     openLabelEmpty: "Cart, empty",
+    loading: "Loading your cart...",
+    loadError: "We couldn't load your cart.",
+    errors: {
+      network: "We couldn't reach the server, so your cart was not changed. Please try again.",
+      unknown: "Something went wrong, so your cart was not changed. Please try again.",
+    },
+    issue: {
+      out_of_stock: "Sold out. Remove it to continue.",
+      unavailable: "No longer available. Remove it to continue.",
+    },
   },
   stock: {
     low: "Low stock",
@@ -118,6 +128,8 @@ export const en = {
     hint: "Type a product name or an origin country.",
     results_one: "{{count}} product found",
     results_other: "{{count}} products found",
+    loading: "Loading the products...",
+    unavailable: "The search isn't available right now. Please try again in a moment.",
   },
   titles: {
     home: "Home",
@@ -142,6 +154,8 @@ export const en = {
     harvest: "September 2024 harvest",
     filters: "Filters",
     empty: "No specimens match these filters.",
+    loading: "Loading the collection...",
+    loadError: "We couldn't load the collection.",
     clearAll: "Clear all filters",
     addToCart: "Add to cart",
     addNamed: "Add to cart, {{name}}",
@@ -184,6 +198,8 @@ export const en = {
     farm: "Farm / origin",
     cacaoPercent: "Cacao %",
     organic: "Certified organic · Direct trade",
+    loading: "Loading the specimen...",
+    loadError: "We couldn't load this specimen.",
     originStoryLabel: "Origin story",
     growingRegion: "{{origin}}, growing region",
     mapAlt: "Simplified line map of the world with the cacao growing regions marked in gold.",
@@ -434,6 +450,8 @@ export const en = {
   },
   sampler: {
     cartName: "Custom sampler",
+    loading: "Loading the specimens...",
+    loadError: "We couldn't load the specimens.",
     title: "Build your own sampler",
     intro: "Choose {{min}} to {{max}} specimens. The selection will be arranged and boxed as a tasting set.",
     pickHeading: "Select specimens",

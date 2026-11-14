@@ -5,6 +5,7 @@ import { Outlet, useLocation } from "react-router";
 import { AuthProvider } from "../features/auth/AuthContext";
 import CartDrawer from "../features/cart/CartDrawer";
 import { CartProvider } from "../features/cart/CartContext";
+import { ProductsProvider } from "../features/catalog/ProductsContext";
 import Footer from "../features/shell/Footer";
 import Nav from "../features/shell/Nav";
 import SearchDialog from "../features/shell/SearchDialog";
@@ -75,9 +76,11 @@ export default function AppLayout() {
     <LanguageProvider>
       <AnnounceProvider>
         <AuthProvider>
-          <CartProvider>
-            <Shell />
-          </CartProvider>
+          <ProductsProvider>
+            <CartProvider>
+              <Shell />
+            </CartProvider>
+          </ProductsProvider>
         </AuthProvider>
       </AnnounceProvider>
     </LanguageProvider>

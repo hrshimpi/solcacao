@@ -1,15 +1,17 @@
 // The product page: photos, price, quantity and add to cart, batch passport and the origin story.
 import { useState } from "react";
 import { useParams } from "react-router";
-import { getProductBySlug, originName, type Product } from "../../data/products";
+import type { Product } from "../../api/products";
 import { formatPrice } from "../../i18n/format";
 import { useLang } from "../../i18n/LanguageContext";
 import { stockStatus } from "../../lib/stock";
 import { usePageTitle } from "../../lib/usePageTitle";
 import LocaleLink from "../../ui/LocaleLink";
+import PageLoading from "../../ui/PageLoading";
 import QuantityStepper from "../../ui/QuantityStepper";
 import StockBadge from "../../ui/StockBadge";
 import { useCart } from "../cart/CartContext";
+import { useProducts } from "../catalog/ProductsContext";
 import NotFoundPage from "../shell/NotFoundPage";
 import BatchPassport from "./components/BatchPassport";
 import OriginMap from "./components/OriginMap";
@@ -17,11 +19,26 @@ import ProductGallery from "./components/ProductGallery";
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
-  const { lang } = useLang();
-  const product = getProductBySlug(slug, lang);
+  const { t } = useLang();
+  const { status, bySlug, reload } = useProducts();
+  const product = bySlug(slug);
 
-  if (!product) return <NotFoundPage />;
-  return <ProductDetail key={product.id} product={product} />;
+  if (product) return <ProductDetail key={product.id} product={product} />;
+  if (status === "loading") return <PageLoading label={t("product.loading")} />;
+  if (status === "failed") {
+    return (
+      <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 bg-stone-paper px-4 text-center">
+        <p role="alert" className="font-spectral text-xl text-ink-cacao">
+          {t("product.loadError")}
+        </p>
+        <button type="button" onClick={reload} className="min-h-11 border border-ink-cacao px-5 font-sans text-sm text-ink-cacao hover:bg-ink-cacao hover:text-stone-paper">
+          {t("common.retry")}
+        </button>
+      </div>
+    );
+  }
+  // the shop has loaded and has no such product
+  return <NotFoundPage />;
 }
 
 function ProductDetail({ product }: { product: Product }) {
@@ -62,7 +79,7 @@ function ProductDetail({ product }: { product: Product }) {
 
         <div className="pt-2">
           <p className="mb-3 font-sans text-[11px] uppercase tracking-[0.2em] text-ink-cacao/70">
-            {originName(product.origin, lang)} · {t(`categories.${product.category}`)}
+            {product.originName} · {t(`categories.${product.category}`)}
           </p>
           <h1 className="mb-1 font-spectral text-4xl font-semibold text-ink-cacao">{product.name}</h1>
           <p className="mb-2 font-sans text-2xl font-medium text-gold-deep">{formatPrice(product.price, lang)}</p>
@@ -96,7 +113,7 @@ function ProductDetail({ product }: { product: Product }) {
             )}
             <button
               type="button"
-              onClick={() => addProduct(product.id, quantity)}
+              onClick={() => void addProduct(product.id, quantity)}
               disabled={soldOut}
               className="min-h-11 flex-1 bg-sun-gold px-6 py-2.5 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-sun-gold"
             >
@@ -118,7 +135,7 @@ function ProductDetail({ product }: { product: Product }) {
           <figure>
             <OriginMap />
             <figcaption className="mt-4 text-center font-sans text-xs text-paper-text/70">
-              {t("product.growingRegion", { origin: originName(product.origin, lang) })}
+              {t("product.growingRegion", { origin: product.originName })}
             </figcaption>
           </figure>
           <div>

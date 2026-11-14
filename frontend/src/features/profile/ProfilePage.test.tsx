@@ -50,7 +50,8 @@ describe("the profile page", () => {
   it("asks nothing of the server just to show a retail account", async () => {
     const { server } = await openProfile();
 
-    expect(server.calls).toHaveLength(0);
+    // the cart of the page is read as on every page, and the account is not asked for
+    expect(server.calls.filter((call) => !call.path.startsWith("/api/cart"))).toEqual([]);
   });
 });
 

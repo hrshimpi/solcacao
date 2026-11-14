@@ -1,67 +1,89 @@
 // The cart as a dialog that slides in from the right: lines, quantities, subtotal and checkout note.
+// It shows what the server holds: a loading message while the cart is on its way, and a problem with a way to try again.
 import { useState } from "react";
-import { getProductById } from "../../data/products";
 import { formatPrice } from "../../i18n/format";
 import { useLang } from "../../i18n/LanguageContext";
 import Drawer from "../../ui/Drawer";
 import LocaleLink from "../../ui/LocaleLink";
 import QuantityStepper from "../../ui/QuantityStepper";
-import { lineLimit, linePrice, useCart, type CartLine } from "./CartContext";
+import { useCart, type CartLine } from "./CartContext";
 
 export default function CartDrawer() {
   const { t, lang } = useLang();
-  const { lines, subtotal, isOpen, close, setQuantity, removeLine } = useCart();
+  const { status, lines, subtotal, problem, busy, isOpen, close, setQuantity, removeLine, retry } = useCart();
   const [showCheckoutNote, setShowCheckoutNote] = useState(false);
 
   function describe(line: CartLine) {
-    const products = line.productIds.map((id) => getProductById(id, lang)).filter((p) => p !== undefined);
     if (line.kind === "sampler") {
-      return { name: t("sampler.cartName"), detail: products.map((p) => p.name).join(", ") };
+      return { name: t("sampler.cartName"), detail: line.products.map((product) => product.name).join(", ") };
     }
-    return { name: products[0]?.name ?? "", detail: products[0]?.caption ?? "" };
+    return { name: line.products[0]?.name ?? "", detail: "" };
   }
 
   return (
     <Drawer open={isOpen} onClose={close} title={t("cart.title")}>
-      <div className="flex-1 px-6 py-4">
-        {lines.length === 0 ? (
+      <div aria-busy={busy} className="flex-1 px-6 py-4">
+        {problem && (
+          <div role="alert" className="mb-4 border-l-4 border-sun-gold bg-paper-text/10 px-4 py-3 font-sans text-xs text-paper-text">
+            {t(`cart.errors.${problem}`)}
+          </div>
+        )}
+
+        {status === "loading" && lines.length === 0 && (
+          <p role="status" className="mt-8 text-center font-spectral text-sm text-paper-text/70">
+            {t("cart.loading")}
+          </p>
+        )}
+
+        {status === "failed" && lines.length === 0 && (
+          <div role="alert" className="mt-8 text-center">
+            <p className="font-spectral text-sm text-paper-text/70">{t("cart.loadError")}</p>
+            <button type="button" onClick={retry} className="mt-4 inline-flex min-h-11 items-center font-sans text-sm underline underline-offset-4">
+              {t("common.retry")}
+            </button>
+          </div>
+        )}
+
+        {status === "ready" && lines.length === 0 && (
           <div className="mt-8 text-center">
             <p className="font-spectral text-sm text-paper-text/70">{t("cart.empty")}</p>
-            <LocaleLink
-              to="/shop"
-              onClick={close}
-              className="mt-4 inline-flex min-h-11 items-center font-sans text-sm underline underline-offset-4"
-            >
+            <LocaleLink to="/shop" onClick={close} className="mt-4 inline-flex min-h-11 items-center font-sans text-sm underline underline-offset-4">
               {t("cart.browse")}
             </LocaleLink>
           </div>
-        ) : (
+        )}
+
+        {lines.length > 0 && (
           <ul className="space-y-4">
             {lines.map((line) => {
               const { name, detail } = describe(line);
+              // a line that cannot be bought: it can only be taken out
+              const blockedIssue = line.issue === "out_of_stock" || line.issue === "unavailable" ? line.issue : null;
+              const blocked = blockedIssue !== null;
               return (
                 <li key={line.id} className="border-b border-paper-text/20 pb-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <p className="font-spectral text-sm font-semibold">{name}</p>
-                      <p className="mt-0.5 font-sans text-xs text-paper-text/70">{detail}</p>
+                      {detail && <p className="mt-0.5 font-sans text-xs text-paper-text/70">{detail}</p>}
+                      {blockedIssue && <p className="mt-1 font-sans text-xs font-medium text-sun-gold">{t(`cart.issue.${blockedIssue}`)}</p>}
                     </div>
-                    <p className="shrink-0 font-sans text-sm font-medium text-sun-gold">
-                      {formatPrice(linePrice(line), lang)}
-                    </p>
+                    <p className="shrink-0 font-sans text-sm font-medium text-sun-gold">{formatPrice(line.lineTotal, lang)}</p>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
-                    <QuantityStepper
-                      tone="dark"
-                      value={line.quantity}
-                      onChange={(quantity) => setQuantity(line.id, quantity)}
-                      max={lineLimit(line)}
-                      decreaseLabel={t("cart.decrease", { name })}
-                      increaseLabel={t("cart.increase", { name })}
-                    />
+                    {!blocked && (
+                      <QuantityStepper
+                        tone="dark"
+                        value={line.quantity}
+                        onChange={(quantity) => void setQuantity(line.id, quantity)}
+                        max={Math.max(1, line.available)}
+                        decreaseLabel={t("cart.decrease", { name })}
+                        increaseLabel={t("cart.increase", { name })}
+                      />
+                    )}
                     <button
                       type="button"
-                      onClick={() => removeLine(line.id)}
+                      onClick={() => void removeLine(line.id)}
                       aria-label={t("cart.removeItem", { name })}
                       className="min-h-11 px-2 font-sans text-xs underline underline-offset-4 text-paper-text/70 hover:text-paper-text"
                     >

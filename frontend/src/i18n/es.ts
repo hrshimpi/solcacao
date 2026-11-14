@@ -50,6 +50,16 @@ export const es: typeof en = {
     openLabel_one: "Carrito, {{count}} producto",
     openLabel_other: "Carrito, {{count}} productos",
     openLabelEmpty: "Carrito, vacío",
+    loading: "Cargando tu carrito...",
+    loadError: "No pudimos cargar tu carrito.",
+    errors: {
+      network: "No pudimos conectar con el servidor, así que tu carrito no cambió. Inténtalo de nuevo.",
+      unknown: "Algo salió mal, así que tu carrito no cambió. Inténtalo de nuevo.",
+    },
+    issue: {
+      out_of_stock: "Agotado. Quítalo para continuar.",
+      unavailable: "Ya no está disponible. Quítalo para continuar.",
+    },
   },
   stock: {
     low: "Pocas unidades",
@@ -120,6 +130,8 @@ export const es: typeof en = {
     hint: "Escribe el nombre de un producto o un país de origen.",
     results_one: "{{count}} producto encontrado",
     results_other: "{{count}} productos encontrados",
+    loading: "Cargando los productos...",
+    unavailable: "La búsqueda no está disponible ahora. Inténtalo de nuevo en un momento.",
   },
   titles: {
     home: "Inicio",
@@ -144,6 +156,8 @@ export const es: typeof en = {
     harvest: "cosecha de septiembre de 2024",
     filters: "Filtros",
     empty: "Ningún ejemplar coincide con estos filtros.",
+    loading: "Cargando la colección...",
+    loadError: "No pudimos cargar la colección.",
     clearAll: "Quitar todos los filtros",
     addToCart: "Agregar al carrito",
     addNamed: "Agregar al carrito, {{name}}",
@@ -186,6 +200,8 @@ export const es: typeof en = {
     farm: "Finca / origen",
     cacaoPercent: "% de cacao",
     organic: "Orgánico certificado · Comercio directo",
+    loading: "Cargando el espécimen...",
+    loadError: "No pudimos cargar este espécimen.",
     originStoryLabel: "Historia de origen",
     growingRegion: "{{origin}}, región de cultivo",
     mapAlt: "Mapa simplificado del mundo con las regiones donde crece el cacao marcadas en dorado.",
@@ -437,6 +453,8 @@ export const es: typeof en = {
   },
   sampler: {
     cartName: "Muestrario personalizado",
+    loading: "Cargando los ejemplares...",
+    loadError: "No pudimos cargar los ejemplares.",
     title: "Arma tu propio muestrario",
     intro: "Elige de {{min}} a {{max}} ejemplares. La selección se acomodará y se empacará como un set de cata.",
     pickHeading: "Elige ejemplares",

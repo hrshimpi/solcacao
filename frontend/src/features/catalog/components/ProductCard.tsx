@@ -1,6 +1,6 @@
 // One product tile with photo, name, caption and price. The whole card opens the product page,
 // and the Add to cart button (full variant) sits on top of it.
-import type { Product } from "../../../data/products";
+import type { Product } from "../../../api/products";
 import { formatPrice } from "../../../i18n/format";
 import { useLang } from "../../../i18n/LanguageContext";
 import { stockStatus } from "../../../lib/stock";
@@ -49,7 +49,7 @@ export default function ProductCard({ product, variant = "full", priority = fals
         {variant === "full" && (
           <button
             type="button"
-            onClick={() => addProduct(product.id)}
+            onClick={() => void addProduct(product.id)}
             disabled={soldOut}
             aria-label={soldOut ? t("stock.soldOutNamed", { name: product.name }) : t("catalog.addNamed", { name: product.name })}
             className="relative z-10 mt-auto min-h-11 w-full border border-ink-cacao py-2 font-sans text-xs font-medium text-ink-cacao hover:bg-ink-cacao hover:text-stone-paper disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-ink-cacao"

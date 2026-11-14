@@ -1,9 +1,10 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { getProducts } from "../../data/products";
+import { installFakeServer } from "../../test/fakeServer";
+import { productsFor } from "../../test/productFixtures";
 import { renderAt } from "../../test/renderAt";
 
-const products = getProducts("en");
+const products = productsFor("en");
 
 async function openSampler() {
   const user = userEvent.setup();
@@ -59,6 +60,7 @@ describe("sampler page", () => {
   });
 
   it("adds the sampler to the cart as one item", async () => {
+    const server = installFakeServer();
     const user = await openSampler();
 
     for (let i = 0; i < 4; i++) await user.click(tile(i));
@@ -67,9 +69,26 @@ describe("sampler page", () => {
     const drawer = await screen.findByRole("dialog", { name: "Your cart" });
     expect(drawer).toHaveTextContent("Custom sampler");
 
-    const saved = JSON.parse(localStorage.getItem("sc_cart") ?? "[]");
-    expect(saved).toHaveLength(1);
-    expect(saved[0].kind).toBe("sampler");
-    expect(saved[0].productIds).toHaveLength(4);
+    // the cart is kept by the server, which was asked for one sampler of the four specimens
+    const [call] = server.callsTo("POST", "/api/cart/items");
+    expect(call.body).toEqual({ kind: "sampler", productIds: products.slice(0, 4).map((product) => product.id) });
+    expect(server.callsTo("POST", "/api/cart/items")).toHaveLength(1);
+  });
+
+  it("says that the specimens could not be loaded, and shows them after a second try", async () => {
+    const user = userEvent.setup();
+    const server = installFakeServer();
+    server.override = (call) =>
+      call.path.startsWith("/api/products") ? new Response(JSON.stringify({ error: { code: "INTERNAL_ERROR", message: "Down.", details: [] } }), { status: 500 }) : undefined;
+
+    renderAt("/en/sampler", { productsFromServer: true });
+
+    expect(await screen.findByText("We couldn't load the specimens.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: products[0].name })).not.toBeInTheDocument();
+
+    server.override = null;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByRole("button", { name: products[0].name })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { installFakeServer } from "../../test/fakeServer";
 import { renderAt } from "../../test/renderAt";
 
 describe("language buttons", () => {
@@ -96,5 +97,52 @@ describe("dialogs", () => {
 
     expect(within(dialog).getByRole("status")).toHaveTextContent(/product/);
     expect(within(dialog).getByRole("link", { name: /Peru 68%/ })).toHaveAttribute("href", "/en/shop/peru-68");
+  });
+});
+
+describe("search, when the products are not there yet", () => {
+  async function openSearch(productsFromServer: boolean) {
+    const user = userEvent.setup();
+    renderAt("/en", { productsFromServer });
+    await user.click(await screen.findByRole("button", { name: "Search" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Search" }));
+    return { user, dialog };
+  }
+
+  it("says that it found nothing for a word that no product has", async () => {
+    const { user, dialog } = await openSearch(false);
+
+    await user.type(dialog.getByRole("searchbox"), "banana");
+
+    expect(dialog.getByRole("status")).toHaveTextContent("0 products found");
+    expect(dialog.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("opens the first product with Enter", async () => {
+    const { user, dialog } = await openSearch(false);
+
+    await user.type(dialog.getByRole("searchbox"), "madagascar{Enter}");
+
+    expect(screen.queryByRole("dialog", { name: "Search" })).not.toBeInTheDocument();
+  });
+
+  it("says that the products are loading while they are on their way", async () => {
+    const server = installFakeServer();
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => (String(input).startsWith("/api/products") ? new Promise<Response>(() => {}) : server.handle(input, init))));
+    const { user, dialog } = await openSearch(true);
+
+    await user.type(dialog.getByRole("searchbox"), "peru");
+
+    expect(dialog.getByRole("status")).toHaveTextContent("Loading the products...");
+  });
+
+  it("says that the search is not available when the products could not be loaded", async () => {
+    const server = installFakeServer();
+    server.override = (call) => (call.path.startsWith("/api/products") ? new Response(JSON.stringify({ error: { code: "INTERNAL_ERROR", message: "Down.", details: [] } }), { status: 500 }) : undefined);
+    const { user, dialog } = await openSearch(true);
+
+    await user.type(dialog.getByRole("searchbox"), "peru");
+
+    await waitFor(() => expect(dialog.getByRole("status")).toHaveTextContent("The search isn't available right now."));
   });
 });
