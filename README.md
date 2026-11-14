@@ -10,13 +10,13 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 
 - English and Spanish. Every page lives under `/en` or `/es`, and the EN and ES buttons keep you on the same page
 - Home page, shop with filters (cacao percentage, origin, category, tasting notes) and product pages with a batch passport and origin story. The filters are kept in the address, so a filtered shop can be shared
-- A cart in a dialog that is saved in the browser. Checkout isn't available, the button says so
+- A cart in a dialog that is kept by the server: a visitor's cart in a cookie, a signed in person's cart in the account, and the visitor's cart is added to the account at sign in. The stock is checked by the server, and the page says so when there are fewer than asked for. Checkout isn't available, the button says so
 - Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
 - Real accounts: create an account (retail or business), sign in, forgot and reset password, and a profile page with the personal details, the language of the emails, a password change, the notifications switch, shipping addresses and (for a business account) the business details with their verification. A reload keeps you signed in
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
 - A backend with accounts (sign up, sign in, password reset), a health check, a standard error format and the protections listed under "Accounts and security"
 
-The accounts, the profile, the addresses, the password reset, the quote form of the studio and My quote requests talk to the backend. The products, the cart, the contact form and the newsletter box still use data in the browser, and are connected next.
+Everything talks to the backend: the accounts, the profile, the addresses, the password reset, the products, the cart, the contact form, the newsletter box, the quote form of the studio and My quote requests. Only two small things stay in the browser: the language you chose and the draft of a quote. The products come from the seed (see "Shop API").
 
 ## Tech
 
@@ -102,7 +102,7 @@ Other commands, run inside `frontend` or `backend`:
 frontend/
   src/app/        routes and the shared page layout
   src/features/   one folder per area (shell, auth, catalog, cart, studio, ...)
-  src/data/       the demo products (bilingual, read with getProducts and getProductBySlug)
+  src/api/        the calls to the products, the cart and the inquiries, and what they do with the answers
   src/i18n/       the English and Spanish text and the language helpers
   src/ui/         shared pieces: dialog, form field, live region, icons
   src/lib/        form validation and small hooks
@@ -280,6 +280,16 @@ Rules the server keeps, whatever the client sends:
 - **Merge.** Quantities of the same item are added (up to the stock, at least one), the prices that were already in the user's cart stay, and no line is lost. Doing it again changes nothing.
 - **Changes at the same moment.** Every cart has a version, and a change is only saved if nobody saved one in between. The loser reads again and tries again, so two tabs never lose each other's change (`409 CART_BUSY` after five tries).
 - A request with a token that is not good, or ran out (`401 TOKEN_EXPIRED`), is refused and never taken for a visitor's. A request with no token at all is a visitor's. No answer is kept by a cache.
+
+## The shop in the frontend
+
+The pages never show a product they do not have from the server, and never show an empty shop as if it were a real one.
+
+- **Products.** `ProductsProvider` reads the products once for the language of the page (and again when the language changes), and the shop, the product page, the sampler, the search box and the home page read them from it. While they are on their way a page says it is loading, and when they cannot be loaded it says so and offers "Try again". A product page says "not found" only after the products have loaded and the address is not one of them. The filters work on the products that were loaded, and an origin in the address that the shop does not have is left out.
+- **Cart.** `CartProvider` reads the cart from the server and sends each change one after the other, so quick clicks reach the server in the order they were made. Every answer is the whole cart, and the page shows that and nothing else. When a change fails the cart stays as it was and the page says why. When the stock is smaller than the quantity the page adds what fits and tells the person how many there are. A line that cannot be bought (sold out or switched off) shows why and can only be removed.
+- **Sign in and out.** The cart is read again when somebody signs in or out. At a sign in the visitor's cart is added to the account's cart.
+- **Contact form and newsletter.** Both send an inquiry (`POST /api/inquiries`). The page says that the message was sent only when the server accepted it, keeps what was written when it did not, and shows a problem on the field that the server names.
+- **In the tests.** `src/test/fakeServer.ts` is a stand-in for the backend with the same paths, status codes and error codes (products, cart, inquiries and accounts), and every unit test talks to it unless the test says otherwise. The browser tests use the same stand-in through `mockShopApi` in `e2e/helpers.ts`.
 
 ## B2B quotes
 
