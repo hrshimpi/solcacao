@@ -1,10 +1,12 @@
 // Calls to our own API for the endpoints of a signed in person. They all send the language and the token, and turn
 // every kind of failure (no network, a bad status, an answer that is not JSON) into one ApiError.
 //   api.get       reads JSON, like apiFetch, with the token
+//   api.post, api.patch, api.put, api.delete
+//                 send JSON with the token, and read the answer (nothing for a 204)
 //   api.upload    sends a form with files and reports the progress while the files go up, which fetch cannot do
 //   api.download  fetches a file with the token, as a Blob, because a plain link cannot send the Authorization header
 import type { Lang } from "../i18n";
-import { ApiError, apiFetch, errorFrom, requestHeaders } from "./apiFetch";
+import { ApiError, apiFetch, errorFrom, requestHeaders, withFreshToken } from "./apiFetch";
 import { getAuthToken } from "./authToken";
 
 interface UploadOptions {
@@ -32,17 +34,19 @@ function get<T>(path: string, options: GetOptions): Promise<T> {
 async function download(path: string, { lang, signal }: { lang: Lang; signal?: AbortSignal }): Promise<Blob> {
   if (signal?.aborted) throw new ApiError("The request was cancelled.");
 
-  try {
-    const response = await fetch(`/api${path}`, { headers: requestHeaders(lang, true), signal });
-    if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => undefined));
-    return await response.blob();
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(signal?.aborted ? "The request was cancelled." : "The server could not be reached.");
-  }
+  return withFreshToken(true, async () => {
+    try {
+      const response = await fetch(`/api${path}`, { headers: requestHeaders(lang, true), signal });
+      if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => undefined));
+      return await response.blob();
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(signal?.aborted ? "The request was cancelled." : "The server could not be reached.");
+    }
+  });
 }
 
-function upload<T>(path: string, body: FormData, { lang, onProgress, signal, successStatus }: UploadOptions): Promise<T> {
+function uploadOnce<T>(path: string, body: FormData, { lang, onProgress, signal, successStatus }: UploadOptions): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     // already cancelled before we start: there is nothing to send
     if (signal?.aborted) {
@@ -99,4 +103,20 @@ function upload<T>(path: string, body: FormData, { lang, onProgress, signal, suc
   });
 }
 
-export const api = { get, upload, download };
+// a sign in that ran out while the files went up is renewed, and the form is sent again
+function upload<T>(path: string, body: FormData, options: UploadOptions): Promise<T> {
+  return withFreshToken(true, () => uploadOnce<T>(path, body, options));
+}
+
+interface SendOptions {
+  lang: Lang;
+  json?: unknown;
+  signal?: AbortSignal;
+}
+
+const send =
+  (method: "POST" | "PATCH" | "PUT" | "DELETE") =>
+  <T>(path: string, options: SendOptions): Promise<T> =>
+    apiFetch<T>(path, { ...options, method, auth: true });
+
+export const api = { get, post: send("POST"), patch: send("PATCH"), put: send("PUT"), delete: send("DELETE"), upload, download };

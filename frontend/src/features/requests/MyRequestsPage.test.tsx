@@ -1,7 +1,7 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { formatDate } from "../../i18n/format";
-import { TOKEN_STORAGE_KEY } from "../../lib/authToken";
+import { setAuthToken } from "../../lib/authToken";
 import { apiAsset, apiRequest, errorResponse, jsonResponse, mockRequestsApi } from "../../test/mockApi";
 import { renderAt } from "../../test/renderAt";
 
@@ -13,7 +13,7 @@ const token = "abc.def.ghi";
 
 // opens the page as a business account that has a token, which is what the real sign in will give
 async function open(path = "/en/account/requests", account: "business" | "retail" | null = "business") {
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+  setAuthToken(token);
   const user = userEvent.setup();
   const view = renderAt(path, account ? { account } : {});
   return { user, ...view };

@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
+import { setAuthToken } from "../lib/authToken";
 import { installFakeXhr } from "./fakeXhr";
 
 window.scrollTo = vi.fn();
@@ -17,6 +18,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  setAuthToken(null);
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();

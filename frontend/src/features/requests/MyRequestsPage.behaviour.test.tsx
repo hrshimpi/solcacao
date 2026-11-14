@@ -2,7 +2,7 @@
 // and the language switch. The main flows (the list, the details, downloads, refreshing) are in MyRequestsPage.test.tsx.
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TOKEN_STORAGE_KEY } from "../../lib/authToken";
+import { setAuthToken } from "../../lib/authToken";
 import { apiAsset, apiRequest, mockRequestsApi } from "../../test/mockApi";
 import { renderAt } from "../../test/renderAt";
 
@@ -10,7 +10,7 @@ const idA = "66a1b2c3d4e5f60718293a4b"; // SC-18293A4B
 const idB = "66a1b2c3d4e5f60718293a4c"; // SC-18293A4C
 
 async function open(path: string) {
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+  setAuthToken("abc.def.ghi");
   const user = userEvent.setup();
   const view = renderAt(path, { account: "business" });
   return { user, ...view };

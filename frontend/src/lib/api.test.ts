@@ -1,7 +1,7 @@
 import { FakeXhr } from "../test/fakeXhr";
 import { api } from "./api";
 import { ApiError } from "./apiFetch";
-import { TOKEN_STORAGE_KEY } from "./authToken";
+import { setAuthToken } from "./authToken";
 
 const standardError = (code: string, message: string) => ({ error: { code, message, details: [] } });
 
@@ -50,7 +50,7 @@ describe("api.upload", () => {
     });
 
     it("sends the token of the signed in person", () => {
-      sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+      setAuthToken("abc.def.ghi");
 
       const { xhr } = start();
 
@@ -63,16 +63,16 @@ describe("api.upload", () => {
       expect(xhr.headers).not.toHaveProperty("Authorization");
     });
 
-    it("works when the browser does not let the page read its storage", () => {
-      const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-        throw new Error("blocked");
-      });
+    it("does not keep the token anywhere in the browser, only in memory", () => {
+      setAuthToken("abc.def.ghi");
+      const setItem = vi.spyOn(Storage.prototype, "setItem");
 
-      const { xhr } = start();
+      start();
 
-      expect(xhr.sent).toBe(true);
-      expect(xhr.headers).not.toHaveProperty("Authorization");
-      getItem.mockRestore();
+      expect(setItem).not.toHaveBeenCalled();
+      expect(JSON.stringify({ ...sessionStorage })).not.toContain("abc.def.ghi");
+      expect(JSON.stringify({ ...localStorage })).not.toContain("abc.def.ghi");
+      setItem.mockRestore();
     });
   });
 
@@ -289,7 +289,7 @@ const headersOf = (fetchMock: ReturnType<typeof stubFetch>) => (fetchMock.mock.c
 
 describe("api.get", () => {
   it("reads JSON from the address under /api, with the language and the token", async () => {
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+    setAuthToken("abc.def.ghi");
     const fetchMock = stubFetch(() => new Response(JSON.stringify({ items: [] }), { status: 200 }));
 
     const answer = await api.get("/b2b/requests", { lang: "es", query: { limit: 100 } });
@@ -319,7 +319,7 @@ describe("api.get", () => {
 
 describe("api.download", () => {
   it("fetches the file with the token in the Authorization header and gives it back as a Blob", async () => {
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+    setAuthToken("abc.def.ghi");
     const fetchMock = stubFetch(() => new Response("%PDF-1.4", { status: 200, headers: { "Content-Type": "application/pdf" } }));
 
     const file = await api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en" });
@@ -373,5 +373,94 @@ describe("api.download", () => {
     fetchMock.mockClear();
     expect((await failure(api.download("/x", { lang: "en", signal: controller.signal }))).message).toBe("The request was cancelled.");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("api.post, api.patch, api.put and api.delete", () => {
+  it.each([
+    ["post", "POST"],
+    ["patch", "PATCH"],
+    ["put", "PUT"],
+    ["delete", "DELETE"],
+  ] as const)("api.%s sends %s with the body as JSON and the token", async (name, method) => {
+    setAuthToken("abc.def.ghi");
+    const fetchMock = vi.fn(async () => new Response('{"ok":true}', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const answer = await api[name]<{ ok: boolean }>("/users/me", { lang: "es", json: { name: "Isabel" } });
+
+    expect(answer).toEqual({ ok: true });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/users/me");
+    expect(init.method).toBe(method);
+    expect(init.body).toBe('{"name":"Isabel"}');
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer abc.def.ghi");
+    expect((init.headers as Record<string, string>)["Accept-Language"]).toBe("es");
+  });
+
+  it("is an ApiError with the field problems of the server", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code: "VALIDATION_ERROR", message: "Bad.", details: [{ field: "phone", message: "Not a phone." }] } }), { status: 400 })));
+
+    const error = await failure(api.patch("/users/me", { lang: "en", json: { phone: "x" } }));
+
+    expect(error.details).toEqual([{ field: "phone", message: "Not a phone." }]);
+  });
+});
+
+describe("a token that ran out during an upload or a download", () => {
+  const expired = () => new Response(JSON.stringify(standardError("TOKEN_EXPIRED", "Your session ran out.")), { status: 401 });
+  const newSession = () =>
+    new Response(JSON.stringify({ user: { id: "1", email: "a@b.co", name: "A", role: "user", accountType: "b2b", preferredLanguage: "en", marketingEmails: false, createdAt: "" }, accessToken: "new.token.value", expiresIn: 900 }), { status: 200 });
+
+  it("gets a new token and sends the form again", async () => {
+    setAuthToken("old.token.value");
+    FakeXhr.autoAnswer = null;
+    vi.stubGlobal("fetch", vi.fn(async () => newSession()));
+    const form = new FormData();
+    form.append("companyName", "Hacienda Brands");
+
+    const promise = api.upload<{ request: { id: string } }>("/b2b/quote", form, { lang: "en", successStatus: 201 });
+    await vi.waitFor(() => expect(FakeXhr.requests).toHaveLength(1));
+    FakeXhr.requests[0].answer(401, standardError("TOKEN_EXPIRED", "Your session ran out."));
+    await vi.waitFor(() => expect(FakeXhr.requests).toHaveLength(2));
+    FakeXhr.requests[1].answer(201, { request: { id: "66a1" } });
+
+    expect(await promise).toEqual({ request: { id: "66a1" } });
+    expect(FakeXhr.requests[0].headers.Authorization).toBe("Bearer old.token.value");
+    expect(FakeXhr.requests[1].headers.Authorization).toBe("Bearer new.token.value");
+    expect(FakeXhr.requests[1].body).toBe(form);
+  });
+
+  it("gives the first error of an upload when no new token can be had", async () => {
+    vi.useFakeTimers();
+    setAuthToken("old.token.value");
+    FakeXhr.autoAnswer = null;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(standardError("SESSION_EXPIRED", "Your session ended.")), { status: 401 })));
+
+    const promise = failure(api.upload("/b2b/quote", new FormData(), { lang: "en" }));
+    FakeXhr.requests[0].answer(401, standardError("TOKEN_EXPIRED", "Your session ran out."));
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(await promise).toMatchObject({ status: 401, code: "TOKEN_EXPIRED" });
+    expect(FakeXhr.requests).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("gets a new token and fetches the file again", async () => {
+    setAuthToken("old.token.value");
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push(String(input));
+        if (String(input) === "/api/auth/refresh") return newSession();
+        return (init?.headers as Record<string, string>).Authorization === "Bearer new.token.value" ? new Response("%PDF-1.4", { status: 200 }) : expired();
+      }),
+    );
+
+    const file = await api.download("/b2b/requests/66a1/assets/one.pdf", { lang: "en" });
+
+    expect(await file.text()).toBe("%PDF-1.4");
+    expect(calls).toEqual(["/api/b2b/requests/66a1/assets/one.pdf", "/api/auth/refresh", "/api/b2b/requests/66a1/assets/one.pdf"]);
   });
 });

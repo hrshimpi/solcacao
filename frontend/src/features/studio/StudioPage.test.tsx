@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TOKEN_STORAGE_KEY } from "../../lib/authToken";
+import { setAuthToken } from "../../lib/authToken";
 import { FakeXhr } from "../../test/fakeXhr";
 import { renderAt } from "../../test/renderAt";
 import { DRAFT_KEY } from "./studioDraft";
@@ -569,7 +569,7 @@ describe("sending the request", () => {
 
     it("sends the token of the signed in person", async () => {
       serverSaves();
-      sessionStorage.setItem(TOKEN_STORAGE_KEY, "abc.def.ghi");
+      setAuthToken("abc.def.ghi");
       const person = await fillEverything();
 
       await person.click(submitButton());

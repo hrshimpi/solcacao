@@ -1,36 +1,34 @@
 // A small helper for calling our own API (everything under /api). It sends the current language in the
 // Accept-Language header, gives up after a few seconds, and turns every kind of failure (no network, a bad
 // status, an answer that is not JSON) into one ApiError, so screens only need one catch.
+// A call that needs a signed in person (auth: true) sends the token, and when the server says the token ran out
+// (401 TOKEN_EXPIRED) it gets a new one with the refresh cookie and tries once more, so a person is not signed out
+// in the middle of what they were doing.
 import type { Lang } from "../i18n";
+import { ApiError, errorFrom } from "./apiError";
 import { getAuthToken } from "./authToken";
+import { refreshSession } from "./session";
 
-export class ApiError extends Error {
-  // the HTTP status, or 0 when there was no answer at all
-  status: number;
-  // the code from the server's error answer (like RATE_LIMITED), when the answer had one
-  code: string | undefined;
-
-  constructor(message: string, status = 0, code?: string) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.code = code;
-  }
-}
-
-// the standard error answer of the server is { error: { code, message, details } }. Anything else only gives the status.
-export function errorFrom(status: number, body: unknown) {
-  const error = typeof body === "object" && body !== null ? (body as { error?: unknown }).error : undefined;
-  const { code, message } = typeof error === "object" && error !== null ? (error as { code?: unknown; message?: unknown }) : {};
-
-  if (typeof message === "string" && message) return new ApiError(message, status, typeof code === "string" ? code : undefined);
-  return new ApiError(`The server answered ${status}.`, status);
-}
+export { ApiError, errorFrom, type ApiErrorDetail } from "./apiError";
 
 // the headers every call sends. The token is only sent when the call asks for it, so public calls never carry it.
 export function requestHeaders(lang: Lang, auth = false): Record<string, string> {
   const token = auth ? getAuthToken() : null;
   return { Accept: "application/json", "Accept-Language": lang, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+// Runs a call that needs the token. When the server answers that the token ran out, the person gets a new one and
+// the call runs once more. When that is not possible (the sign in ended too), the first answer stands.
+export async function withFreshToken<T>(auth: boolean, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!auth || !(error instanceof ApiError) || error.status !== 401 || error.code !== "TOKEN_EXPIRED") throw error;
+
+    const session = await refreshSession({ retryOnce: true }).catch(() => null);
+    if (!session) throw error;
+    return run();
+  }
 }
 
 interface ApiOptions {
@@ -40,9 +38,13 @@ interface ApiOptions {
   timeoutMs?: number;
   // send the token of the signed in person (for the endpoints that need one)
   auth?: boolean;
+  // GET unless said otherwise
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  // the body, sent as JSON
+  json?: unknown;
 }
 
-export async function apiFetch<T>(path: string, { lang, query = {}, signal, timeoutMs = 8000, auth = false }: ApiOptions): Promise<T> {
+async function request<T>(path: string, { lang, query = {}, signal, timeoutMs = 8000, auth = false, method = "GET", json }: ApiOptions): Promise<T> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) params.set(key, String(value));
@@ -61,10 +63,14 @@ export async function apiFetch<T>(path: string, { lang, query = {}, signal, time
 
   try {
     const response = await fetch(url, {
-      headers: requestHeaders(lang, auth),
+      ...(method === "GET" ? {} : { method }),
+      headers: { ...requestHeaders(lang, auth), ...(json === undefined ? {} : { "Content-Type": "application/json" }) },
+      ...(json === undefined ? {} : { body: JSON.stringify(json) }),
       signal: controller.signal,
     });
     if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => undefined));
+    // "no content": the call worked and there is nothing to read
+    if (response.status === 204) return undefined as T;
     try {
       return (await response.json()) as T;
     } catch {
@@ -77,4 +83,8 @@ export async function apiFetch<T>(path: string, { lang, query = {}, signal, time
     clearTimeout(timer);
     signal?.removeEventListener("abort", cancel);
   }
+}
+
+export function apiFetch<T>(path: string, options: ApiOptions): Promise<T> {
+  return withFreshToken(options.auth === true, () => request<T>(path, options));
 }
