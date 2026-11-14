@@ -1,7 +1,7 @@
 // Runs axe on every route, on the open dialogs and on each studio step. Fails on any WCAG 2.2 AA problem.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { chooseOption, e2eFile, e2eRequest, fillStudio, mockFeaturedProducts, mockQuoteApi, mockRequestsApi, openRoute, quoteFailed, quoteSaved, routes, withToken } from "./helpers";
+import { chooseOption, e2eFile, e2eRequest, fillStudio, seedOrder, mockFeaturedProducts, mockQuoteApi, mockRequestsApi, openRoute, quoteFailed, quoteSaved, routes, withToken } from "./helpers";
 
 const tags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
@@ -32,6 +32,43 @@ test.describe("axe scan of the studio access pages", () => {
     test(`the message for a retail account at ${path}`, async ({ page }) => {
       await openRoute(page, path, { account: "retail" });
       await expect(page.getByRole("link", { name: /^(Create a business account|Crear una cuenta de empresa)$/ })).toBeVisible();
+
+      expect(await scan(page)).toEqual([]);
+    });
+  }
+});
+
+test.describe("axe scan of the checkout, the orders and the dashboard", () => {
+  test("the checkout", async ({ page }) => {
+    await openRoute(page, "/en/checkout", {
+      account: "retail",
+      beforeLoad: async (server) => {
+        // the address of a person who bought before, and something in the cart
+        await seedOrder(server);
+        await server.handle("/api/cart/items", { method: "POST", headers: { authorization: "Bearer seed", "content-type": "application/json" }, body: JSON.stringify({ kind: "product", productId: "64b7f0c2a1b2c3d4e5f60a02", quantity: 1 }) });
+      },
+    });
+    await expect(page.getByRole("heading", { level: 1, name: "Checkout" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: /Home/ })).toBeChecked();
+
+    expect(await scan(page)).toEqual([]);
+  });
+
+  test("the list of orders and one order", async ({ page }) => {
+    await openRoute(page, "/en/account/orders", { account: "retail", beforeLoad: seedOrder });
+    await expect(page.getByRole("article")).toHaveCount(1);
+    expect(await scan(page)).toEqual([]);
+
+    await page.getByRole("link", { name: /^View details/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /^SC-/ })).toBeVisible();
+    expect(await scan(page)).toEqual([]);
+  });
+
+  for (const section of ["", "/orders", "/products", "/products/new", "/inquiries"]) {
+    test(`the dashboard ${section || "overview"}`, async ({ page }) => {
+      await openRoute(page, `/en/admin${section}`, { account: "admin", beforeLoad: seedOrder });
+      await expect(page.getByRole("navigation", { name: "Admin sections" })).toBeVisible();
+      await expect(page.getByText("Loading...")).toHaveCount(0);
 
       expect(await scan(page)).toEqual([]);
     });

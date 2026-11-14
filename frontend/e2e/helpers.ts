@@ -1,6 +1,7 @@
 // Small helpers shared by the browser tests.
 import { expect, type Page } from "@playwright/test";
-import { FakeServer, retailAccount } from "../src/test/fakeServer";
+import { FakeServer, retailAccount, type FakeAccount } from "../src/test/fakeServer";
+import { fixtureId } from "../src/test/productFixtures";
 
 export const routes = [
   "/en",
@@ -37,18 +38,24 @@ export async function goToPage(page: Page, name: string | RegExp) {
   }
 }
 
-export type Account = "retail" | "business";
+export type Account = "retail" | "business" | "admin";
 
 // The token that the mocked sign in gives. A call that needs it is checked for it (see mockRequestsApi), so a test can
 // tell that the page really sends the token of the person who is signed in.
 export const requestToken = "e2e-token";
 
 const tokens = new WeakMap<Page, string>();
+// who is signed in on a page right now, for the shop of the fake server (the token of every test is the same text)
+const signedIn = new WeakMap<Page, Account | null>();
+
+// the account of an admin, for the dashboard
+export const adminAccount: FakeAccount = { id: "64b7f0c2a1b2c3d4e5f6a001", email: "admin@solcacao.example.com", password: "correct horse 42", name: "Demo Admin", accountType: "retail", role: "admin" };
 
 // the user of each kind of account, as the server sends them
 const serverUsers = {
   retail: { id: "64b7f0c2a1b2c3d4e5f60718", email: "isabel@example.com", name: "Isabel Vasquez", role: "user", accountType: "retail", preferredLanguage: "en", marketingEmails: false, createdAt: "2026-06-15T12:00:00.000Z" },
   business: { id: "64b7f0c2a1b2c3d4e5f60719", email: "isabel@hacienda.example", name: "Isabel Vasquez", role: "user", accountType: "b2b", preferredLanguage: "en", marketingEmails: false, createdAt: "2026-06-15T12:00:00.000Z" },
+  admin: { id: "64b7f0c2a1b2c3d4e5f6a001", email: "admin@solcacao.example.com", name: "Demo Admin", role: "admin", accountType: "retail", preferredLanguage: "en", marketingEmails: false, createdAt: "2026-06-15T12:00:00.000Z" },
 } as const;
 
 const businessProfile = { userId: serverUsers.business.id, companyName: "Hacienda Brands", verificationStatus: "pending", createdAt: "2026-06-15T12:00:00.000Z", updatedAt: "2026-06-15T12:00:00.000Z" };
@@ -60,16 +67,19 @@ const businessProfile = { userId: serverUsers.business.id, companyName: "Haciend
 export async function mockAuthApi(page: Page, options: { account: Account | null; loginAs?: Account }) {
   const session = (account: Account) => ({ user: serverUsers[account], accessToken: tokens.get(page) ?? requestToken, expiresIn: 900 });
   let current: Account | null = options.account;
+  signedIn.set(page, current);
 
   await page.route("**/api/auth/refresh", (route) =>
     current ? route.fulfill({ json: session(current) }) : route.fulfill({ status: 401, json: { error: { code: "SESSION_EXPIRED", message: "Your session ended.", details: [] } } }),
   );
   await page.route("**/api/auth/login", (route) => {
     current = options.loginAs ?? "retail";
+    signedIn.set(page, current);
     return route.fulfill({ json: session(current) });
   });
   await page.route("**/api/auth/logout", (route) => {
     current = null;
+    signedIn.set(page, null);
     return route.fulfill({ status: 204 });
   });
   await page.route("**/api/users/me", (route) => route.fulfill({ json: { user: serverUsers[current ?? "retail"], b2bProfile: current === "business" ? businessProfile : null } }));
@@ -85,15 +95,26 @@ export async function mockAuthApi(page: Page, options: { account: Account | null
 export async function mockShopApi(page: Page) {
   const server = new FakeServer();
   await page.route(
-    (url) => /^\/api\/(products|cart|inquiries|checkout|orders|users\/me\/addresses)(\/|$)/.test(url.pathname) && !(url.pathname === "/api/products" && url.searchParams.get("featured") === "true"),
+    (url) => /^\/api\/(products|cart|inquiries|checkout|orders|admin|staff\/products|users\/me\/addresses)(\/|$)/.test(url.pathname) && !(url.pathname === "/api/products" && url.searchParams.get("featured") === "true"),
     async (route) => {
       const request = route.request();
-      server.tokenOf = request.headers().authorization ? retailAccount : null;
+      server.tokenOf = request.headers().authorization ? (signedIn.get(page) === "admin" ? adminAccount : retailAccount) : null;
       const answer = await server.handle(request.url(), { method: request.method(), headers: request.headers(), body: request.postData() ?? undefined });
       await route.fulfill({ status: answer.status, contentType: "application/json", body: await answer.text() });
     },
   );
   return server;
+}
+
+// A purchase made before the page opens, as the retail account: an address, two bars in the cart, and the order. For the
+// pages that need an order to show. Answers the order the way the API sends it.
+export async function seedOrder(server: FakeServer) {
+  server.tokenOf = retailAccount;
+  const post = (path: string, body: unknown) => server.handle(path, { method: "POST", headers: { authorization: "Bearer seed", "content-type": "application/json" }, body: JSON.stringify(body) });
+  const address = ((await (await post("/api/users/me/addresses", { label: "Home", street: "12 Cacao Lane", city: "Arlington", state: "TX", postalCode: "76010", country: "United States", isDefault: true })).json()) as { address: { id: string } }).address;
+  await post("/api/cart/items", { kind: "product", productId: fixtureId("ecuador-72"), quantity: 2 });
+  const placed = await post("/api/orders", { addressId: address.id, shippingMethod: "standard", payment: { cardNumber: "4242424242424242", expiry: "12/30", cvc: "123", nameOnCard: "Isabel Vasquez" } });
+  return ((await placed.json()) as { order: { id: string; number: string } }).order;
 }
 
 // signs someone in before any page of this test loads
@@ -104,15 +125,18 @@ export async function signInAs(page: Page, account: Account) {
 // the page is ready when its heading is there, the web fonts have loaded and the entrance animations are done
 // (a scan in the middle of a fade-in would measure half see-through colours)
 // The studio and My quote requests are only for business accounts, so they are opened as one unless the test says otherwise (account: null is a guest).
-export async function openRoute(page: Page, path: string, options: { account?: Account | null; loginAs?: Account } = {}) {
+// beforeLoad can make the shop ready (see seedOrder) before the page opens. Answers the fake server, to look at what it got.
+export async function openRoute(page: Page, path: string, options: { account?: Account | null; loginAs?: Account; beforeLoad?: (server: FakeServer) => Promise<unknown> } = {}) {
   const account = options.account === undefined && /\/(wholesale\/studio|account\/requests)/.test(path) ? "business" : options.account;
   await mockAuthApi(page, { account: account ?? null, loginAs: options.loginAs });
-  await mockShopApi(page);
+  const server = await mockShopApi(page);
+  await options.beforeLoad?.(server);
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // the fonts come from the network, so a slow or missing connection must not hold a test until it times out
   await page.evaluate(() => Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 8000))]));
   await page.evaluate(() => Promise.allSettled(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished)));
+  return server;
 }
 
 // clicks the visible label of a radio button or checkbox, the way a person would

@@ -2,6 +2,7 @@
 import { expect, test } from "@playwright/test";
 import {
   chooseOption,
+  seedOrder,
   e2eFile,
   e2eRequest,
   failFeaturedProducts,
@@ -517,6 +518,65 @@ test.describe("smoke flows", () => {
     await page.goto("/en/account/orders");
     await expect(page.getByRole("article")).toHaveCount(1);
     await expect(page.getByRole("article").getByText("Paid")).toBeVisible();
+  });
+
+  test("an admin moves an order along, changes a stock and adds a product", async ({ page }) => {
+    await openRoute(page, "/en/admin", { account: "admin", beforeLoad: seedOrder });
+    const main = page.getByRole("main");
+
+    // the numbers of the dashboard
+    await expect(main.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+    await expect(main.getByRole("region", { name: "Latest orders" }).getByRole("link", { name: /^SC-/ })).toBeVisible();
+
+    // the order, packed and sent
+    await main.getByRole("navigation", { name: "Admin sections" }).getByRole("link", { name: "Orders" }).click();
+    await main.getByRole("link", { name: /^SC-/ }).click();
+    await main.getByRole("button", { name: "Start packing" }).click();
+    await main.getByRole("button", { name: "Mark as shipped" }).click();
+    await expect(main.getByRole("button", { name: "Mark as delivered" })).toBeVisible();
+
+    // the stock of a product
+    await main.getByRole("navigation", { name: "Admin sections" }).getByRole("link", { name: "Products" }).click();
+    const peru = main.getByRole("row", { name: /Peru 68%/ });
+    await peru.getByLabel("Stock of Peru 68%").fill("5");
+    await peru.getByRole("button", { name: "Save" }).click();
+    await expect(peru.getByText("Saved.")).toBeVisible();
+
+    // a new product
+    await main.getByRole("link", { name: "Add a product" }).click();
+    const fields: Record<string, string> = {
+      "Slug": "peru-85",
+      "SKU": "SC-PER-085",
+      "Name (English)": "Peru 85%",
+      "Name (Spanish)": "Perú 85%",
+      "Cacao percentage": "85",
+      "Price in dollars": "15.50",
+      "Units in stock": "40",
+      "Caption (English)": "Peru, 85% cacao",
+      "Caption (Spanish)": "Perú, 85% de cacao",
+      "Tasting summary (English)": "dark cocoa",
+      "Tasting summary (Spanish)": "cacao oscuro",
+      "Farm (English)": "Cusco cooperative",
+      "Farm (Spanish)": "Cooperativa de Cusco",
+      "Description (English)": "A deep, intense bar.",
+      "Description (Spanish)": "Una barra profunda.",
+      "Photo address": "/sample-chocolates/milk-almond-bar.jpg",
+      "Description of the photo (English)": "A dark bar",
+      "Description of the photo (Spanish)": "Una barra oscura",
+      "Batch code": "PER-2024-09",
+      "Harvest month": "2024-09",
+      "Roast month": "2024-10",
+    };
+    for (const [label, value] of Object.entries(fields)) await main.getByLabel(new RegExp(`^${label.replace(/[()]/g, "\\$&")}`)).fill(value);
+    await main.getByRole("button", { name: "Add to the shop" }).click();
+    await expect(main.getByText("8 products")).toBeVisible();
+    await expect(main.getByText("Peru 85%")).toBeVisible();
+  });
+
+  test("the dashboard is closed to a customer", async ({ page }) => {
+    await openRoute(page, "/en/admin", { account: "retail" });
+
+    await expect(page.getByRole("heading", { level: 1, name: "This page is for the team" })).toBeVisible();
   });
 
   test("the contact form shows errors, then a confirmation", async ({ page }) => {
