@@ -77,14 +77,15 @@ export async function mockAuthApi(page: Page, options: { account: Account | null
   await page.route("**/api/users/me/addresses", (route) => route.fulfill({ json: { addresses: [] } }));
 }
 
-// The shop, the cart and the contact form, answered by the fake server of the unit tests, so no test needs a backend. The
+// The shop, the cart, the checkout, the orders, the addresses and the contact form, answered by the fake server of the unit
+// tests, so no test needs a backend. The
 // products are the ones of the seed, and the carts are kept for as long as the test lasts, so a reload finds the cart again.
 // A request that carries a token is the cart of a signed in person, and one without it is the cart of a visitor.
 // The featured products are left to mockFeaturedProducts, which the tests that look at them use.
 export async function mockShopApi(page: Page) {
   const server = new FakeServer();
   await page.route(
-    (url) => /^\/api\/(products|cart|inquiries)(\/|$)/.test(url.pathname) && !(url.pathname === "/api/products" && url.searchParams.get("featured") === "true"),
+    (url) => /^\/api\/(products|cart|inquiries|checkout|orders|users\/me\/addresses)(\/|$)/.test(url.pathname) && !(url.pathname === "/api/products" && url.searchParams.get("featured") === "true"),
     async (route) => {
       const request = route.request();
       server.tokenOf = request.headers().authorization ? retailAccount : null;

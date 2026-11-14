@@ -473,6 +473,52 @@ test.describe("smoke flows", () => {
     await expect(page).toHaveURL(/\/es\/account\/login\?next=%2Fwholesale%2Fstudio$/);
   });
 
+  test("a visitor buys: cart, sign in, address, card, and the order is in the account", async ({ page }) => {
+    await openRoute(page, "/en/shop?min=55");
+    await page.getByRole("button", { name: /^Add to cart, / }).first().click();
+    const cart = page.getByRole("dialog", { name: "Your cart" });
+    await cart.getByRole("link", { name: "Checkout" }).click();
+
+    const main = page.getByRole("main");
+
+    // a visitor signs in first, and comes back to the checkout
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await main.getByLabel(/Email/).fill("isabel@example.com");
+    await main.getByLabel(/Password/).fill("correct horse 42");
+    await main.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Checkout" })).toBeVisible();
+    await expect(page.getByText("This is a demo shop. No real payment is made")).toBeVisible();
+
+    // a new account has no address yet: the form is open
+    await main.getByLabel(/Name for this address/).fill("Home");
+    await main.getByLabel(/Street address/).fill("12 Cacao Lane");
+    await main.getByLabel(/^City/).fill("Arlington");
+    await main.getByLabel(/State or region/).fill("TX");
+    await main.getByLabel(/Zip code/).fill("76010");
+    await main.getByLabel(/^Country/).fill("United States");
+    await page.getByRole("button", { name: /^Save address/ }).click();
+    await expect(page.getByRole("radio", { name: /Home/ })).toBeChecked();
+
+    // the card that is declined first, then one that works
+    await main.getByLabel(/Name on card/).fill("Isabel Vasquez");
+    await main.getByLabel(/Card number/).fill("4000000000000002");
+    await main.getByLabel(/Expiry date/).fill("1230");
+    await main.getByLabel(/Security code/).fill("123");
+    await page.getByRole("button", { name: /^Place order/ }).click();
+    await expect(main.getByLabel(/Card number/)).toHaveAccessibleDescription("Your card was declined. Please try another card.");
+
+    await main.getByLabel(/Card number/).fill("4242424242424242");
+    await page.getByRole("button", { name: /^Place order/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /^SC-[0-9A-F]{8}$/ })).toBeVisible();
+    await expect(page.getByText("Thank you, your order was placed")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cart, empty" })).toBeVisible();
+
+    // and it is in the list of orders
+    await page.goto("/en/account/orders");
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expect(page.getByRole("article").getByText("Paid")).toBeVisible();
+  });
+
   test("the contact form shows errors, then a confirmation", async ({ page }) => {
     await openRoute(page, "/en/contact");
     const main = page.getByRole("main");
