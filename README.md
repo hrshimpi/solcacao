@@ -220,6 +220,9 @@ What protects every request:
 - Everything that comes in is checked with a schema first, only the named fields are read (nobody can name their own role), tags are stripped from text, and MongoDB filters are sanitized so `{ "$ne": null }` is only ever text.
 - Errors have one shape, `{ error: { code, message, details } }`. What the code does not expect is a `500` with no details, and the real error only goes to the log.
 - Answers that belong to one person are sent with `Cache-Control: no-store`.
+- Passwords, tokens and cookies are never written to the log: the logger hides them even if a line of code puts them in, and a request is logged without its headers.
+- An error that nothing catches (a timer, a callback that fails on its own) is written to the log and stops the server, so the host starts a clean one. A stop that is asked for (`SIGTERM`) waits for the open requests, and forces the end after 10 seconds.
+- `GET /api/health` says that the server is running and whether the database is connected (`database: "up"` or `"down"`). `GET /api/health/ready` answers `503 DATABASE_UNAVAILABLE` until it is, for a host that waits for it before it sends visitors. Neither is counted by the limit on requests, and neither is kept by a cache.
 
 Making an admin (the sign up route can only make people and businesses):
 
@@ -231,6 +234,37 @@ ADMIN_PASSWORD='a long password 1' pnpm create-admin you@example.com "Your Name"
 Settings in `backend/.env` for this part (all in `.env.example`): `CLIENT_ORIGIN`, `TRUST_PROXY`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS`, `BCRYPT_COST`, `COOKIE_SECURE`, `STAFF_API_KEY`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MINUTES` and `AUTH_RATE_LIMIT_MAX`. In production `JWT_SECRET` has to be your own text of at least 32 characters, and the server refuses to start without it.
 
 **Putting the site online.** The cookie only works when the page and the API are on the same site, so the frontend host has to send `/api/*` to the backend (a rewrite or proxy rule, see the hosting notes) and `CLIENT_ORIGIN` has to be the address people see in the browser. Behind a proxy set `TRUST_PROXY` to the number of proxies, or the limits count all visitors as one.
+
+## Who can call what
+
+Every route of the API is in one of these groups. The test `backend/src/access.test.ts` has a table with every route and its group, and calls each one the way a person who is not allowed would: with no token, a token that is made up, signed with another key, with no algorithm, one that ran out, in a cookie or in the address instead of the header, and the token of an account of the wrong kind. A route that is not in the table makes the test fail, so a new route cannot be added without saying who it is for.
+
+| Group | Routes | What the server checks |
+|---|---|---|
+| Anyone | register, login, refresh, logout, forgot and reset password, `GET /api/products...`, `POST /api/inquiries`, the health checks | the limits on each route (see the tables above), and the checks on the body |
+| A visitor or a signed in person | the cart | no `Authorization` header is a visitor. A header with a token that is not good is `401`, never taken for a visitor |
+| A signed in person | `/api/users/me...`, a request for a quote, merging the cart | `401 UNAUTHENTICATED` without a good token, `401 TOKEN_EXPIRED` when it ran out. Records of somebody else are `404` |
+| A business account | sending and listing quote requests, the business details | `403 FORBIDDEN` for a retail account |
+| An admin | the list of inquiries, the status of a quote request | `403 FORBIDDEN` for anybody else |
+| The team (an admin, or the staff key) | `/api/staff/...` | the key is compared in constant time. With no key, an admin token is needed |
+
+Only the `Authorization: Bearer` header is a login. A token in a cookie or in the address is ignored, and the refresh cookie only reaches `/api/auth`. The role and the type of account are in the access token, so a change of role (an admin who is made a user) works when the token is renewed, at most 15 minutes later.
+
+## Error codes
+
+Every error has the shape `{ error: { code, message, details } }`, and the page decides what to say from the `code` (the `message` is in English, for the log and for a developer). `details` is a list of `{ field, message }` for `VALIDATION_ERROR`, and has `available` for `INSUFFICIENT_STOCK`.
+
+| Status | Codes |
+|---|---|
+| 400 | `VALIDATION_ERROR`, `INVALID_JSON`, `WRONG_PASSWORD`, `RESET_LINK_INVALID`, `INVALID_TRANSITION`, `INVALID_UPLOAD`, `INVALID_FILE_NAME`, `TOO_MANY_FILES`, `UNEXPECTED_FILE_FIELD` |
+| 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED` (renew it and try again), `SESSION_EXPIRED` (the refresh cookie is not good: sign in again), `INVALID_CREDENTIALS` |
+| 403 | `FORBIDDEN` (also a change that came from another website) |
+| 404 | `NOT_FOUND`, `FILE_NOT_FOUND` |
+| 409 | `EMAIL_TAKEN`, `ADDRESS_LIMIT`, `SKU_TAKEN`, `SLUG_TAKEN`, `INSUFFICIENT_STOCK`, `CART_FULL`, `CART_BUSY`, `REQUEST_CHANGED` |
+| 413 | `PAYLOAD_TOO_LARGE`, `FILE_TOO_LARGE` |
+| 429 | `RATE_LIMITED`, `TOO_MANY_ATTEMPTS` (a locked account) |
+| 500 | `INTERNAL_ERROR`: nothing else is said, the real error is in the log with the id of the request (`X-Request-Id`) |
+| 503 | `DATABASE_UNAVAILABLE` |
 
 ## Shop API
 
