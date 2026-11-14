@@ -3,6 +3,8 @@
 // so a test can look at what the page sent. Install it with installFakeServer(): it replaces fetch for the test.
 // Everything it does not know answers 404 in the standard error shape.
 import { vi } from "vitest";
+import type { Lang } from "../i18n";
+import { fixtureId, fixtureRecords, wireProduct, type FixtureRecord } from "./productFixtures";
 
 export interface FakeAccount {
   id: string;
@@ -39,6 +41,26 @@ export interface FakeCall {
   // the body of the call, read as JSON when it was
   body: unknown;
   headers: Record<string, string>;
+}
+
+// a line of a cart, as the fake server keeps it (the price is in cents)
+export interface FakeCartLine {
+  lineId: string;
+  kind: "product" | "sampler";
+  productIds: string[];
+  quantity: number;
+  unitPrice: number;
+}
+
+// a short text that is the same for the same input, in the shape of a cart line id
+function tinyHash(text: string): string {
+  let hash = 5381;
+  let other = 52711;
+  for (const character of text) {
+    hash = (hash * 33 + character.charCodeAt(0)) >>> 0;
+    other = (other * 31 + character.charCodeAt(0)) >>> 0;
+  }
+  return (hash.toString(16).padStart(8, "0") + other.toString(16).padStart(8, "0") + (hash ^ other).toString(16).padStart(8, "0")).slice(0, 20);
 }
 
 export const retailAccount: FakeAccount = { id: "64b7f0c2a1b2c3d4e5f60718", email: "isabel@example.com", password: "correct horse 42", name: "Isabel Vasquez", accountType: "retail" };
@@ -188,6 +210,192 @@ export class FakeServer {
     }
 
     if (path.startsWith("/api/users/me")) return this.account(call, path, input);
+
+    return this.shopRoute(call, path, input);
+  }
+
+  // ---------------------------------------------------------------- the shop
+
+  // the stock of each product (by slug), and the products that are switched off. A test changes these to play the shop.
+  stock = new Map<string, number>(fixtureRecords.map((record) => [record.product.slug, record.quantity]));
+  inactive = new Set<string>();
+  // the carts: one for each signed in account, and one for the visitor
+  carts = new Map<string, FakeCartLine[]>();
+  // what was sent through the contact form and the newsletter box
+  inquiries: Record<string, unknown>[] = [];
+
+  setStock(slug: string, quantity: number): this {
+    this.stock.set(slug, quantity);
+    return this;
+  }
+
+  private shopProduct(slug: string) {
+    return fixtureRecords.find((record) => record.product.slug === slug && !this.inactive.has(slug));
+  }
+
+  private shopRoute(call: FakeCall, path: string, input: Record<string, unknown>): Response | undefined {
+    const { method } = call;
+    const lang: Lang = /^es\b/i.test(call.headers["accept-language"] ?? "") ? "es" : "en";
+    const query = new URL(call.path, "http://localhost").searchParams;
+
+    if (method === "GET" && path === "/api/products") {
+      const list = (name: string) => (query.get(name) ?? "").split(",").filter(Boolean);
+      const origins = list("origin");
+      const categories = list("category");
+      const notes = list("notes");
+      const minPct = query.has("minPct") ? Number(query.get("minPct")) : undefined;
+      const maxPct = query.has("maxPct") ? Number(query.get("maxPct")) : undefined;
+      const limit = Math.min(48, Number(query.get("limit") ?? 12) || 12);
+      const found = fixtureRecords
+        .filter((record) => !this.inactive.has(record.product.slug))
+        .filter(({ product }) => origins.length === 0 || origins.includes(product.origin))
+        .filter(({ product }) => categories.length === 0 || categories.includes(product.category))
+        .filter(({ product }) => notes.length === 0 || notes.some((note) => product.notes.includes(note)))
+        .filter(({ product }) => minPct === undefined || product.percentage >= minPct)
+        .filter(({ product }) => maxPct === undefined || product.percentage <= maxPct)
+        .filter(({ product }) => query.get("featured") !== "true" || product.featured)
+        .sort((a, b) => Number(b.product.featured) - Number(a.product.featured) || a.product.sortOrder - b.product.sortOrder);
+      return json({ items: found.slice(0, limit).map((record) => wireProduct(record, lang, this.stock.get(record.product.slug))), page: 1, limit, total: found.length });
+    }
+
+    const one = /^\/api\/products\/([a-z0-9-]+)$/.exec(path);
+    if (method === "GET" && one) {
+      const record = this.shopProduct(one[1]);
+      return record ? json({ product: wireProduct(record, lang, this.stock.get(one[1])) }) : failure(404, "NOT_FOUND", "That product wasn't found.");
+    }
+
+    if (path === "/api/cart" || path.startsWith("/api/cart/")) return this.cartRoute(call, path, input, lang);
+
+    if (method === "POST" && path === "/api/inquiries") {
+      const category = String(input.category ?? "");
+      const email = String(input.email ?? "").trim();
+      const problems: { field: string; message: string }[] = [];
+      if (!["general", "wholesale", "support", "feedback", "newsletter"].includes(category)) problems.push({ field: "category", message: "Choose a category." });
+      if (category !== "feedback" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) problems.push({ field: "email", message: "That email address doesn't look right." });
+      if (["general", "wholesale", "support"].includes(category)) {
+        if (String(input.name ?? "").trim().length < 2) problems.push({ field: "name", message: "Please enter your name." });
+        if (String(input.message ?? "").trim().length < 10) problems.push({ field: "message", message: "Your message needs at least 10 characters." });
+      }
+      if (problems.length > 0) return failure(400, "VALIDATION_ERROR", problems[0].message, problems);
+      // a hidden field that only a bot fills in: the answer is the usual one, and nothing is kept
+      if (typeof input.website === "string" && input.website !== "") return json({ id: "000000000000000000000000" }, 201);
+      this.inquiries.push({ ...input });
+      return json({ id: `64b7f0c2a1b2c3d4e5f6${String(2000 + this.inquiries.length)}` }, 201);
+    }
+
+    return undefined;
+  }
+
+  private cartOwner(call: FakeCall): string | Response {
+    if (!call.headers.authorization) return "guest";
+    return this.tokenOf ? `user:${this.tokenOf.id}` : failure(401, "TOKEN_EXPIRED", "Your session ran out. Please sign in again.");
+  }
+
+  // how many units a line can have: the stock of each of its products minus what the other lines take
+  private limitOf(line: FakeCartLine, lines: FakeCartLine[]): { available: number; name?: string } {
+    let available = 99;
+    let name: string | undefined;
+    for (const id of line.productIds) {
+      const record = fixtureRecords.find((entry) => fixtureId(entry.product.slug) === id);
+      if (!record || this.inactive.has(record.product.slug)) return { available: 0 };
+      const takenByOthers = lines.filter((other) => other.lineId !== line.lineId && other.productIds.includes(id)).reduce((sum, other) => sum + other.quantity, 0);
+      const left = Math.max(0, (this.stock.get(record.product.slug) ?? 0) - takenByOthers);
+      if (left < available) {
+        available = left;
+        name = record.product.name.en;
+      }
+    }
+    return { available, name };
+  }
+
+  private cartView(lines: FakeCartLine[], lang: Lang) {
+    const views = lines.map((line) => {
+      const records = line.productIds.map((id) => fixtureRecords.find((entry) => fixtureId(entry.product.slug) === id));
+      const found = records.filter((record): record is FixtureRecord => record !== undefined);
+      const { available } = this.limitOf(line, lines);
+      const unavailable = found.length < records.length || found.some((record) => this.inactive.has(record.product.slug));
+      const sold = found.some((record) => (this.stock.get(record.product.slug) ?? 0) <= 0);
+      return {
+        lineId: line.lineId,
+        kind: line.kind,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        lineTotal: line.unitPrice * line.quantity,
+        available,
+        issue: unavailable ? "unavailable" : sold ? "out_of_stock" : line.quantity > available ? "over_stock" : null,
+        priceChanged: !unavailable && found.reduce((sum, record) => sum + record.product.price, 0) !== line.unitPrice,
+        products: found.map((record) => {
+          const wire = wireProduct(record, lang, this.stock.get(record.product.slug));
+          return { id: wire.id, slug: wire.slug, name: wire.name, thumbnail: wire.thumbnail, imageAlt: wire.imageAlt, price: wire.price, stock: wire.stock, availability: wire.availability };
+        }),
+      };
+    });
+    return { lines: views, itemCount: views.reduce((sum, line) => sum + line.quantity, 0), subtotal: views.reduce((sum, line) => sum + line.lineTotal, 0), updatedAt: null };
+  }
+
+  private cartRoute(call: FakeCall, path: string, input: Record<string, unknown>, lang: Lang): Response | undefined {
+    const { method } = call;
+    const owner = this.cartOwner(call);
+    if (owner instanceof Response) return owner;
+    const lines = this.carts.get(owner) ?? [];
+    const save = (next: FakeCartLine[]) => {
+      this.carts.set(owner, next);
+      return json({ cart: this.cartView(next, lang) });
+    };
+    const stockError = (line: FakeCartLine, all: FakeCartLine[]) => {
+      const { available, name } = this.limitOf(line, all);
+      if (line.quantity <= available) return undefined;
+      const message = available <= 0 ? `${name ?? "That"} is sold out.` : `Only ${available} left of ${name}.`;
+      return failure(409, "INSUFFICIENT_STOCK", message, [{ field: "quantity", available, message }]);
+    };
+
+    if (method === "GET" && path === "/api/cart") return json({ cart: this.cartView(lines, lang) });
+
+    if (method === "DELETE" && path === "/api/cart") return save([]);
+
+    if (method === "POST" && path === "/api/cart/items") {
+      const quantity = input.quantity === undefined ? 1 : input.quantity;
+      if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) return failure(400, "VALIDATION_ERROR", "quantity must be from 1 to 99.", [{ field: "quantity", message: "bad" }]);
+      const ids = input.kind === "product" ? [String(input.productId)] : input.kind === "sampler" && Array.isArray(input.productIds) ? input.productIds.map(String) : null;
+      if (!ids || (input.kind === "sampler" && (ids.length < 4 || ids.length > 6 || new Set(ids).size !== ids.length))) return failure(400, "VALIDATION_ERROR", "A sampler needs 4 to 6 different specimens.", [{ field: "productIds", message: "bad" }]);
+
+      const records = ids.map((id) => fixtureRecords.find((entry) => fixtureId(entry.product.slug) === id && !this.inactive.has(entry.product.slug)));
+      if (records.some((record) => !record)) return failure(404, "NOT_FOUND", "That product wasn't found.");
+      const sorted = [...ids].sort();
+      const lineId = input.kind === "product" ? `p-${sorted[0]}` : `s-${tinyHash(sorted.join(","))}`;
+      const existing = lines.find((line) => line.lineId === lineId);
+      const next = existing ?? { lineId, kind: input.kind as "product" | "sampler", productIds: sorted, quantity: 0, unitPrice: (records as FixtureRecord[]).reduce((sum, record) => sum + record.product.price, 0) };
+      next.quantity += quantity;
+      const all = existing ? lines : [...lines, next];
+      return stockError(next, all) ?? save(all);
+    }
+
+    const line = /^\/api\/cart\/items\/((?:p-[0-9a-f]{24})|(?:s-[0-9a-f]{20}))$/.exec(path);
+    if (line) {
+      const current = lines.find((entry) => entry.lineId === line[1]);
+      if (!current) return failure(404, "NOT_FOUND", "That item isn't in your cart.");
+      if (method === "DELETE") return save(lines.filter((entry) => entry !== current));
+      if (method === "PATCH") {
+        const quantity = input.quantity;
+        if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) return failure(400, "VALIDATION_ERROR", "quantity must be from 1 to 99.", [{ field: "quantity", message: "bad" }]);
+        current.quantity = quantity;
+        return stockError(current, lines) ?? save(lines);
+      }
+    }
+
+    if (method === "POST" && path === "/api/cart/merge") {
+      if (owner === "guest") return failure(401, "UNAUTHENTICATED", "Please sign in to do that.");
+      const guest = this.carts.get("guest") ?? [];
+      const merged = lines.map((entry) => ({ ...entry }));
+      for (const incoming of guest) {
+        const same = merged.find((entry) => entry.lineId === incoming.lineId);
+        if (same) same.quantity = Math.min(99, same.quantity + incoming.quantity);
+        else merged.push({ ...incoming });
+      }
+      for (const entry of merged) entry.quantity = Math.max(1, Math.min(entry.quantity, this.limitOf(entry, merged).available));
+      this.carts.delete("guest");
+      return save(merged);
+    }
 
     return undefined;
   }
