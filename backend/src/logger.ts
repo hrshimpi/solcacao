@@ -4,10 +4,13 @@ import { env } from "./config/env.ts";
 // What is never written to the log, whatever a line of code puts into it: passwords, tokens and cookies, at the top of an
 // object and one level down (like { user: { password } } or { body: { token } }). The request is logged without its headers
 // anyway (see app.ts), this is for the day somebody logs more than they should.
-const secretNames = ["password", "newPassword", "currentPassword", "token", "accessToken", "refreshToken", "authorization", "cookie"];
+const secretNames = ["password", "newPassword", "currentPassword", "token", "accessToken", "refreshToken", "authorization", "cookie", "cardNumber", "cvc"];
 export const redactPaths = [
   ...secretNames,
   ...secretNames.map((name) => `*.${name}`),
+  // a card in the body of a request: { body: { payment: { cardNumber } } }
+  "*.*.cardNumber",
+  "*.*.cvc",
   "req.headers.authorization",
   "req.headers.cookie",
   "res.headers['set-cookie']",

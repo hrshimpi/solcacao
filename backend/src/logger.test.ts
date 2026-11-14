@@ -26,6 +26,17 @@ describe("the log", () => {
     expect((lines[0].user as Record<string, unknown>).newPassword).toBe("[hidden]");
   });
 
+  it("never writes the number or the security code of a card, even deep inside the body of a request", () => {
+    const { log, lines } = capture();
+
+    log.info({ body: { payment: { cardNumber: "4242424242424242", cvc: "123", nameOnCard: "Isabel" } }, cardNumber: "4242424242424242" }, "an order");
+
+    const text = JSON.stringify(lines[0]);
+    expect(text).not.toContain("4242424242424242");
+    expect(text).not.toContain('"cvc":"123"');
+    expect(text).toContain("Isabel");
+  });
+
   it("hides the Authorization and Cookie headers of a request, and the cookies that an answer sets", () => {
     const { log, lines } = capture();
 

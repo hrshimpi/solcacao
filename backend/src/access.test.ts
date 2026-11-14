@@ -39,6 +39,17 @@ const table: { file: string; method: Method; path: string; guard: Guard }[] = [
   { file: "cart.routes.ts", method: "delete", path: "/api/cart", guard: "visitor" },
   { file: "cart.routes.ts", method: "post", path: "/api/cart/merge", guard: "user" },
 
+  { file: "orders.routes.ts", method: "get", path: "/api/checkout", guard: "user" },
+  { file: "orders.routes.ts", method: "post", path: "/api/orders", guard: "user" },
+  { file: "orders.routes.ts", method: "get", path: "/api/orders", guard: "user" },
+  { file: "orders.routes.ts", method: "get", path: `/api/orders/${id}`, guard: "user" },
+  { file: "orders.routes.ts", method: "post", path: `/api/orders/${id}/cancel`, guard: "user" },
+
+  { file: "admin.routes.ts", method: "get", path: "/api/admin/stats", guard: "admin" },
+  { file: "admin.routes.ts", method: "get", path: "/api/admin/orders", guard: "admin" },
+  { file: "admin.routes.ts", method: "get", path: `/api/admin/orders/${id}`, guard: "admin" },
+  { file: "admin.routes.ts", method: "patch", path: `/api/admin/orders/${id}`, guard: "admin" },
+
   { file: "inquiries.ts", method: "post", path: "/api/inquiries", guard: "open" },
   { file: "inquiries.ts", method: "get", path: "/api/inquiries", guard: "admin" },
   { file: "inquiries.ts", method: "patch", path: `/api/inquiries/${id}`, guard: "admin" },
