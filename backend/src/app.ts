@@ -19,6 +19,7 @@ export function createApp() {
     }),
   );
   app.use(express.json({ limit: "100kb" }));
+  app.use("/api", detectLanguage);
 
   app.use("/api", apiRouter);
   app.use("/api", notFound);
