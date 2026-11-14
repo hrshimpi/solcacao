@@ -7,6 +7,7 @@ import { logger } from "./logger.ts";
 import { errorHandler } from "./middleware/errorHandler.ts";
 import { notFound } from "./middleware/notFound.ts";
 import { createRateLimiter } from "./middleware/rateLimit.ts";
+import { detectLanguage } from "./middleware/language.ts";
 import { requestId } from "./middleware/requestId.ts";
 import { checkOrigin, corsFor } from "./middleware/security.ts";
 import { apiRouter } from "./routes/index.ts";
@@ -44,6 +45,7 @@ export function createApp() {
   app.use(cookieParser());
   app.use("/api", checkOrigin(env.CLIENT_ORIGINS));
   app.use(express.json({ limit: "100kb" }));
+  app.use("/api", detectLanguage);
 
   app.use("/api", apiRouter);
   app.use("/api", notFound);
