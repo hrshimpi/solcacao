@@ -11,7 +11,10 @@ export interface FieldError {
     | "errors.phone"
     | "errors.password"
     | "errors.passwordLong"
-    | "errors.postalCode";
+    | "errors.postalCode"
+    | "checkout.errors.cardNumber"
+    | "checkout.errors.expiry"
+    | "checkout.errors.cvc";
   params?: Record<string, number>;
 }
 
@@ -35,6 +38,38 @@ export const newPassword: Rule = (value) => {
 
 // a zip code or postal code: letters, numbers, spaces and dashes, starting with a letter or a number
 export const postalCode: Rule = (value) => (!value.trim() || /^[A-Za-z0-9][A-Za-z0-9 -]*$/.test(value.trim()) ? null : { key: "errors.postalCode" });
+
+// a card number: 12 to 19 digits (spaces and dashes are ignored) that pass the check every real number passes
+export function passesLuhn(number: string): boolean {
+  if (!/^\d{12,19}$/.test(number)) return false;
+  let sum = 0;
+  for (let index = 0; index < number.length; index++) {
+    let digit = Number(number[number.length - 1 - index]);
+    if (index % 2 === 1) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  return sum % 10 === 0;
+}
+
+export const cardNumber: Rule = (value) => (!value.trim() || passesLuhn(value.replace(/[\s-]/g, "")) ? null : { key: "checkout.errors.cardNumber" });
+
+// MM/YY of a month that has not passed
+export const cardExpiry =
+  (now: () => Date = () => new Date()): Rule =>
+  (value) => {
+    if (!value.trim()) return null;
+    const found = /^(0[1-9]|1[0-2])\s?\/\s?(\d{2})$/.exec(value.trim());
+    if (!found) return { key: "checkout.errors.expiry" };
+    const today = now();
+    const year = 2000 + Number(found[2]);
+    const month = Number(found[1]);
+    return year > today.getFullYear() || (year === today.getFullYear() && month >= today.getMonth() + 1) ? null : { key: "checkout.errors.expiry" };
+  };
+
+export const cardCvc: Rule = (value) => (!value.trim() || /^\d{3,4}$/.test(value.trim()) ? null : { key: "checkout.errors.cvc" });
 
 export const minLength =
   (count: number): Rule =>
