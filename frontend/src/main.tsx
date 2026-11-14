@@ -1,4 +1,3 @@
-// Starts the app: creates the router from the route list and renders it.
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter } from "react-router";
