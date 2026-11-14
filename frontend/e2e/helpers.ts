@@ -1,5 +1,6 @@
 // Small helpers shared by the browser tests.
 import { expect, type Page } from "@playwright/test";
+import { FakeServer, retailAccount } from "../src/test/fakeServer";
 
 export const routes = [
   "/en",
@@ -76,6 +77,24 @@ export async function mockAuthApi(page: Page, options: { account: Account | null
   await page.route("**/api/users/me/addresses", (route) => route.fulfill({ json: { addresses: [] } }));
 }
 
+// The shop, the cart and the contact form, answered by the fake server of the unit tests, so no test needs a backend. The
+// products are the ones of the seed, and the carts are kept for as long as the test lasts, so a reload finds the cart again.
+// A request that carries a token is the cart of a signed in person, and one without it is the cart of a visitor.
+// The featured products are left to mockFeaturedProducts, which the tests that look at them use.
+export async function mockShopApi(page: Page) {
+  const server = new FakeServer();
+  await page.route(
+    (url) => /^\/api\/(products|cart|inquiries)(\/|$)/.test(url.pathname) && !(url.pathname === "/api/products" && url.searchParams.get("featured") === "true"),
+    async (route) => {
+      const request = route.request();
+      server.tokenOf = request.headers().authorization ? retailAccount : null;
+      const answer = await server.handle(request.url(), { method: request.method(), headers: request.headers(), body: request.postData() ?? undefined });
+      await route.fulfill({ status: answer.status, contentType: "application/json", body: await answer.text() });
+    },
+  );
+  return server;
+}
+
 // signs someone in before any page of this test loads
 export async function signInAs(page: Page, account: Account) {
   await mockAuthApi(page, { account });
@@ -87,6 +106,7 @@ export async function signInAs(page: Page, account: Account) {
 export async function openRoute(page: Page, path: string, options: { account?: Account | null; loginAs?: Account } = {}) {
   const account = options.account === undefined && /\/(wholesale\/studio|account\/requests)/.test(path) ? "business" : options.account;
   await mockAuthApi(page, { account: account ?? null, loginAs: options.loginAs });
+  await mockShopApi(page);
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // the fonts come from the network, so a slow or missing connection must not hold a test until it times out
@@ -152,9 +172,12 @@ const featured = ["ecuador-72", "peru-68", "venezuela-76", "colombia-64", "madag
   images: [`https://images.unsplash.com/photo-1575377427642-087cf684f29d?w=480&h=600&fit=crop&auto=format`],
 }));
 
+// only the request for the featured products: the shop reads all the products with another one
+const isFeaturedRequest = (url: URL) => url.pathname === "/api/products" && url.searchParams.get("featured") === "true";
+
 // makes the featured products request answer with five products, after an optional wait
 export async function mockFeaturedProducts(page: Page, options: { delayMs?: number } = {}) {
-  await page.route("**/api/products?**", async (route) => {
+  await page.route(isFeaturedRequest, async (route) => {
     if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
     await route.fulfill({ json: { items: featured, page: 1, limit: 5, total: 5 } });
   });
@@ -162,7 +185,7 @@ export async function mockFeaturedProducts(page: Page, options: { delayMs?: numb
 
 // makes the same request fail
 export async function failFeaturedProducts(page: Page, how: "error" | "offline") {
-  await page.route("**/api/products?**", (route) => (how === "offline" ? route.abort("connectionrefused") : route.fulfill({ status: 500, json: { error: { code: "INTERNAL_ERROR" } } })));
+  await page.route(isFeaturedRequest, (route) => (how === "offline" ? route.abort("connectionrefused") : route.fulfill({ status: 500, json: { error: { code: "INTERNAL_ERROR" } } })));
 }
 
 // ---------- the quote requests of a business account ----------

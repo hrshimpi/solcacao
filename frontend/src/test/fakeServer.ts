@@ -2,7 +2,6 @@
 // API does (the same paths, the same status codes and error codes), keeps its accounts in memory, and remembers every call
 // so a test can look at what the page sent. Install it with installFakeServer(): it replaces fetch for the test.
 // Everything it does not know answers 404 in the standard error shape.
-import { vi } from "vitest";
 import type { Lang } from "../i18n";
 import { fixtureId, fixtureRecords, wireProduct, type FixtureRecord } from "./productFixtures";
 
@@ -487,6 +486,7 @@ export class FakeServer {
 }
 
 // replaces fetch with the fake for the rest of the test, and gives the fake back
+// (vi is the global of the unit tests: the browser tests import this file for the class, and never call this)
 export function installFakeServer(accounts?: FakeAccount[]): FakeServer {
   const server = new FakeServer(accounts);
   vi.stubGlobal("fetch", vi.fn(server.handle));
