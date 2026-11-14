@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "create-admin": "node src/scripts/create-admin.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
