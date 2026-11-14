@@ -36,6 +36,16 @@ export type QuoteRequestMailData = Pick<
   "companyName" | "contactName" | "cacaoProfile" | "packagingType" | "quantityEstimate" | "notes"
 > & { brandAssets: { originalName: string; sizeBytes: number }[] };
 
+// what the emails about an order need (an order of the order service has all of it)
+export interface OrderMailData {
+  number: string;
+  lines: { kind: "product" | "sampler"; quantity: number; lineTotal: number; products: { name: string }[] }[];
+  totals: { subtotal: number; shipping: number; tax: number; total: number };
+  shippingAddress: { fullName: string; street: string; street2: string | null; city: string; state: string; postalCode: string; country: string };
+  shippingMethod: "standard" | "express";
+  payment: { brand: string; last4: string };
+}
+
 export interface MailRecipient {
   email: string;
   name?: string;
@@ -353,4 +363,123 @@ export function passwordResetEmail(user: MailRecipient, link: string, lang: stri
     ],
     footer: words.footer,
   });
+}
+
+const orderText: Record<
+  MailLang,
+  {
+    confirmSubject: (number: string) => string;
+    confirmHeading: string;
+    shippedSubject: (number: string) => string;
+    shippedHeading: string;
+    hello: (name?: string) => string;
+    confirmBody: string;
+    shippedBody: string;
+    number: string;
+    items: string;
+    subtotal: string;
+    shipping: string;
+    free: string;
+    tax: string;
+    total: string;
+    shipTo: string;
+    method: Record<"standard" | "express", string>;
+    paidWith: string;
+    demo: string;
+    sampler: string;
+    button: string;
+    footer: string;
+  }
+> = {
+  en: {
+    confirmSubject: (number) => `Your SolCacao order ${number}`,
+    confirmHeading: "Thank you for your order",
+    shippedSubject: (number) => `Your SolCacao order ${number} is on its way`,
+    shippedHeading: "Your order is on its way",
+    hello: (name) => (name ? `Hello ${name},` : "Hello,"),
+    confirmBody: "We received your order and your payment. We will pack it by hand and send you another email when it leaves us.",
+    shippedBody: "Your order has been packed and handed to the carrier.",
+    number: "Order",
+    items: "Items",
+    subtotal: "Subtotal",
+    shipping: "Shipping",
+    free: "Free",
+    tax: "Tax",
+    total: "Total",
+    shipTo: "Ship to",
+    method: { standard: "Standard shipping (3 to 5 business days)", express: "Express shipping (1 to 2 business days)" },
+    paidWith: "Paid with",
+    demo: "This is a demo shop, so nobody was charged.",
+    sampler: "Custom sampler",
+    button: "See your orders",
+    footer: "You are receiving this email because you placed an order on SolCacao.",
+  },
+  es: {
+    confirmSubject: (number) => `Tu pedido ${number} de SolCacao`,
+    confirmHeading: "Gracias por tu pedido",
+    shippedSubject: (number) => `Tu pedido ${number} de SolCacao va en camino`,
+    shippedHeading: "Tu pedido va en camino",
+    hello: (name) => (name ? `Hola ${name},` : "Hola,"),
+    confirmBody: "Recibimos tu pedido y tu pago. Lo prepararemos a mano y te enviaremos otro correo cuando salga de nuestras manos.",
+    shippedBody: "Tu pedido ya está empacado y en manos del transportista.",
+    number: "Pedido",
+    items: "Artículos",
+    subtotal: "Subtotal",
+    shipping: "Envío",
+    free: "Gratis",
+    tax: "Impuestos",
+    total: "Total",
+    shipTo: "Enviar a",
+    method: { standard: "Envío estándar (3 a 5 días hábiles)", express: "Envío exprés (1 a 2 días hábiles)" },
+    paidWith: "Pagado con",
+    demo: "Esta es una tienda de demostración, así que no se cobró a nadie.",
+    sampler: "Muestrario personalizado",
+    button: "Ver tus pedidos",
+    footer: "Recibes este correo porque hiciste un pedido en SolCacao.",
+  },
+};
+
+function orderBlocks(order: OrderMailData, user: MailRecipient, language: MailLang, options: TemplateOptions, intro: string): Block[] {
+  const words = orderText[language];
+  const money = (cents: number) => formatMoney(cents);
+  const items = order.lines.map((line) => {
+    const name = line.kind === "sampler" ? `${words.sampler} (${line.products.map((product) => oneLine(product.name, 40)).join(", ")})` : oneLine(line.products[0]?.name ?? "", 60);
+    return `${line.quantity} x ${name}: ${money(line.lineTotal)}`;
+  });
+  const address = order.shippingAddress;
+  const where = [address.fullName, address.street, address.street2, `${address.city}, ${address.state} ${address.postalCode}`, address.country].filter(Boolean).map((part) => oneLine(String(part), 80)).join(", ");
+
+  return [
+    { kind: "paragraph", text: words.hello(user.name) },
+    { kind: "paragraph", text: intro },
+    {
+      kind: "details",
+      rows: [
+        [words.number, order.number],
+        [words.items, items.join("\n")],
+        [words.subtotal, money(order.totals.subtotal)],
+        [words.shipping, order.totals.shipping === 0 ? words.free : money(order.totals.shipping)],
+        [words.tax, money(order.totals.tax)],
+        [words.total, money(order.totals.total)],
+        [words.shipTo, `${where} (${words.method[order.shippingMethod]})`],
+        [words.paidWith, `${oneLine(order.payment.brand, 12)} ${"\u2022\u2022\u2022\u2022"} ${order.payment.last4}`],
+      ],
+    },
+    { kind: "paragraph", text: words.demo },
+    { kind: "button", label: words.button, url: `${options.siteUrl.replace(/\/$/, "")}/${language}/account/orders` },
+  ];
+}
+
+// the email a customer gets when an order was paid
+export function orderConfirmationEmail(order: OrderMailData, user: MailRecipient, lang: string, options: TemplateOptions): MailContent {
+  const language: MailLang = lang === "es" ? "es" : "en";
+  const words = orderText[language];
+  return render({ lang: language, subject: words.confirmSubject(order.number), heading: words.confirmHeading, blocks: orderBlocks(order, user, language, options, words.confirmBody), footer: words.footer });
+}
+
+// the email a customer gets when the team has sent the order
+export function orderShippedEmail(order: OrderMailData, user: MailRecipient, lang: string, options: TemplateOptions): MailContent {
+  const language: MailLang = lang === "es" ? "es" : "en";
+  const words = orderText[language];
+  return render({ lang: language, subject: words.shippedSubject(order.number), heading: words.shippedHeading, blocks: orderBlocks(order, user, language, options, words.shippedBody), footer: words.footer });
 }
