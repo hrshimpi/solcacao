@@ -264,6 +264,28 @@ The team (an admin token, or the key in `STAFF_API_KEY` sent as `X-Staff-Key`) w
 
 These bodies are strict: a field that a product does not have (the id, the dates, the search text) is a `400`, and a price that is not whole cents, an image that is not an `https` address, a note that does not exist and so on are refused with the field named.
 
+## Cart API
+
+A cart works for a signed in user and for a visitor. A user's cart belongs to their account, so it follows them to any device. A visitor's cart belongs to a random id in a signed cookie called `sc_guest` (`HttpOnly`, `SameSite=Lax`, `Secure` in production). It is made with the first item, every change gives it 30 more days, and MongoDB removes it by itself after that. A cookie that was made up or changed is not in the signed cookies, so it never reaches somebody else's cart.
+
+| Request | What it does |
+|---|---|
+| `GET /api/cart` | `{ cart: { lines, itemCount, subtotal, updatedAt } }`, with the names in the language of the request. Looking at an empty cart makes no cookie |
+| `POST /api/cart/items` | `{ kind: "product", productId, quantity? }` or `{ kind: "sampler", productIds: [4 to 6 different ids], quantity? }`. The same item again adds to its line |
+| `PATCH /api/cart/items/:lineId` | `{ quantity }` |
+| `DELETE /api/cart/items/:lineId` | takes a line out |
+| `DELETE /api/cart` | empties the cart |
+| `POST /api/cart/merge` | a signed in user: adds the visitor's cart (the cookie) to the user's cart, then removes it and the cookie |
+
+Rules the server keeps, whatever the client sends:
+
+- **The price is locked.** A line keeps the price of the day it was added (`unitPrice`, in cents). A later price change does not change it, and the line says `priceChanged: true`. A client cannot send a price: a body with one is a `400`.
+- **Stock.** A line can have as many units as there are in stock, counting what the other lines take of the same product (a sampler takes one of each of its products for each unit). More than that is `409 INSUFFICIENT_STOCK` and `details[0].available` says how many there can be. A line has at most 99 units and a cart at most 30 lines (`409 CART_FULL`).
+- **What is wrong with a line.** Every line says how many units it can have now (`available`) and `issue`: `over_stock` (the stock fell under the quantity), `out_of_stock` or `unavailable` (the product was switched off). Nothing is removed behind the back of the shopper, the page decides what to do.
+- **Merge.** Quantities of the same item are added (up to the stock, at least one), the prices that were already in the user's cart stay, and no line is lost. Doing it again changes nothing.
+- **Changes at the same moment.** Every cart has a version, and a change is only saved if nobody saved one in between. The loser reads again and tries again, so two tabs never lose each other's change (`409 CART_BUSY` after five tries).
+- A request with a token that is not good, or ran out (`401 TOKEN_EXPIRED`), is refused and never taken for a visitor's. A request with no token at all is a visitor's. No answer is kept by a cache.
+
 ## B2B quotes
 
 A company asks for custom chocolate in the Corporate Cacao Studio. The studio sends one multipart form to the backend, the wholesale address gets an email, and the company follows its request in "My quote requests". This section is about the backend side: sending a request, the files, where they are kept and the status of a request.
