@@ -3,6 +3,7 @@
 // so a test can look at what the page sent. Install it with installFakeServer(): it replaces fetch for the test.
 // Everything it does not know answers 404 in the standard error shape.
 import type { Lang } from "../i18n";
+import { ordersRoute, type FakeOrder } from "./fakeOrders";
 import { fixtureId, fixtureRecords, wireProduct, type FixtureRecord } from "./productFixtures";
 
 export interface FakeAccount {
@@ -210,7 +211,8 @@ export class FakeServer {
 
     if (path.startsWith("/api/users/me")) return this.account(call, path, input);
 
-    return this.shopRoute(call, path, input);
+    const lang: Lang = /^es/i.test(call.headers["accept-language"] ?? "") ? "es" : "en";
+    return ordersRoute(this, call, path, input, lang) ?? this.shopRoute(call, path, input);
   }
 
   // ---------------------------------------------------------------- the shop
@@ -222,6 +224,9 @@ export class FakeServer {
   carts = new Map<string, FakeCartLine[]>();
   // what was sent through the contact form and the newsletter box
   inquiries: Record<string, unknown>[] = [];
+  // the orders of everybody, oldest first (see fakeOrders.ts)
+  orders: FakeOrder[] = [];
+  orderCount = 0;
 
   setStock(slug: string, quantity: number): this {
     this.stock.set(slug, quantity);
@@ -307,7 +312,7 @@ export class FakeServer {
     return { available, name };
   }
 
-  private cartView(lines: FakeCartLine[], lang: Lang) {
+  cartView(lines: FakeCartLine[], lang: Lang) {
     const views = lines.map((line) => {
       const records = line.productIds.map((id) => fixtureRecords.find((entry) => fixtureId(entry.product.slug) === id));
       const found = records.filter((record): record is FixtureRecord => record !== undefined);
