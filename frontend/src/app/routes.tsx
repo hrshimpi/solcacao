@@ -9,6 +9,8 @@ import CatalogPage from "../features/catalog/CatalogPage";
 import ContactPage from "../features/contact/ContactPage";
 import HomePage from "../features/home/HomePage";
 import InfoPage from "../features/info/InfoPage";
+import OrderDetailPage from "../features/orders/OrderDetailPage";
+import OrdersPage from "../features/orders/OrdersPage";
 import ProductDetailPage from "../features/product/ProductDetailPage";
 import AddressesPage from "../features/profile/AddressesPage";
 import ProfilePage from "../features/profile/ProfilePage";
@@ -57,6 +59,22 @@ export const routes: RouteObject[] = [
               <RequestsAccessGuard>
                 <MyRequestsPage />
               </RequestsAccessGuard>
+            ),
+          },
+          {
+            path: "account/orders",
+            element: (
+              <RequireAuth>
+                <OrdersPage />
+              </RequireAuth>
+            ),
+          },
+          {
+            path: "account/orders/:id",
+            element: (
+              <RequireAuth>
+                <OrderDetailPage />
+              </RequireAuth>
             ),
           },
           {

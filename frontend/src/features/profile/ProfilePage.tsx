@@ -8,6 +8,7 @@ import AccountSettings from "./components/AccountSettings";
 import AccountSummary from "./components/AccountSummary";
 import AddressesLink from "./components/AddressesLink";
 import BusinessDetails from "./components/BusinessDetails";
+import OrdersLink from "./components/OrdersLink";
 import ProfileDetails from "./components/ProfileDetails";
 import WholesaleLinks from "./components/WholesaleLinks";
 
@@ -71,6 +72,7 @@ export default function ProfilePage() {
             }}
           />
           {user.accountType === "business" && <BusinessDetails />}
+          <OrdersLink />
           <AddressesLink />
           <WholesaleLinks />
           <AccountSettings />
