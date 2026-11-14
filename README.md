@@ -12,18 +12,18 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - Home page, shop with filters (cacao percentage, origin, category, tasting notes) and product pages with a batch passport and origin story. The filters are kept in the address, so a filtered shop can be shared
 - A cart in a dialog that is saved in the browser. Checkout isn't available, the button says so
 - Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
-- Sign in and create account screens, a profile page (with sample data), a sampler builder (pick 4 to 6 and add them as one cart item) and a contact page
+- Real accounts: create an account (retail or business), sign in, forgot and reset password, and a profile page with the personal details, the language of the emails, a password change, the notifications switch, shipping addresses and (for a business account) the business details with their verification. A reload keeps you signed in
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
 - A backend with accounts (sign up, sign in, password reset), a health check, a standard error format and the protections listed under "Accounts and security"
 
-The quote form of the studio sends its request, with the brand files, to the backend (see "Trying the studio" below). The other forms, the language switch and the cart don't talk to the backend yet. That's the next part of the work, along with real accounts.
+The accounts, the profile, the addresses, the password reset, the quote form of the studio and My quote requests talk to the backend. The products, the cart, the contact form and the newsletter box still use data in the browser, and are connected next.
 
 ## Tech
 
 - Frontend: React 19, Vite, TypeScript, Tailwind CSS, React Router, i18next for the translations
 - Backend: Node.js, Express 5, TypeScript
-- Database (planned): MongoDB
-- Login (planned): JWT and bcrypt
+- Database: MongoDB (through Mongoose)
+- Login: a short lived JWT and a refresh cookie, passwords with bcrypt (see "Accounts and security")
 - Tests: vitest, Testing Library and vitest-axe (unit and page tests), supertest (backend), Playwright with axe (browser tests)
 
 ## Run it
@@ -46,7 +46,7 @@ pnpm install
 pnpm dev
 ```
 
-The backend settings have defaults, so a `.env` file is optional. To change the port, copy `backend/.env.example` to `backend/.env`.
+The backend settings have defaults, so a `.env` file is optional. To change the port, copy `backend/.env.example` to `backend/.env`. The backend needs MongoDB: a local one on port 27017 is the default (`docker run -d -p 27017:27017 mongo:7` is the quickest way), or set `MONGODB_URI`. Without it the server still starts and the routes that need the database answer 503. In development the reset password email is not sent, its link is written in the log of the backend.
 
 Open the shop at http://localhost:5173. The address `/` sends you to `/en` or `/es`, depending on the language you used last or your browser language. The frontend forwards anything under `/api` to the backend on port 4000.
 
@@ -63,33 +63,28 @@ Use `/es` instead of `/en` for the Spanish version.
 | Contact | http://localhost:5173/en/contact |
 | Sign in | http://localhost:5173/en/account/login |
 | Create account | http://localhost:5173/en/account/register |
+| Forgot password | http://localhost:5173/en/account/forgot-password |
 | Profile | http://localhost:5173/en/profile |
+| Shipping addresses | http://localhost:5173/en/profile/addresses |
 | My quote requests (business accounts) | http://localhost:5173/en/account/requests |
 | Backend health check | http://localhost:4000/api/health |
 
-**Trying the studio.** There are no real accounts yet, so signing in is a preview: the form doesn't check anything, it only remembers the account type chosen above the form (retail or business) and the email, until you close the browser tab. The studio then works like this:
+**Signing in.** Everything about accounts needs the backend and MongoDB running (see "Run it"). Open the create account page, make an account (choose Business account for the studio), and you are signed in. A sign in gives the page a token that it keeps in memory and a cookie that scripts cannot read, so a reload keeps you signed in and nothing about the sign in is saved in the browser. When the token runs out the page gets a new one by itself. The pages decide what to show, and the server checks again for everything that matters. The studio works like this:
 
 - Not signed in: the studio address sends you to the sign in page, and after you sign in you are back in the studio. The address of the sign in page carries the way back (`?next=/wholesale/studio`), and only a page of this site is followed.
 - Signed in with a retail account: a message says the studio is for business accounts, with a link to create a business account (`/en/account/register?type=business` opens the form on the business choice).
 - Signed in with a business account: the studio opens.
 
-To try it, open the sign in page, choose Business account, type any email and password, and press Sign in. The check is only there to keep people out of a page they can't use.
-
-The last step sends the request to the backend (`POST /api/b2b/quote`) as a multipart form, and shows how much of the files has gone up. The backend checks the account type again, with a token, and the preview sign in does not give one yet. Without it the studio says that the server does not know who you are, and keeps everything that was typed. To send a request for real, run the backend with a database, make a business token (the command is in the "B2B quotes" section below) and put it in the browser tab, from the developer console of the studio page:
-
-```
-sessionStorage.setItem("sc_token", "<token>")
-```
-
-Once there is a real sign in, it should put the token there by itself. A few more things to know:
+The last step sends the request to the backend (`POST /api/b2b/quote`) as a multipart form with the token of the person, and shows how much of the files has gone up. A few more things to know:
 
 - What was entered is kept in a draft in the browser tab, so a refresh brings it back. The files are not kept, so after a refresh the page lists the files to add again. The browser asks before the tab is closed with something unsent.
-- The company and contact start from the name and company that were given when the account was created in this tab, when there are any.
+- The company and contact start from the name and company of the account.
 - When the request is saved the page shows its reference (like `SC-1A2B3C4D`, the end of its id) and a link to that request in "My quote requests".
+- A mistake of the sign in or the create account form is shown above the form (or on the field, for an email that has an account), in the language of the page. The server's words are English, so the pages say it in their own words by the code of the error.
 
 **My quote requests.** `/en/account/requests` is for business accounts (a guest signs in first and comes back, a retail account gets a short message). It lists the requests the account sent, newest first, each with its date, cacao profile, packaging, units and status (submitted, quoted, approved or rejected), and the amount once it was quoted. Choosing one opens its details on the right (below the list on a phone): the notes, the note from our team and the files that were sent. The chosen request is in the address (`?request=<id>`), so the link can be shared. The account page links to it too, for business accounts only.
 
-- The page needs the same token as the studio (see above) to read the requests. Without it, it says that the server does not know who you are.
+- The page needs a signed in business account to read the requests.
 - An admin changes a status on the server (see "Reading and changing the requests" below). The page reads the list again when you come back to the tab and when you press Refresh, and a screen reader is told which request changed.
 - A file cannot be opened with a plain link, because the server wants the token in the `Authorization` header. The Download button fetches the file with the token and saves it under the name it was uploaded with.
 
