@@ -38,7 +38,6 @@ export const en = {
     subtotal: "Subtotal",
     checkout: "Checkout",
     shippingNote: "Shipping calculated at checkout",
-    checkoutNote: "Online checkout isn't available yet. Your cart is kept while you browse.",
     remove: "Remove",
     removeItem: "Remove {{name}} from the cart",
     decrease: "Remove one {{name}}",

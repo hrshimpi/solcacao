@@ -6,6 +6,7 @@ import LoginPage from "../features/auth/LoginPage";
 import RegisterPage from "../features/auth/RegisterPage";
 import ResetPasswordPage from "../features/auth/ResetPasswordPage";
 import CatalogPage from "../features/catalog/CatalogPage";
+import CheckoutPage from "../features/checkout/CheckoutPage";
 import ContactPage from "../features/contact/ContactPage";
 import HomePage from "../features/home/HomePage";
 import InfoPage from "../features/info/InfoPage";
@@ -59,6 +60,14 @@ export const routes: RouteObject[] = [
               <RequestsAccessGuard>
                 <MyRequestsPage />
               </RequestsAccessGuard>
+            ),
+          },
+          {
+            path: "checkout",
+            element: (
+              <RequireAuth>
+                <CheckoutPage />
+              </RequireAuth>
             ),
           },
           {

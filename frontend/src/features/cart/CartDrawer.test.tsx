@@ -23,11 +23,11 @@ async function openCart(lines: FakeCartLine[] = [], prepare: (server: FakeServer
   server.carts.set("guest", lines);
   prepare(server);
   const user = userEvent.setup();
-  renderAt("/en/shop");
+  const { router } = renderAt("/en/shop");
 
   await user.click(await screen.findByRole("button", { name: /^Cart, / }));
   const dialog = await screen.findByRole("dialog", { name: "Your cart" });
-  return { server, user, dialog: within(dialog) };
+  return { server, user, router, dialog: within(dialog) };
 }
 
 describe("cart dialog", () => {
@@ -98,13 +98,16 @@ describe("cart dialog", () => {
     await waitFor(() => expect(screen.getAllByRole("status").some((status) => /Only 2 of Venezuela 76%/.test(status.textContent ?? ""))).toBe(true));
   });
 
-  it("says what the checkout is, when the person asks for it", async () => {
-    const { dialog, user } = await openCart([productLine("ecuador-72", 1)]);
+  it("goes to the checkout with a link, and a visitor is sent to sign in and then back to the checkout", async () => {
+    const { dialog, user, router } = await openCart([productLine("ecuador-72", 1)]);
     expect(await dialog.findByText("Shipping calculated at checkout")).toBeInTheDocument();
+    expect(dialog.getByRole("link", { name: "Checkout" })).toHaveAttribute("href", "/en/checkout");
 
-    await user.click(dialog.getByRole("button", { name: "Checkout" }));
+    await user.click(dialog.getByRole("link", { name: "Checkout" }));
 
-    expect(dialog.getByText("Online checkout isn't available yet. Your cart is kept while you browse.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
+    expect(router.state.location.search).toBe("?next=%2Fcheckout");
+    expect(screen.queryByRole("dialog", { name: "Your cart" })).not.toBeInTheDocument();
   });
 });
 

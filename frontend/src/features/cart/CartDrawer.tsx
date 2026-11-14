@@ -1,6 +1,5 @@
 // The cart as a dialog that slides in from the right: lines, quantities, subtotal and checkout note.
 // It shows what the server holds: a loading message while the cart is on its way, and a problem with a way to try again.
-import { useState } from "react";
 import { formatPrice } from "../../i18n/format";
 import { useLang } from "../../i18n/LanguageContext";
 import Drawer from "../../ui/Drawer";
@@ -11,7 +10,6 @@ import { useCart, type CartLine } from "./CartContext";
 export default function CartDrawer() {
   const { t, lang } = useLang();
   const { status, lines, subtotal, problem, busy, isOpen, close, setQuantity, removeLine, retry } = useCart();
-  const [showCheckoutNote, setShowCheckoutNote] = useState(false);
 
   function describe(line: CartLine) {
     if (line.kind === "sampler") {
@@ -103,16 +101,15 @@ export default function CartDrawer() {
             <span className="font-sans text-xs text-paper-text/70">{t("cart.subtotal")}</span>
             <span className="font-sans text-lg font-medium text-sun-gold">{formatPrice(subtotal, lang)}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowCheckoutNote(true)}
-            className="min-h-11 w-full bg-sun-gold py-3 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90"
+          {/* a link, because it goes to another page. Somebody who is not signed in is sent to sign in, and then comes back */}
+          <LocaleLink
+            to="/checkout"
+            onClick={close}
+            className="flex min-h-11 w-full items-center justify-center bg-sun-gold py-3 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90"
           >
             {t("cart.checkout")}
-          </button>
-          <p role="status" className="mt-3 text-center font-sans text-xs text-paper-text/70">
-            {showCheckoutNote ? t("cart.checkoutNote") : t("cart.shippingNote")}
-          </p>
+          </LocaleLink>
+          <p className="mt-3 text-center font-sans text-xs text-paper-text/70">{t("cart.shippingNote")}</p>
         </div>
       )}
     </Drawer>

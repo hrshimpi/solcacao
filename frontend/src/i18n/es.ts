@@ -40,7 +40,6 @@ export const es: typeof en = {
     subtotal: "Subtotal",
     checkout: "Pagar",
     shippingNote: "El envío se calcula al pagar",
-    checkoutNote: "El pago en línea todavía no está disponible. Tu carrito se guarda mientras navegas.",
     remove: "Quitar",
     removeItem: "Quitar {{name}} del carrito",
     decrease: "Quitar una unidad de {{name}}",
