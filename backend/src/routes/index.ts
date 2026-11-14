@@ -4,6 +4,7 @@ import { authRouter } from "./auth.routes.ts";
 import { b2bRouter } from "./b2b.routes.ts";
 import { healthRouter } from "./health.ts";
 import { inquiryRouter } from "./inquiries.ts";
+import { staffRouter, usersRouter } from "./users.routes.ts";
 
 export const apiRouter = Router();
 
@@ -11,3 +12,5 @@ apiRouter.use(healthRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/inquiries", inquiryRouter);
 apiRouter.use("/b2b", b2bRouter);
+apiRouter.use("/users/me", usersRouter);
+apiRouter.use("/staff", staffRouter);
