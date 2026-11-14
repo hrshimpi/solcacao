@@ -237,6 +237,33 @@ Settings in `backend/.env` for this part (all in `.env.example`): `CLIENT_ORIGIN
 
 **Putting the site online.** The cookie only works when the page and the API are on the same site, so the frontend host has to send `/api/*` to the backend (a rewrite or proxy rule, see the hosting notes) and `CLIENT_ORIGIN` has to be the address people see in the browser. Behind a proxy set `TRUST_PROXY` to the number of proxies, or the limits count all visitors as one.
 
+## Shop API
+
+The products and their stock live in MongoDB. Load the seven products of the shop with `pnpm seed` (from `backend`). It is safe to run again: a product is found by its slug and gets its text back as it is in `backend/src/seed/products.seed.ts`, and the stock numbers of products that already exist are not touched.
+
+How the data is kept: every text a shopper reads is stored in English and Spanish, prices are whole cents (`1200` is $12.00), and the stock is a separate document for each product (the `Inventory` model), so changing the stock never rewrites the product. Slug and SKU are unique.
+
+The language of a request is, in this order: `?lang=en|es`, then the best of English and Spanish in `Accept-Language`, then English. A text that is missing in Spanish comes back in English. Answers that depend on the language carry `Vary: Accept-Language`.
+
+| Request | What it does |
+|---|---|
+| `GET /api/products` | the list, `{ items, page, limit, total }`. Filters: `q` (a part of a name or country, any case, with or without accents, read as text and never as a pattern), `origin`, `category` and `notes` (lists with commas, a product matches any note), `minPct`, `maxPct`, `featured`. `sort` is `featured` (the default), `price_asc`, `price_desc`, `pct_desc` or `newest`. `page`, and `limit` (12 by default, 48 at most). A bad value is a `400` that names the field |
+| `GET /api/products/:slug` | one product: `{ product }`, or `404` |
+| `GET /api/products/:slug/related` | up to 4 products of the same category or origin, `{ items }` |
+
+Each product has `id`, `slug`, `sku`, `name`, `caption`, `tastingSummary`, `imageAlt`, `farm`, `description`, `origin`, `originName`, `percentage`, `category`, `price` (cents), `notes`, `thumbnail`, `images`, `batchCode`, `harvestMonth`, `roastMonth`, `featured`, `stock` (units left) and `availability` (`in_stock`, `low` or `out`; low is at or under the threshold of the product, 10 by default). The shop lists can be kept by a cache for 30 seconds.
+
+The team (an admin token, or the key in `STAFF_API_KEY` sent as `X-Staff-Key`) works on the whole product, in both languages:
+
+| Request | What it does |
+|---|---|
+| `GET /api/staff/products` and `GET /api/staff/products/:id` | every product, also the ones that are switched off |
+| `POST /api/staff/products` | makes a product. `quantity` is the stock it starts with. `409 SLUG_TAKEN` or `409 SKU_TAKEN` when one is used |
+| `PATCH /api/staff/products/:id` | changes parts of a product. `active: false` takes it out of the shop. The stock is not one of the parts |
+| `PUT /api/staff/products/:id/inventory` | `{ quantity, lowStockThreshold? }` |
+
+These bodies are strict: a field that a product does not have (the id, the dates, the search text) is a `400`, and a price that is not whole cents, an image that is not an `https` address, a note that does not exist and so on are refused with the field named.
+
 ## B2B quotes
 
 A company asks for custom chocolate in the Corporate Cacao Studio. The studio sends one multipart form to the backend, the wholesale address gets an email, and the company follows its request in "My quote requests". This section is about the backend side: sending a request, the files, where they are kept and the status of a request.
