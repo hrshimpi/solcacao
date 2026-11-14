@@ -6,7 +6,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { env } from "../config/env.ts";
 import { errorHandler } from "./errorHandler.ts";
-import { optionalAuth, requireAccountType, requireAdmin, requireAuth, signToken } from "./auth.ts";
+import { createRequireStaff, optionalAuth, requireAccountType, requireAdmin, requireAuth, signToken, staffKeyMatches } from "./auth.ts";
 
 const app = express();
 app.use(pinoHttp({ logger: pino({ level: "silent" }) }));
@@ -112,13 +112,22 @@ describe("requireAdmin", () => {
   });
 
   it("answers 401 for a token that is not good", async () => {
-    const expired = await customToken({ expires: Math.floor(Date.now() / 1000) - 60 });
+    const wrongKey = new TextEncoder().encode("another secret that is long enough");
 
-    for (const token of ["not a token", expired]) {
+    for (const token of ["not a token", await customToken({ key: wrongKey })]) {
       const res = await request(app).get("/admin").set(bearer(token));
       expect(res.status, token).toBe(401);
       expect(res.body.error.code).toBe("UNAUTHENTICATED");
     }
+  });
+
+  it("answers 401 with its own code for a good token that ran out, so a client knows to refresh", async () => {
+    const expired = await customToken({ expires: Math.floor(Date.now() / 1000) - 60 });
+
+    const res = await request(app).get("/admin").set(bearer(expired));
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("TOKEN_EXPIRED");
   });
 
   it("answers 403 in the standard shape for a user who is not an admin", async () => {
@@ -139,13 +148,29 @@ describe("requireAuth", () => {
   });
 
   it("answers 401 in the standard shape without a token, or with one that is not good", async () => {
-    const expired = await customToken({ expires: Math.floor(Date.now() / 1000) - 60 });
-
-    for (const headers of [{}, bearer("not a token"), bearer(expired)]) {
+    for (const headers of [{}, bearer("not a token")]) {
       const res = await request(app).get("/signed-in").set(headers);
       expect(res.status).toBe(401);
       expect(res.body.error).toEqual({ code: "UNAUTHENTICATED", message: "Please sign in to do that.", details: [] });
     }
+  });
+
+  it("says TOKEN_EXPIRED for a good token that ran out", async () => {
+    const expired = await customToken({ expires: Math.floor(Date.now() / 1000) - 60 });
+
+    const res = await request(app).get("/signed-in").set(bearer(expired));
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toEqual({ code: "TOKEN_EXPIRED", message: "Your session ran out. Please sign in again.", details: [] });
+  });
+
+  it("does not say TOKEN_EXPIRED for a token that ran out and is also forged", async () => {
+    const wrongKey = new TextEncoder().encode("another secret that is long enough");
+    const forged = await customToken({ key: wrongKey, expires: Math.floor(Date.now() / 1000) - 60 });
+
+    const res = await request(app).get("/signed-in").set(bearer(forged));
+
+    expect(res.body.error.code).toBe("UNAUTHENTICATED");
   });
 });
 
@@ -193,17 +218,80 @@ describe("signToken", () => {
     expect(await claims(await signToken(business))).toMatchObject({ accountType: "b2b" });
   });
 
-  it("makes a token that lasts an hour by default", async () => {
+  it("makes a short lived token by default, as long as ACCESS_TOKEN_MINUTES", async () => {
     const token = await signToken(user);
     const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
 
     expect(payload).toMatchObject({ sub: user.id, role: "user" });
-    expect(payload.exp - payload.iat).toBe(3600);
+    expect(payload.exp - payload.iat).toBe(env.ACCESS_TOKEN_MINUTES * 60);
   });
 
   it("can be told how long it should last", async () => {
     const payload = JSON.parse(Buffer.from((await signToken(user, "7d")).split(".")[1], "base64url").toString());
 
     expect(payload.exp - payload.iat).toBe(7 * 24 * 3600);
+  });
+});
+
+describe("requireStaff", () => {
+  const staffKey = "a-staff-key-with-enough-length";
+  const staffApp = express();
+  staffApp.use(pinoHttp({ logger: pino({ level: "silent" }) }));
+  staffApp.get("/staff", createRequireStaff(() => staffKey), (req, res) => void res.json({ user: req.user ?? null }));
+  staffApp.get("/staff-without-a-key", createRequireStaff(() => ""), (req, res) => void res.json({ user: req.user ?? null }));
+  staffApp.use(errorHandler);
+
+  it("lets the staff key through, without a user", async () => {
+    const res = await request(staffApp).get("/staff").set("X-Staff-Key", staffKey);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeNull();
+  });
+
+  it("lets an admin through, without the key", async () => {
+    const res = await request(staffApp).get("/staff").set(bearer(await signToken(admin)));
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toEqual(admin);
+  });
+
+  it("refuses a wrong key, a key of another length and an empty one as not signed in", async () => {
+    for (const key of ["wrong", `${staffKey}x`, staffKey.slice(0, -1), ""]) {
+      const res = await request(staffApp).get("/staff").set("X-Staff-Key", key);
+      expect(res.status, key).toBe(401);
+      expect(res.body.error.code).toBe("UNAUTHENTICATED");
+    }
+  });
+
+  it("refuses a user who is not an admin, even with a good token", async () => {
+    const res = await request(staffApp).get("/staff").set(bearer(await signToken(user)));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("does not let an empty key setting be matched by an empty header", async () => {
+    // when no key is set the key is off: nothing a client sends can match it
+    for (const headers of [{ "X-Staff-Key": "" }, { "X-Staff-Key": "anything" }, {}]) {
+      const res = await request(staffApp).get("/staff-without-a-key").set(headers);
+      expect(res.status).toBe(401);
+    }
+  });
+
+  it("says TOKEN_EXPIRED for an admin token that ran out", async () => {
+    const res = await request(staffApp).get("/staff").set(bearer(await customToken({ expires: Math.floor(Date.now() / 1000) - 60 })));
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("TOKEN_EXPIRED");
+  });
+});
+
+describe("staffKeyMatches", () => {
+  it("compares only text, and never matches when the expected key is empty", () => {
+    expect(staffKeyMatches("abc", "abc")).toBe(true);
+    expect(staffKeyMatches("abc", "abd")).toBe(false);
+    expect(staffKeyMatches(["abc"], "abc")).toBe(false);
+    expect(staffKeyMatches(undefined, "abc")).toBe(false);
+    expect(staffKeyMatches("", "")).toBe(false);
   });
 });
