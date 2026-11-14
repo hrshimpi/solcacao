@@ -15,16 +15,22 @@ interface RateLimitOptions {
   keyBy?: (req: Request) => string;
   // count every request, including the ones that were refused
   countFailedRequests?: boolean;
+  // count only the requests that were refused (a 4xx or 5xx answer), for limits on guessing like wrong passwords
+  onlyFailures?: boolean;
+  // requests that are never limited, like the health check that a monitor calls all day
+  skip?: (req: Request) => boolean;
 }
 
-export function createRateLimiter({ limit, windowMs, message, keyBy, countFailedRequests = false }: RateLimitOptions): RequestHandler {
+export function createRateLimiter({ limit, windowMs, message, keyBy, countFailedRequests = false, onlyFailures = false, skip }: RateLimitOptions): RequestHandler {
   return rateLimit({
     windowMs,
     limit,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    skipFailedRequests: !countFailedRequests,
+    skipFailedRequests: !countFailedRequests && !onlyFailures,
+    skipSuccessfulRequests: onlyFailures,
     ...(keyBy ? { keyGenerator: keyBy } : {}),
+    ...(skip ? { skip } : {}),
     handler: (_req, _res, next) => next(new AppError("RATE_LIMITED", 429, message)),
   });
 }
