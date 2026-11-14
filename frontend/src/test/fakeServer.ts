@@ -3,6 +3,7 @@
 // so a test can look at what the page sent. Install it with installFakeServer(): it replaces fetch for the test.
 // Everything it does not know answers 404 in the standard error shape.
 import type { Lang } from "../i18n";
+import { adminRoute, type FakeInquiry } from "./fakeAdmin";
 import { ordersRoute, type FakeOrder } from "./fakeOrders";
 import { fixtureId, fixtureRecords, wireProduct, type FixtureRecord } from "./productFixtures";
 
@@ -212,7 +213,7 @@ export class FakeServer {
     if (path.startsWith("/api/users/me")) return this.account(call, path, input);
 
     const lang: Lang = /^es/i.test(call.headers["accept-language"] ?? "") ? "es" : "en";
-    return ordersRoute(this, call, path, input, lang) ?? this.shopRoute(call, path, input);
+    return ordersRoute(this, call, path, input, lang) ?? adminRoute(this, call, path, input) ?? this.shopRoute(call, path, input);
   }
 
   // ---------------------------------------------------------------- the shop
@@ -227,6 +228,12 @@ export class FakeServer {
   // the orders of everybody, oldest first (see fakeOrders.ts)
   orders: FakeOrder[] = [];
   orderCount = 0;
+  // for the dashboard (see fakeAdmin.ts): the inquiries that the team reads, the prices that were changed (in cents, by slug),
+  // and the products that were added, with the body that was sent for each
+  inquiryRecords: FakeInquiry[] = [];
+  prices = new Map<string, number>();
+  createdProducts: Record<string, unknown>[] = [];
+  createdBodies: Record<string, unknown>[] = [];
 
   setStock(slug: string, quantity: number): this {
     this.stock.set(slug, quantity);
