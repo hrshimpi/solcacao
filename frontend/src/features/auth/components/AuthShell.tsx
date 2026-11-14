@@ -1,4 +1,5 @@
-// The frame shared by the sign in and create account pages: a photo panel (from md), the account type choice and the page heading.
+// The frame shared by the account pages: a photo panel (from md), the page heading and, when the page asks for it (create
+// account), the choice between a retail and a business account.
 import type { ReactNode } from "react";
 import { useLang } from "../../../i18n/LanguageContext";
 import RadioRow from "../../../ui/RadioRow";
@@ -7,8 +8,9 @@ export type AccountType = "retail" | "business";
 
 interface AuthShellProps {
   title: string;
-  accountType: AccountType;
-  onAccountTypeChange: (type: AccountType) => void;
+  // the choice of account type is only shown when both of these are given
+  accountType?: AccountType;
+  onAccountTypeChange?: (type: AccountType) => void;
   children: ReactNode;
 }
 
@@ -37,25 +39,27 @@ export default function AuthShell({ title, accountType, onAccountTypeChange, chi
 
       <div className="flex flex-col justify-center bg-stone-paper px-4 py-12 sm:px-8 md:px-14 md:py-16">
         <div className="mx-auto w-full max-w-sm">
-          <div className="mb-8 border-b border-ink-cacao/20 pb-3">
-            <RadioRow
-              legend={t("auth.accountType")}
-              name="accountType"
-              value={accountType}
-              onChange={onAccountTypeChange}
-              hideLegend
-              options={[
-                { id: "retail", label: t("auth.retail") },
-                { id: "business", label: t("auth.business") },
-              ]}
-            />
-          </div>
+          {accountType && onAccountTypeChange && (
+            <div className="mb-8 border-b border-ink-cacao/20 pb-3">
+              <RadioRow
+                legend={t("auth.accountType")}
+                name="accountType"
+                value={accountType}
+                onChange={onAccountTypeChange}
+                hideLegend
+                options={[
+                  { id: "retail", label: t("auth.retail") },
+                  { id: "business", label: t("auth.business") },
+                ]}
+              />
+            </div>
+          )}
 
           <h1 className="mb-8 font-spectral text-3xl font-semibold text-ink-cacao">{title}</h1>
 
           {children}
 
-          {accountType === "business" && (
+          {accountType === "business" && onAccountTypeChange && (
             <div className="mt-8 border border-ink-cacao/20 bg-clay-surface p-4">
               <p className="font-sans text-xs leading-relaxed text-ink-cacao/70">{t("auth.businessNote")}</p>
             </div>

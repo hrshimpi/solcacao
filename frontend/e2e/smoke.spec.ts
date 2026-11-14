@@ -434,14 +434,13 @@ test.describe("smoke flows", () => {
   });
 
   test("a guest is sent to sign in and comes back to the studio as a business account", async ({ page }) => {
-    await openRoute(page, "/en/wholesale", { account: null });
+    await openRoute(page, "/en/wholesale", { account: null, loginAs: "business" });
     await page.getByRole("main").getByRole("link", { name: "Enter the Corporate Cacao Studio" }).first().click();
 
     await expect(page).toHaveURL(/\/en\/account\/login\?next=%2Fwholesale%2Fstudio$/);
     const main = page.getByRole("main");
-    await chooseOption(page, "Business account");
     await main.getByLabel(/Email/).fill("isabel@hacienda.example");
-    await main.getByLabel(/Password/).fill("a long password");
+    await main.getByLabel(/Password/).fill("correct horse 42");
     await main.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).toHaveURL(/\/en\/wholesale\/studio$/);

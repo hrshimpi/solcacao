@@ -1,7 +1,9 @@
 // Every address in the app. All pages live under /en or /es.
 import type { RouteObject } from "react-router";
+import ForgotPasswordPage from "../features/auth/ForgotPasswordPage";
 import LoginPage from "../features/auth/LoginPage";
 import RegisterPage from "../features/auth/RegisterPage";
+import ResetPasswordPage from "../features/auth/ResetPasswordPage";
 import CatalogPage from "../features/catalog/CatalogPage";
 import ContactPage from "../features/contact/ContactPage";
 import HomePage from "../features/home/HomePage";
@@ -45,6 +47,8 @@ export const routes: RouteObject[] = [
           { path: "info/:topic", element: <InfoPage /> },
           { path: "account/login", element: <LoginPage /> },
           { path: "account/register", element: <RegisterPage /> },
+          { path: "account/forgot-password", element: <ForgotPasswordPage /> },
+          { path: "account/reset-password", element: <ResetPasswordPage /> },
           {
             path: "account/requests",
             element: (

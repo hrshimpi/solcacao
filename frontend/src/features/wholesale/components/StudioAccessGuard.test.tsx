@@ -1,27 +1,25 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AUTH_STORAGE_KEY } from "../../auth/AuthContext";
+import { getAuthToken } from "../../../lib/authToken";
+import { installFakeServer, type FakeServer } from "../../../test/fakeServer";
 import { renderAt } from "../../../test/renderAt";
 
 const studioHeading = { level: 1, name: "The Corporate Cacao Studio" } as const;
 
+// the accounts of the fake server are a retail one and a business one, and the page asks it who signs in
 function open(path: string, account?: "retail" | "business") {
   const user = userEvent.setup();
+  const server: FakeServer = installFakeServer();
   const result = renderAt(path, { account });
-  return { user, ...result };
+  return { user, server, ...result };
 }
 
 // the footer has a newsletter form with an email field too, so the form is looked for inside the page content
 async function signInThroughTheForm(user: ReturnType<typeof userEvent.setup>, account: "retail" | "business") {
   const page = within(await screen.findByRole("main"));
-  await user.click(page.getByRole("radio", { name: account === "business" ? /Business account|Cuenta de empresa/ : /Retail account|Cuenta personal/ }));
-  await user.type(page.getByLabelText(/Email|Correo/), "isabel@example.com");
-  await user.type(page.getByLabelText(/Password|Contraseña/), "a long password");
+  await user.type(page.getByLabelText(/Email|Correo/), account === "business" ? "isabel@hacienda.example" : "isabel@example.com");
+  await user.type(page.getByLabelText(/Password|Contraseña/), "correct horse 42");
   await user.click(page.getByRole("button", { name: /^(Sign in|Iniciar sesión)$/ }));
-}
-
-function signedInUser() {
-  return JSON.parse(sessionStorage.getItem(AUTH_STORAGE_KEY) ?? "null");
 }
 
 describe("the studio for a guest", () => {
@@ -64,14 +62,15 @@ describe("the studio for a guest", () => {
   });
 
   it("brings a guest who signs in as a business back to the studio", async () => {
-    const { user, router } = open("/en/wholesale/studio");
+    const { user, router, server } = open("/en/wholesale/studio");
 
     await signInThroughTheForm(user, "business");
 
     expect(await screen.findByRole("heading", studioHeading)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/en/wholesale/studio");
     expect(router.state.location.search).toBe("");
-    expect(signedInUser()).toEqual({ email: "isabel@example.com", accountType: "business" });
+    expect(server.callsTo("POST", "/api/auth/login")[0].body).toMatchObject({ email: "isabel@hacienda.example" });
+    expect(getAuthToken()).toMatch(/^token-/);
   });
 
   it("replaces the sign in page when coming back, so Back does not show the form again", async () => {
@@ -138,13 +137,14 @@ describe("the studio for a guest", () => {
   );
 
   it("does not sign anyone in when the form has mistakes", async () => {
-    const { user, router } = open("/en/wholesale/studio");
+    const { user, router, server } = open("/en/wholesale/studio");
     const page = within(await screen.findByRole("main"));
 
     await user.click(page.getByRole("button", { name: "Sign in" }));
 
     expect(router.state.location.pathname).toBe("/en/account/login");
-    expect(signedInUser()).toBeNull();
+    expect(server.callsTo("POST", "/api/auth/login")).toHaveLength(0);
+    expect(getAuthToken()).toBeNull();
   });
 });
 
@@ -213,11 +213,11 @@ describe("the studio for a retail account", () => {
 
     await user.type(page.getByLabelText(/Full name/), "Isabel Vasquez");
     await user.type(page.getByLabelText(/Company/), "Hacienda Brands");
-    await user.type(page.getByLabelText(/Email/), "isabel@hacienda.example");
-    await user.type(page.getByLabelText(/Password/), "a long password");
+    await user.type(page.getByLabelText(/Email/), "new@hacienda.example");
+    await user.type(page.getByLabelText(/Password/), "correct horse 42");
     await user.click(page.getByRole("button", { name: "Create account" }));
     await screen.findByRole("heading", { level: 1, name: /Grown in Sunlight/ });
-    expect(signedInUser()).toEqual({ email: "isabel@hacienda.example", accountType: "business", name: "Isabel Vasquez", companyName: "Hacienda Brands" });
+    expect(getAuthToken()).toMatch(/^token-/);
 
     await act(async () => {
       await router.navigate("/en/wholesale/studio");

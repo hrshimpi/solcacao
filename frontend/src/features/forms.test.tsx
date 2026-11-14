@@ -1,5 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { installFakeServer } from "../test/fakeServer";
 import { renderAt } from "../test/renderAt";
 
 // the footer has a newsletter form too, so the queries only look inside the page content
@@ -74,17 +75,19 @@ describe("account forms", () => {
     expect(page.getByLabelText(/Password/)).toHaveAttribute("aria-invalid", "true");
   });
 
-  it("sign in goes to the home page when the form is valid", async () => {
+  it("sign in goes to the home page when the form is valid and the server accepts it", async () => {
+    installFakeServer();
     const { user, page, router } = await openPage("/en/account/login");
 
     await user.type(page.getByLabelText(/Email/), "isabel@example.com");
-    await user.type(page.getByLabelText(/Password/), "secret123");
+    await user.type(page.getByLabelText(/Password/), "correct horse 42");
     await user.click(page.getByRole("button", { name: "Sign in" }));
 
+    await screen.findByRole("heading", { level: 1, name: /Grown in Sunlight/ });
     expect(router.state.location.pathname).toBe("/en");
   });
 
-  it("create account needs a password of at least 8 characters", async () => {
+  it("create account needs a password of at least 10 characters, with a letter and a number", async () => {
     const { user, page } = await openPage("/en/account/register");
 
     await user.type(page.getByLabelText(/Full name/), "Isabel");
@@ -92,7 +95,7 @@ describe("account forms", () => {
     await user.type(page.getByLabelText(/Password/), "short");
     await user.click(page.getByRole("button", { name: "Create account" }));
 
-    expect(page.getByLabelText(/Password/)).toHaveAccessibleDescription(/at least 8 characters/);
+    expect(page.getByLabelText(/Password/)).toHaveAccessibleDescription(/at least 10 characters, with a letter and a number/);
   });
 
   it("the account type is a radio group, and Business adds a company field", async () => {

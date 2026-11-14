@@ -38,17 +38,55 @@ export async function goToPage(page: Page, name: string | RegExp) {
 
 export type Account = "retail" | "business";
 
-// signs someone in before any page of this test loads. The preview sign in keeps the user in sessionStorage.
-export async function signInAs(page: Page, accountType: Account) {
-  await page.addInitScript((user) => sessionStorage.setItem("sc_user", JSON.stringify(user)), { email: "isabel@example.com", accountType });
+// The token that the mocked sign in gives. A call that needs it is checked for it (see mockRequestsApi), so a test can
+// tell that the page really sends the token of the person who is signed in.
+export const requestToken = "e2e-token";
+
+const tokens = new WeakMap<Page, string>();
+
+// the user of each kind of account, as the server sends them
+const serverUsers = {
+  retail: { id: "64b7f0c2a1b2c3d4e5f60718", email: "isabel@example.com", name: "Isabel Vasquez", role: "user", accountType: "retail", preferredLanguage: "en", marketingEmails: false, createdAt: "2026-06-15T12:00:00.000Z" },
+  business: { id: "64b7f0c2a1b2c3d4e5f60719", email: "isabel@hacienda.example", name: "Isabel Vasquez", role: "user", accountType: "b2b", preferredLanguage: "en", marketingEmails: false, createdAt: "2026-06-15T12:00:00.000Z" },
+} as const;
+
+const businessProfile = { userId: serverUsers.business.id, companyName: "Hacienda Brands", verificationStatus: "pending", createdAt: "2026-06-15T12:00:00.000Z", updatedAt: "2026-06-15T12:00:00.000Z" };
+
+// Answers the account endpoints like the server would, so no test needs a backend:
+//   account: the person who is signed in when the page loads (the refresh cookie), or null for a guest
+//   loginAs: who a sign in through the form signs in as (any email and password is accepted)
+// A page restores its sign in by asking for a new token with the cookie, so this is all it takes to open it signed in.
+export async function mockAuthApi(page: Page, options: { account: Account | null; loginAs?: Account }) {
+  const session = (account: Account) => ({ user: serverUsers[account], accessToken: tokens.get(page) ?? requestToken, expiresIn: 900 });
+  let current: Account | null = options.account;
+
+  await page.route("**/api/auth/refresh", (route) =>
+    current ? route.fulfill({ json: session(current) }) : route.fulfill({ status: 401, json: { error: { code: "SESSION_EXPIRED", message: "Your session ended.", details: [] } } }),
+  );
+  await page.route("**/api/auth/login", (route) => {
+    current = options.loginAs ?? "retail";
+    return route.fulfill({ json: session(current) });
+  });
+  await page.route("**/api/auth/logout", (route) => {
+    current = null;
+    return route.fulfill({ status: 204 });
+  });
+  await page.route("**/api/users/me", (route) => route.fulfill({ json: { user: serverUsers[current ?? "retail"], b2bProfile: current === "business" ? businessProfile : null } }));
+  await page.route("**/api/users/me/b2b-profile", (route) => route.fulfill({ json: { b2bProfile: businessProfile } }));
+  await page.route("**/api/users/me/addresses", (route) => route.fulfill({ json: { addresses: [] } }));
+}
+
+// signs someone in before any page of this test loads
+export async function signInAs(page: Page, account: Account) {
+  await mockAuthApi(page, { account });
 }
 
 // the page is ready when its heading is there, the web fonts have loaded and the entrance animations are done
 // (a scan in the middle of a fade-in would measure half see-through colours)
 // The studio and My quote requests are only for business accounts, so they are opened as one unless the test says otherwise (account: null is a guest).
-export async function openRoute(page: Page, path: string, options: { account?: Account | null } = {}) {
+export async function openRoute(page: Page, path: string, options: { account?: Account | null; loginAs?: Account } = {}) {
   const account = options.account === undefined && /\/(wholesale\/studio|account\/requests)/.test(path) ? "business" : options.account;
-  if (account) await signInAs(page, account);
+  await mockAuthApi(page, { account: account ?? null, loginAs: options.loginAs });
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // the fonts come from the network, so a slow or missing connection must not hold a test until it times out
@@ -129,8 +167,6 @@ export async function failFeaturedProducts(page: Page, how: "error" | "offline")
 
 // ---------- the quote requests of a business account ----------
 
-export const requestToken = "e2e-token";
-
 export function e2eRequest(id: string, extra: Record<string, unknown> = {}) {
   return {
     id,
@@ -158,9 +194,9 @@ export const e2eFile = (storedName: string, originalName: string) => ({
   uploadedAt: "2026-10-26T12:00:00.000Z",
 });
 
-// gives the browser tab a token, like the real sign in will, so the calls that need one can be checked for it
+// changes the token that the sign in of this test gives (it is e2e-token unless a test says otherwise)
 export async function withToken(page: Page, token = requestToken) {
-  await page.addInitScript((value) => sessionStorage.setItem("sc_token", value), token);
+  tokens.set(page, token);
 }
 
 // answers the list of the requests and their files like the server would, and remembers every call with its Authorization header.
