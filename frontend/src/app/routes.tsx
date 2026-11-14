@@ -1,5 +1,13 @@
 // Every address in the app. All pages live under /en or /es.
 import type { RouteObject } from "react-router";
+import AdminInquiriesPage from "../features/admin/AdminInquiriesPage";
+import AdminLayout from "../features/admin/AdminLayout";
+import AdminOrderPage from "../features/admin/AdminOrderPage";
+import AdminOrdersPage from "../features/admin/AdminOrdersPage";
+import AdminProductsPage from "../features/admin/AdminProductsPage";
+import NewProductPage from "../features/admin/NewProductPage";
+import OverviewPage from "../features/admin/OverviewPage";
+import RequireAdmin from "../features/admin/RequireAdmin";
 import RequireAuth from "../features/auth/components/RequireAuth";
 import ForgotPasswordPage from "../features/auth/ForgotPasswordPage";
 import LoginPage from "../features/auth/LoginPage";
@@ -61,6 +69,22 @@ export const routes: RouteObject[] = [
                 <MyRequestsPage />
               </RequestsAccessGuard>
             ),
+          },
+          {
+            path: "admin",
+            element: (
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            ),
+            children: [
+              { index: true, element: <OverviewPage /> },
+              { path: "orders", element: <AdminOrdersPage /> },
+              { path: "orders/:id", element: <AdminOrderPage /> },
+              { path: "products", element: <AdminProductsPage /> },
+              { path: "products/new", element: <NewProductPage /> },
+              { path: "inquiries", element: <AdminInquiriesPage /> },
+            ],
           },
           {
             path: "checkout",

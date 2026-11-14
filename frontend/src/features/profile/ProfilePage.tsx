@@ -6,6 +6,7 @@ import { usePageTitle } from "../../lib/usePageTitle";
 import { useAuth } from "../auth/AuthContext";
 import AccountSettings from "./components/AccountSettings";
 import AccountSummary from "./components/AccountSummary";
+import AdminLink from "./components/AdminLink";
 import AddressesLink from "./components/AddressesLink";
 import BusinessDetails from "./components/BusinessDetails";
 import OrdersLink from "./components/OrdersLink";
@@ -72,6 +73,7 @@ export default function ProfilePage() {
             }}
           />
           {user.accountType === "business" && <BusinessDetails />}
+          {user.role === "admin" && <AdminLink />}
           <OrdersLink />
           <AddressesLink />
           <WholesaleLinks />
