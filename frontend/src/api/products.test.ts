@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../lib/apiFetch";
+import { installFakeServer } from "../test/fakeServer";
 import { apiProduct, featuredEnglish, jsonResponse, mockFeatured } from "../test/mockApi";
-import { fetchFeaturedProducts } from "./products";
+import { fixtureRecords, wireProduct } from "../test/productFixtures";
+import { fetchFeaturedProducts, fetchProducts, toProduct } from "./products";
 
 function answerWith(body: unknown, status = 200) {
   vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(body, status)));
@@ -147,3 +149,85 @@ describe("fetchFeaturedProducts: when it fails", () => {
     await expect(fetchFeaturedProducts("en")).rejects.toMatchObject({ name: "ApiError", status: 0 });
   });
 });
+
+// a product as the API sends it
+const wire = () => wireProduct(fixtureRecords[0], "en");
+
+describe("toProduct", () => {
+  it("turns a product of the API into the one the shop shows: the price in dollars, the pictures and the origin", () => {
+    const product = toProduct(wire())!;
+
+    expect(product).toMatchObject({ slug: "ecuador-72", name: "Ecuador 72%", origin: "ecuador", originName: "Ecuador", percentage: 72, category: "bar", stock: 120 });
+    expect(product.price).toBe(fixtureRecords[0].product.price / 100);
+    expect(product.images.length).toBeGreaterThan(0);
+    expect(product.image).toBe(fixtureRecords[0].product.thumbnail);
+    expect(product.imageLarge).toBe(product.images[0]);
+  });
+
+  it("refuses what is not a product, or has a slug that could not go into a link", () => {
+    for (const raw of [null, undefined, "bar", 4, [], {}, { ...wire(), slug: "../admin" }, { ...wire(), slug: "a b" }, { ...wire(), name: "  " }, { ...wire(), id: "" }]) {
+      expect(toProduct(raw), JSON.stringify(raw)).toBeNull();
+    }
+  });
+
+  it("refuses a product with a category, price, percentage or stock that makes no sense", () => {
+    for (const change of [{ category: "cake" }, { price: -1 }, { price: "12" }, { price: Number.NaN }, { percentage: "72" }, { stock: -1 }, { stock: 1.5 }, { stock: "3" }]) {
+      expect(toProduct({ ...wire(), ...change }), JSON.stringify(change)).toBeNull();
+    }
+  });
+
+  it("leaves out the pictures that are not web addresses, and the notes that are not known", () => {
+    const product = toProduct({ ...wire(), images: ["javascript:alert(1)", "data:text/html,x", "https://images.example.com/a.jpg", "/local.jpg", 4], thumbnail: "javascript:alert(1)", notes: ["fruity", "spicy", 3] })!;
+
+    expect(product.images).toEqual(["https://images.example.com/a.jpg", "/local.jpg"]);
+    expect(product.image).toBe("https://images.example.com/a.jpg");
+    expect(product.notes).toEqual(["fruity"]);
+  });
+
+  it("has no pictures when the product has none, and keeps the months only when they have the shape of a month", () => {
+    const product = toProduct({ ...wire(), images: undefined, thumbnail: "", harvestMonth: "2024-09", roastMonth: "next week" })!;
+
+    expect(product.images).toEqual([]);
+    expect(product.image).toBe("");
+    expect(product.harvestMonth).toBe("2024-09");
+    expect(product.roastMonth).toBe("");
+  });
+
+  it("uses the id of the origin when the server sends no name for it", () => {
+    expect(toProduct({ ...wire(), originName: "" })!.originName).toBe("ecuador");
+  });
+});
+
+describe("fetchProducts", () => {
+  it("asks for the whole shop in the language of the page, and gives the products in the order of the server", async () => {
+    const server = installFakeServer();
+
+    const products = await fetchProducts("es");
+
+    expect(products).toHaveLength(7);
+    expect(products.find((product) => product.slug === "peru-68")?.name).toBe("Perú 68%");
+    const [call] = server.callsTo("GET", "/api/products?limit=48&sort=featured");
+    expect(call.headers["accept-language"]).toBe("es");
+  });
+
+  it("leaves out the products that are not valid, and keeps the others", async () => {
+    answerWith({ items: [wire(), { id: "x" }, null, { ...wire(), slug: "no way" }], page: 1, limit: 48, total: 4 });
+
+    expect((await fetchProducts("en")).map((product) => product.slug)).toEqual(["ecuador-72"]);
+  });
+
+  it.each([[{}], [{ items: "none" }], [null], ["text"]])("refuses an answer that is not a list (%j)", async (body) => {
+    answerWith(body);
+
+    await expect(fetchProducts("en")).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("fails with an ApiError when the server cannot be reached or answers with an error", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))));
+    await expect(fetchProducts("en")).rejects.toMatchObject({ status: 0 });
+
+    answerWith({ error: { code: "INTERNAL_ERROR", message: "Down.", details: [] } }, 500);
+    await expect(fetchProducts("en")).rejects.toMatchObject({ status: 500, code: "INTERNAL_ERROR" });
+  });
+});
+
