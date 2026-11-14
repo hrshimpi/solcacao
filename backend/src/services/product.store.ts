@@ -67,6 +67,11 @@ export interface Visibility {
   includeInactive?: boolean;
 }
 
+export interface StockItem {
+  productId: string;
+  quantity: number;
+}
+
 export interface ProductStore {
   list(query: ProductQuery): Promise<{ items: StoredProduct[]; total: number }>;
   findBySlug(slug: string, visibility?: Visibility): Promise<StoredProduct | null>;
@@ -80,6 +85,11 @@ export interface ProductStore {
   update(id: string, change: ProductChange): Promise<StoredProduct | null>;
   // sets the stock to the given number, and the threshold for "low stock" when it is given
   setInventory(id: string, stock: { quantity: number; lowStockThreshold?: number }): Promise<StoredProduct | null>;
+  // Takes units out of the stock of several products, all or nothing: when one of them has fewer than asked for, the ones taken
+  // before it are put back and the answer names it. One product is listed once (the caller adds up the lines).
+  reserveStock(items: StockItem[]): Promise<{ ok: true } | { ok: false; productId: string }>;
+  // puts units back (a cancelled order, or a payment that did not go through)
+  releaseStock(items: StockItem[]): Promise<void>;
   // for the seed: makes the product when its slug is new, changes it when it is not. The stock is only set for a new
   // product, so running the seed again never puts the numbers back.
   upsertBySlug(data: NewProduct, quantityIfNew: number): Promise<"created" | "updated">;
@@ -270,6 +280,30 @@ export function createMongoProductStore(): ProductStore {
       if (!doc) return null;
       await Inventory.updateOne({ productId: doc._id }, { $set: { quantity, ...(lowStockThreshold !== undefined ? { lowStockThreshold } : {}) } }, { upsert: true, runValidators: true });
       return (await withStock([doc]))[0];
+    },
+
+    async reserveStock(items) {
+      requireDatabase();
+      const taken: StockItem[] = [];
+      for (const item of items) {
+        // an update that only matches while there are enough units, so two orders for the last one cannot both get it
+        const result = objectIdPattern.test(item.productId)
+          ? await Inventory.updateOne({ productId: new mongoose.Types.ObjectId(item.productId), quantity: mongoose.trusted({ $gte: item.quantity }) }, { $inc: { quantity: -item.quantity } })
+          : { modifiedCount: 0 };
+        if (result.modifiedCount !== 1) {
+          await store.releaseStock(taken);
+          return { ok: false, productId: item.productId };
+        }
+        taken.push(item);
+      }
+      return { ok: true };
+    },
+
+    async releaseStock(items) {
+      requireDatabase();
+      for (const item of items) {
+        if (objectIdPattern.test(item.productId)) await Inventory.updateOne({ productId: new mongoose.Types.ObjectId(item.productId) }, { $inc: { quantity: item.quantity } });
+      }
     },
 
     async upsertBySlug(data, quantityIfNew) {

@@ -246,6 +246,59 @@ function storeContract(makeStore: () => ProductStore | Promise<ProductStore>) {
     });
   });
 
+  describe("taking stock for an order", () => {
+    it("takes units out of several products at once, and puts them back", async () => {
+      const peru = (await store.findBySlug("peru-68"))!;
+      const ecuador = (await store.findBySlug("ecuador-72"))!;
+
+      expect(await store.reserveStock([{ productId: peru.id, quantity: 5 }, { productId: ecuador.id, quantity: 20 }])).toEqual({ ok: true });
+      expect((await store.findById(peru.id))?.quantity).toBe(55);
+      expect((await store.findById(ecuador.id))?.quantity).toBe(100);
+
+      await store.releaseStock([{ productId: peru.id, quantity: 5 }, { productId: ecuador.id, quantity: 20 }]);
+      expect((await store.findById(peru.id))?.quantity).toBe(60);
+      expect((await store.findById(ecuador.id))?.quantity).toBe(120);
+    });
+
+    it("can take all of the stock, and no more", async () => {
+      const peru = (await store.findBySlug("peru-68"))!;
+
+      expect(await store.reserveStock([{ productId: peru.id, quantity: 60 }])).toEqual({ ok: true });
+      expect((await store.findById(peru.id))?.quantity).toBe(0);
+      expect(await store.reserveStock([{ productId: peru.id, quantity: 1 }])).toEqual({ ok: false, productId: peru.id });
+      expect((await store.findById(peru.id))?.quantity).toBe(0);
+    });
+
+    it("takes nothing at all when one of the products has too few, and names it", async () => {
+      const ecuador = (await store.findBySlug("ecuador-72"))!;
+      const venezuela = (await store.findBySlug("venezuela-76"))!;
+
+      const result = await store.reserveStock([{ productId: ecuador.id, quantity: 10 }, { productId: venezuela.id, quantity: 7 }]);
+
+      expect(result).toEqual({ ok: false, productId: venezuela.id });
+      expect((await store.findById(ecuador.id))?.quantity).toBe(120);
+      expect((await store.findById(venezuela.id))?.quantity).toBe(6);
+    });
+
+    it("refuses a product that is not there, and takes nothing", async () => {
+      const ecuador = (await store.findBySlug("ecuador-72"))!;
+
+      expect(await store.reserveStock([{ productId: ecuador.id, quantity: 1 }, { productId: missingId, quantity: 1 }])).toEqual({ ok: false, productId: missingId });
+      expect(await store.reserveStock([{ productId: "not an id", quantity: 1 }])).toEqual({ ok: false, productId: "not an id" });
+      expect((await store.findById(ecuador.id))?.quantity).toBe(120);
+    });
+
+    it("gives the last unit to only one of two orders at the same moment", async () => {
+      const venezuela = (await store.findBySlug("venezuela-76"))!;
+      await store.setInventory(venezuela.id, { quantity: 1 });
+
+      const results = await Promise.all([store.reserveStock([{ productId: venezuela.id, quantity: 1 }]), store.reserveStock([{ productId: venezuela.id, quantity: 1 }])]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect((await store.findById(venezuela.id))?.quantity).toBe(0);
+    });
+  });
+
   describe("the seed", () => {
     it("makes a product when its slug is new, and changes it when it is not", async () => {
       const [only] = seedProducts;

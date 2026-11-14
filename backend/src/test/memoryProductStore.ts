@@ -103,6 +103,27 @@ export function createMemoryProductStore() {
       return structuredClone(found);
     },
 
+    async reserveStock(items) {
+      const taken: { productId: string; quantity: number }[] = [];
+      for (const item of items) {
+        const found = records.find((record) => record.id === item.productId.toLowerCase());
+        if (!found || found.quantity < item.quantity) {
+          await store.releaseStock(taken);
+          return { ok: false, productId: item.productId };
+        }
+        found.quantity -= item.quantity;
+        taken.push(item);
+      }
+      return { ok: true };
+    },
+
+    async releaseStock(items) {
+      for (const item of items) {
+        const found = records.find((record) => record.id === item.productId.toLowerCase());
+        if (found) found.quantity += item.quantity;
+      }
+    },
+
     async upsertBySlug(data, quantityIfNew) {
       const existing = records.find((record) => record.slug === data.slug.toLowerCase());
       if (!existing) {
