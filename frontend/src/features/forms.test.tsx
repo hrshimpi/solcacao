@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { installFakeServer } from "../test/fakeServer";
 import { renderAt } from "../test/renderAt";
@@ -45,7 +45,28 @@ describe("contact form", () => {
     expect(page.getByRole("radio", { name: "Support" })).toBeChecked();
   });
 
-  it("confirms the message when everything is filled in", async () => {
+  it("confirms the message when everything is filled in, and sends it to the server", async () => {
+    const server = installFakeServer();
+    const { user, page } = await openPage("/en/contact");
+
+    await user.type(page.getByLabelText(/Name/), "  Isabel ");
+    await user.type(page.getByLabelText(/Email/), "isabel@example.com");
+    await user.type(page.getByLabelText(/Message/), "Do you ship to Canada?");
+    await user.click(page.getByRole("radio", { name: "Support" }));
+    await user.click(page.getByRole("button", { name: "Send message" }));
+
+    expect(await page.findByRole("heading", { name: "Message received." })).toHaveFocus();
+    expect(server.callsTo("POST", "/api/inquiries")[0].body).toEqual({
+      category: "support",
+      name: "Isabel",
+      email: "isabel@example.com",
+      message: "Do you ship to Canada?",
+    });
+  });
+
+  it("does not say that the message was received when the server could not be reached, and keeps what was written", async () => {
+    const server = installFakeServer();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => (String(input).startsWith("/api/inquiries") ? Promise.reject(new TypeError("Failed to fetch")) : server.handle(input, init))));
     const { user, page } = await openPage("/en/contact");
 
     await user.type(page.getByLabelText(/Name/), "Isabel");
@@ -53,7 +74,54 @@ describe("contact form", () => {
     await user.type(page.getByLabelText(/Message/), "Do you ship to Canada?");
     await user.click(page.getByRole("button", { name: "Send message" }));
 
-    expect(await page.findByRole("heading", { name: "Message received." })).toHaveFocus();
+    const alert = await page.findByRole("alert");
+    expect(alert).toHaveTextContent("We couldn't reach the server, so your message was not sent.");
+    expect(alert).toHaveFocus();
+    expect(page.queryByRole("heading", { name: "Message received." })).not.toBeInTheDocument();
+    expect(page.getByLabelText(/Message/)).toHaveValue("Do you ship to Canada?");
+  });
+
+  it("tells the person when they have sent too many messages", async () => {
+    const server = installFakeServer();
+    server.override = (call) =>
+      call.path === "/api/inquiries"
+        ? new Response(JSON.stringify({ error: { code: "RATE_LIMITED", message: "Slow down.", details: [] } }), { status: 429 })
+        : undefined;
+    const { user, page } = await openPage("/en/contact");
+
+    await user.type(page.getByLabelText(/Name/), "Isabel");
+    await user.type(page.getByLabelText(/Email/), "isabel@example.com");
+    await user.type(page.getByLabelText(/Message/), "Do you ship to Canada?");
+    await user.click(page.getByRole("button", { name: "Send message" }));
+
+    expect(await page.findByRole("alert")).toHaveTextContent("You have sent a lot of messages.");
+  });
+
+  it("shows a problem that the server finds on the field it names", async () => {
+    const server = installFakeServer();
+    server.override = (call) =>
+      call.path === "/api/inquiries"
+        ? new Response(JSON.stringify({ error: { code: "VALIDATION_ERROR", message: "Check the form.", details: [{ field: "email", message: "bad" }] } }), { status: 400 })
+        : undefined;
+    const { user, page } = await openPage("/en/contact");
+
+    await user.type(page.getByLabelText(/Name/), "Isabel");
+    await user.type(page.getByLabelText(/Email/), "isabel@example.com");
+    await user.type(page.getByLabelText(/Message/), "Do you ship to Canada?");
+    await user.click(page.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(page.getByLabelText(/Email/)).toHaveAttribute("aria-invalid", "true"));
+    expect(page.getByLabelText(/Email/)).toHaveAccessibleDescription(/valid email address/);
+    expect(page.getByLabelText(/Email/)).toHaveFocus();
+  });
+
+  it("asks for a name of at least two characters, like the server does", async () => {
+    const { user, page } = await openPage("/en/contact");
+
+    await user.type(page.getByLabelText(/Name/), "I");
+    await user.click(page.getByRole("button", { name: "Send message" }));
+
+    expect(page.getByLabelText(/Name/)).toHaveAccessibleDescription("Use at least 2 characters.");
   });
 
   it("has a WhatsApp link that opens in a new tab and says so", async () => {
@@ -62,6 +130,47 @@ describe("contact form", () => {
     const link = page.getByRole("link", { name: /WhatsApp/ });
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAccessibleName(/opens in a new tab/);
+  });
+});
+
+describe("newsletter box in the footer", () => {
+  const footer = () => within(screen.getByRole("contentinfo"));
+
+  it("subscribes the address, says so, and empties the box", async () => {
+    const server = installFakeServer();
+    const { user } = await openPage("/en");
+
+    await user.type(footer().getByLabelText(/Email address/), "isabel@example.com");
+    await user.click(footer().getByRole("button", { name: "Subscribe" }));
+
+    expect(await footer().findByText(/Thanks for subscribing/)).toBeInTheDocument();
+    expect(server.callsTo("POST", "/api/inquiries")[0].body).toEqual({ category: "newsletter", email: "isabel@example.com" });
+    expect(footer().getByLabelText(/Email address/)).toHaveValue("");
+  });
+
+  it("checks the address before it asks the server", async () => {
+    const server = installFakeServer();
+    const { user } = await openPage("/en");
+
+    await user.type(footer().getByLabelText(/Email address/), "not-an-email");
+    await user.click(footer().getByRole("button", { name: "Subscribe" }));
+
+    expect(footer().getByLabelText(/Email address/)).toHaveAttribute("aria-invalid", "true");
+    expect(server.callsTo("POST", "/api/inquiries")).toHaveLength(0);
+  });
+
+  it("does not say that the person subscribed when it did not work", async () => {
+    const server = installFakeServer();
+    server.override = (call) =>
+      call.path === "/api/inquiries" ? new Response(JSON.stringify({ error: { code: "INTERNAL_ERROR", message: "Down.", details: [] } }), { status: 500 }) : undefined;
+    const { user } = await openPage("/en");
+
+    await user.type(footer().getByLabelText(/Email address/), "isabel@example.com");
+    await user.click(footer().getByRole("button", { name: "Subscribe" }));
+
+    expect(await footer().findByRole("alert")).toHaveTextContent("Something went wrong, so your message was not sent.");
+    expect(footer().queryByText(/Thanks for subscribing/)).not.toBeInTheDocument();
+    expect(footer().getByLabelText(/Email address/)).toHaveValue("isabel@example.com");
   });
 });
 

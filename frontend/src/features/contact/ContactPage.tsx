@@ -1,5 +1,6 @@
-// The contact page: a category, name, email and message form, plus a WhatsApp link. Sending is simulated.
+// The contact page: a category, name, email and message form, plus a WhatsApp link. The message goes to the inquiries API.
 import { useEffect, useRef, useState } from "react";
+import { sendInquiry } from "../../api/inquiries";
 import { useLang } from "../../i18n/LanguageContext";
 import { useForm } from "../../lib/useForm";
 import { usePageTitle } from "../../lib/usePageTitle";
@@ -8,6 +9,7 @@ import { WhatsAppIcon } from "../../ui/Icons";
 import { useAnnounce } from "../../ui/LiveRegion";
 import RadioRow from "../../ui/RadioRow";
 import TextField from "../../ui/TextField";
+import { inquiryProblem } from "./inquiryMessages";
 
 const categoryIds = ["general", "wholesale", "support"] as const;
 type CategoryId = (typeof categoryIds)[number];
@@ -15,31 +17,45 @@ type CategoryId = (typeof categoryIds)[number];
 const whatsappNumber = "15551234567";
 
 export default function ContactPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const announce = useAnnounce();
   usePageTitle(t("titles.contact"));
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(t("footer.whatsappMessage"))}`;
 
   const [category, setCategory] = useState<CategoryId>("general");
   const [sent, setSent] = useState(false);
+  const [problem, setProblem] = useState("");
   const sentRef = useRef<HTMLHeadingElement>(null);
+  const problemRef = useRef<HTMLDivElement>(null);
 
   const form = useForm({
     initial: { name: "", email: "", message: "" },
     rules: {
-      name: [required, maxLength(80)],
+      name: [required, minLength(2), maxLength(80)],
       email: [required, email],
       message: [required, minLength(10), maxLength(1000)],
     },
-    onSubmit: () => {
-      setSent(true);
-      announce(t("contact.sentAnnounce"));
+    onSubmit: async (values) => {
+      setProblem("");
+      try {
+        await sendInquiry({ category, name: values.name.trim(), email: values.email.trim(), message: values.message.trim() }, lang);
+        setSent(true);
+        announce(t("contact.sentAnnounce"));
+      } catch (error) {
+        const found = inquiryProblem(error, t);
+        if (Object.keys(found.fields).length > 0) form.setFieldErrors(found.fields);
+        if (found.form) setProblem(found.form);
+      }
     },
   });
 
   useEffect(() => {
     if (sent) sentRef.current?.focus();
   }, [sent]);
+
+  useEffect(() => {
+    if (problem) problemRef.current?.focus();
+  }, [problem]);
 
   return (
     <div className="bg-stone-paper">
@@ -53,10 +69,14 @@ export default function ContactPage() {
               {t("contact.sentTitle")}
             </h2>
             <p className="font-spectral text-ink-cacao/70">{t("contact.sentBody")}</p>
-            <p className="mt-4 font-sans text-xs text-ink-cacao/70">{t("contact.sentPreview")}</p>
           </div>
         ) : (
-          <form ref={form.formRef} onSubmit={form.handleSubmit} noValidate className="space-y-6">
+          <form ref={form.formRef} onSubmit={form.handleSubmit} noValidate aria-busy={form.submitting} className="space-y-6">
+            {problem && (
+              <div ref={problemRef} role="alert" tabIndex={-1} className="border-l-4 border-pod-wine bg-clay-surface px-4 py-3 font-sans text-sm text-ink-cacao">
+                {problem}
+              </div>
+            )}
             <RadioRow
               legend={t("contact.category")}
               name="category"
@@ -91,7 +111,7 @@ export default function ContactPage() {
                 type="submit"
                 className="min-h-11 bg-sun-gold px-8 py-3 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90"
               >
-                {t("contact.send")}
+                {form.submitting ? t("contact.sending") : t("contact.send")}
               </button>
               <a
                 href={whatsappUrl}

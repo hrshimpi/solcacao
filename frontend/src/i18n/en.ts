@@ -118,7 +118,8 @@ export const en = {
     emailPlaceholder: "your@email.com",
     newsletterHint: "Field notes, new harvests, limited releases.",
     subscribe: "Subscribe",
-    subscribed: "Thanks for subscribing. This is a preview, so no email was sent.",
+    subscribing: "Subscribing...",
+    subscribed: "Thanks for subscribing. We sent you a welcome email.",
     copyright: "© {{year}} SolCacao. All rights reserved.",
   },
   search: {
@@ -484,8 +485,13 @@ export const en = {
     send: "Send message",
     sentTitle: "Message received.",
     sentBody: "We typically respond within one business day.",
-    sentPreview: "This is a preview, so nothing was actually sent.",
     sentAnnounce: "Your message was received.",
+    sending: "Sending...",
+    errors: {
+      network: "We couldn't reach the server, so your message was not sent. Please try again.",
+      tooMany: "You have sent a lot of messages. Please try again in a few minutes.",
+      unknown: "Something went wrong, so your message was not sent. Please try again.",
+    },
   },
   info: {
     faq: {

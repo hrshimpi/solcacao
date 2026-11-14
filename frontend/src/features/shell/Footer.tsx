@@ -1,11 +1,13 @@
 // The site footer: four columns of links, the newsletter form and the copyright line.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { sendInquiry } from "../../api/inquiries";
 import { useLang } from "../../i18n/LanguageContext";
 import { useForm } from "../../lib/useForm";
 import { email, required } from "../../lib/validation";
 import LocaleLink from "../../ui/LocaleLink";
 import { useAnnounce } from "../../ui/LiveRegion";
 import TextField from "../../ui/TextField";
+import { inquiryProblem } from "../contact/inquiryMessages";
 
 const whatsappNumber = "15551234567";
 
@@ -51,20 +53,35 @@ const linkClass =
   "inline-flex min-h-6 items-center py-1 font-spectral text-sm text-paper-text/70 hover:text-paper-text";
 
 export default function Footer() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(t("footer.whatsappMessage"))}`;
   const announce = useAnnounce();
   const [subscribed, setSubscribed] = useState(false);
+  const [problem, setProblem] = useState("");
+  const problemRef = useRef<HTMLParagraphElement>(null);
 
   const form = useForm({
     initial: { email: "" },
     rules: { email: [required, email] },
-    onSubmit: () => {
-      setSubscribed(true);
-      announce(t("footer.subscribed"));
-      form.reset();
+    onSubmit: async (values) => {
+      setProblem("");
+      setSubscribed(false);
+      try {
+        await sendInquiry({ category: "newsletter", email: values.email.trim() }, lang);
+        setSubscribed(true);
+        announce(t("footer.subscribed"));
+        form.reset();
+      } catch (error) {
+        const found = inquiryProblem(error, t);
+        if (found.fields.email) form.setFieldErrors({ email: found.fields.email });
+        if (found.form) setProblem(found.form);
+      }
     },
   });
+
+  useEffect(() => {
+    if (problem) problemRef.current?.focus();
+  }, [problem]);
 
   return (
     <footer className="on-dark bg-ink-cacao text-paper-text">
@@ -155,8 +172,13 @@ export default function Footer() {
               type="submit"
               className="mt-4 min-h-11 w-full bg-sun-gold px-5 py-2.5 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90 sm:w-auto"
             >
-              {t("footer.subscribe")}
+              {form.submitting ? t("footer.subscribing") : t("footer.subscribe")}
             </button>
+            {problem && (
+              <p ref={problemRef} role="alert" tabIndex={-1} className="mt-3 font-sans text-sm text-paper-text">
+                {problem}
+              </p>
+            )}
             {subscribed && <p className="mt-3 font-sans text-sm text-paper-text">{t("footer.subscribed")}</p>}
           </form>
         </div>

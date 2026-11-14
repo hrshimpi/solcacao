@@ -120,7 +120,8 @@ export const es: typeof en = {
     emailPlaceholder: "tu@correo.com",
     newsletterHint: "Notas de campo, nuevas cosechas y ediciones limitadas.",
     subscribe: "Suscribirme",
-    subscribed: "Gracias por suscribirte. Esta es una vista previa, así que no se envió ningún correo.",
+    subscribing: "Suscribiendo...",
+    subscribed: "Gracias por suscribirte. Te enviamos un correo de bienvenida.",
     copyright: "© {{year}} SolCacao. Todos los derechos reservados.",
   },
   search: {
@@ -487,7 +488,12 @@ export const es: typeof en = {
     send: "Enviar mensaje",
     sentTitle: "Mensaje recibido.",
     sentBody: "Normalmente respondemos en un día hábil.",
-    sentPreview: "Esto es una vista previa, así que en realidad no se envió nada.",
+    sending: "Enviando...",
+    errors: {
+      network: "No pudimos conectar con el servidor, así que tu mensaje no se envió. Inténtalo de nuevo.",
+      tooMany: "Has enviado muchos mensajes. Inténtalo de nuevo en unos minutos.",
+      unknown: "Algo salió mal, así que tu mensaje no se envió. Inténtalo de nuevo.",
+    },
     sentAnnounce: "Se recibió tu mensaje.",
   },
   info: {
