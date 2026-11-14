@@ -1,6 +1,5 @@
 node_modules/
 dist/
-uploads/
 .env
 .env.*
 !.env.example
@@ -8,5 +7,3 @@ uploads/
 .DS_Store
 .vscode/
 .idea/
-playwright-report/
-test-results/
