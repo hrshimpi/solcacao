@@ -13,6 +13,7 @@ It's a team project for CSE 5335 (Web Data Management) at UT Arlington, Fall 202
 - A cart in a dialog that is kept by the server: a visitor's cart in a cookie, a signed in person's cart in the account, and the visitor's cart is added to the account at sign in. The stock is checked by the server, and the page says so when there are fewer than asked for. The Checkout button opens the checkout
 - A checkout for a signed in person: where to send the order (a saved address, or a new one added on the page), how fast (standard or express) and how to pay, with the order summary beside it. The payment is made up (see "Checkout and orders API"): use the card `4242 4242 4242 4242`, and `4000 0000 0000 0002` to see a card that is declined. The total, the shipping and the tax are always the ones of the server
 - Your orders, in your account: a list of everything bought, newest first, and a page for each order with what was bought, where it goes, how it was paid and how far along it is. An order that nobody started to pack can be cancelled there
+- An admin dashboard (`/admin`, for admin accounts only): the numbers of the shop, every order with a filter and a search, a page for each order with the buttons that move it along (packing, shipped, delivered, or cancelled with a refund), the products with their price, stock and whether they are in the shop, a form to add a product with its photo and its texts in both languages, and the messages of the contact form. See "The dashboard"
 - Wholesale page and the four step Corporate Cacao Studio form for business quotes, and a My quote requests page where a business account follows its requests. The wholesale page is open to everybody, the studio and the requests are for business accounts (see "Trying the studio" below)
 - Real accounts: create an account (retail or business), sign in, forgot and reset password, and a profile page with the personal details, the language of the emails, a password change, the notifications switch, shipping addresses and (for a business account) the business details with their verification. A reload keeps you signed in
 - Built to be usable with a keyboard and a screen reader, and to work from 320 pixels wide up. The notes are in the `docs` folder
@@ -330,6 +331,37 @@ The pages never show a product they do not have from the server, and never show 
 - **Sign in and out.** The cart is read again when somebody signs in or out. At a sign in the visitor's cart is added to the account's cart.
 - **Contact form and newsletter.** Both send an inquiry (`POST /api/inquiries`). The page says that the message was sent only when the server accepted it, keeps what was written when it did not, and shows a problem on the field that the server names.
 - **In the tests.** `src/test/fakeServer.ts` is a stand-in for the backend with the same paths, status codes and error codes (products, cart, inquiries and accounts), and every unit test talks to it unless the test says otherwise. The browser tests use the same stand-in through `mockShopApi` in `e2e/helpers.ts`.
+
+## The dashboard
+
+An admin signs in like anybody else, and finds **Open the admin dashboard** on the profile page (or goes to `/en/admin`). Anybody who is not signed in is sent to sign in first, and a customer is told that the page is for the team. Make an admin with `pnpm create-admin` (see "Accounts and security"). The server checks the token of an admin again for every call.
+
+| Page | What it does |
+|---|---|
+| Overview | Revenue (without cancelled orders), the number of orders and how many are from today, the average order, the customers, the orders by status, what is low on stock or sold out, and the latest orders |
+| Orders | Every order, newest first, fifteen to a page, with a filter by status and a search by number, email or name |
+| An order | What was bought, the customer, where it goes, how it was paid, and the buttons for the steps the rules allow. Cancelling asks first, puts the stock back and marks the payment as refunded |
+| Products | The price, the stock and whether the product is in the shop, each with its own Save button |
+| Add a product | The form for a new product: slug, SKU, the texts in English and in Spanish, the origin, the category, the cacao percentage, the price in dollars, the stock, the notes, the photo and the months. The photo is a web address or a photo of the site (the folder `frontend/public/sample-chocolates` has some). The product is in the shop as soon as it is saved |
+| Inquiries | The messages from the contact form and the feedback and newsletter boxes, with a filter by status and a button that marks one as answered |
+
+## Ideas that are not built
+
+Things a shop like this usually has, that this one does not have yet:
+
+- **Real payments** (Stripe or another service): the payment is made up. The order service only needs another object with `charge` and `refund`.
+- **Guest checkout** (buying without an account), and **buying again** from an old order.
+- **Discount codes**, gift cards and free shipping rules by country. Shipping and tax are fixed rates today (see `pricing.ts`).
+- **Shipping tracking numbers** and the carrier on the order, and a **printable invoice** or receipt (PDF).
+- **Refunds of part of an order**, and returns.
+- **Reviews and ratings** of products, a wish list, and "back in stock" emails for sold out products.
+- **Search suggestions**, sorting and pages in the shop (the shop loads up to 48 products at once).
+- **Customers in the dashboard**: a list, their orders, and blocking an account. **More than one admin role** (for example one who can only read), and a **log of what each admin did**.
+- **Editing a product** in the dashboard (today it can be added, and its price, stock and visibility changed). **Uploading photos** (today the photo is an address).
+- **Quote requests** of business accounts in the dashboard (the API for the team exists: `PATCH /api/b2b/requests/:id`).
+- **Two step sign in**, a check of passwords against lists of leaked passwords, and **deleting an account**.
+- **Emails for more events** (an order that was cancelled, a quote that was answered is already sent), and **email preferences** per kind of email.
+- **Reports** over time (a chart of the sales by day), and exporting orders to a spreadsheet.
 
 ## Checkout and orders API
 
