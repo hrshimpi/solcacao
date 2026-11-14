@@ -311,3 +311,46 @@ export function newsletterWelcomeEmail(email: string, lang: string, options: Tem
     footer: words.footer,
   });
 }
+
+const resetText: Record<MailLang, { subject: string; heading: string; hello: (name?: string) => string; ask: string; button: string; expires: string; ignore: string; footer: string }> = {
+  en: {
+    subject: "Reset your SolCacao password",
+    heading: "Reset your password",
+    hello: (name) => (name ? `Hello ${name},` : "Hello,"),
+    ask: "We got a request to set a new password for your SolCacao account. Use the button below to choose one.",
+    button: "Choose a new password",
+    expires: "The link works once and stops working after one hour.",
+    ignore: "If you did not ask for this, you can ignore this email. Your password stays the same.",
+    footer: "You are receiving this email because a password reset was asked for this address on SolCacao.",
+  },
+  es: {
+    subject: "Restablece tu contraseña de SolCacao",
+    heading: "Restablece tu contraseña",
+    hello: (name) => (name ? `Hola ${name},` : "Hola,"),
+    ask: "Recibimos una solicitud para crear una nueva contraseña para tu cuenta de SolCacao. Usa el botón de abajo para elegirla.",
+    button: "Elegir una contraseña nueva",
+    expires: "El enlace funciona una sola vez y deja de funcionar después de una hora.",
+    ignore: "Si no lo pediste, puedes ignorar este correo. Tu contraseña no cambia.",
+    footer: "Recibes este correo porque se pidió restablecer la contraseña de esta dirección en SolCacao.",
+  },
+};
+
+// the email with the link to choose a new password, in English or Spanish (anything else gets English)
+export function passwordResetEmail(user: MailRecipient, link: string, lang: string): MailContent {
+  const language: MailLang = lang === "es" ? "es" : "en";
+  const words = resetText[language];
+
+  return render({
+    lang: language,
+    subject: words.subject,
+    heading: words.heading,
+    blocks: [
+      { kind: "paragraph", text: words.hello(user.name) },
+      { kind: "paragraph", text: words.ask },
+      { kind: "button", label: words.button, url: link },
+      { kind: "paragraph", text: words.expires },
+      { kind: "paragraph", text: words.ignore },
+    ],
+    footer: words.footer,
+  });
+}

@@ -10,6 +10,7 @@ import {
   inquiryEmail,
   isValidAddress,
   newsletterWelcomeEmail,
+  passwordResetEmail,
   quoteReadyEmail,
   quoteRequestEmail,
   type InquiryMailData,
@@ -29,6 +30,8 @@ export interface MailConfig {
   toWholesale: string;
   // the address of the website, for the buttons in the emails
   siteUrl: string;
+  // when email is only logged, also log the text of emails with a secret link (for trying the reset flow in development)
+  logSecrets?: boolean;
 }
 
 export interface MailLogger {
@@ -64,12 +67,16 @@ export function createMailService(options: { config: MailConfig; log: MailLogger
   const onlyLogging = config.host.trim() === "";
 
   // builds the message, sends it and answers true or false. Nothing escapes this function as an error.
-  async function deliver(kind: string, prepare: () => Message): Promise<boolean> {
+  // secret is for emails with a link that gives access to an account: when the mail is only logged, the text is left out
+  async function deliver(kind: string, prepare: () => Message, options: { secret?: boolean } = {}): Promise<boolean> {
     try {
       const message = prepare();
       await transport.sendMail({ from: config.from, ...message });
       if (onlyLogging) {
-        log.info({ kind, to: message.to, subject: message.subject, text: message.text }, "email not sent, SMTP_HOST is empty");
+        log.info(
+          { kind, to: message.to, subject: message.subject, ...(options.secret && !config.logSecrets ? {} : { text: message.text }) },
+          "email not sent, SMTP_HOST is empty",
+        );
       }
       return true;
     } catch (error) {
@@ -108,6 +115,18 @@ export function createMailService(options: { config: MailConfig; log: MailLogger
       });
     },
 
+    // to the person who asked to reset their password, with the link to do it
+    sendPasswordReset(user: MailRecipient, link: string, lang: string): Promise<boolean> {
+      return deliver(
+        "password-reset",
+        () => {
+          if (!isValidAddress(user.email)) throw new Error("the user has no valid email address");
+          return { to: user.email, ...passwordResetEmail(user, link, lang) };
+        },
+        { secret: true },
+      );
+    },
+
     // to the person who just subscribed, in English or Spanish
     sendNewsletterWelcome(email: string, lang: string): Promise<boolean> {
       return deliver("newsletter", () => {
@@ -128,8 +147,9 @@ const mail = createMailService({
     toSupport: env.MAIL_TO_SUPPORT,
     toWholesale: env.MAIL_TO_WHOLESALE,
     siteUrl: env.SITE_URL,
+    logSecrets: env.NODE_ENV === "development",
   },
   log: logger,
 });
 
-export const { sendInquiryEmail, sendQuoteNotification, sendQuoteReady, sendNewsletterWelcome } = mail;
+export const { sendInquiryEmail, sendQuoteNotification, sendQuoteReady, sendNewsletterWelcome, sendPasswordReset } = mail;
