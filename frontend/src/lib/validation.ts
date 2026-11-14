@@ -14,7 +14,12 @@ export interface FieldError {
     | "errors.postalCode"
     | "checkout.errors.cardNumber"
     | "checkout.errors.expiry"
-    | "checkout.errors.cvc";
+    | "checkout.errors.cvc"
+    | "errors.slug"
+    | "errors.sku"
+    | "errors.month"
+    | "errors.imageUrl"
+    | "errors.price";
   params?: Record<string, number>;
 }
 
@@ -70,6 +75,21 @@ export const cardExpiry =
   };
 
 export const cardCvc: Rule = (value) => (!value.trim() || /^\d{3,4}$/.test(value.trim()) ? null : { key: "checkout.errors.cvc" });
+
+// the address of a product page: lower case words joined with dashes
+export const slug: Rule = (value) => (!value.trim() || /^[a-z0-9]+(-[a-z0-9]+)*$/i.test(value.trim()) ? null : { key: "errors.slug" });
+
+// the code of a product: capitals, numbers and dashes (it is written in capitals on the way out)
+export const sku: Rule = (value) => (!value.trim() || /^[A-Z0-9][A-Z0-9-]*$/i.test(value.trim()) ? null : { key: "errors.sku" });
+
+// a month like 2024-09
+export const month: Rule = (value) => (!value.trim() || /^\d{4}-(0[1-9]|1[0-2])$/.test(value.trim()) ? null : { key: "errors.month" });
+
+// a web address that starts with https://, or a photo of the site that starts with /
+export const imageUrl: Rule = (value) => (!value.trim() || /^(https:\/\/|\/)[^\s"'<>]+$/i.test(value.trim()) ? null : { key: "errors.imageUrl" });
+
+// a price in dollars with at most two decimals, more than nothing
+export const price: Rule = (value) => (!value.trim() || (/^\d+([.,]\d{1,2})?$/.test(value.trim()) && Number(value.trim().replace(",", ".")) > 0) ? null : { key: "errors.price" });
 
 export const minLength =
   (count: number): Rule =>
