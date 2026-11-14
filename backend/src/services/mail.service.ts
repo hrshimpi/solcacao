@@ -127,7 +127,7 @@ const mail = createMailService({
     from: env.MAIL_FROM,
     toSupport: env.MAIL_TO_SUPPORT,
     toWholesale: env.MAIL_TO_WHOLESALE,
-    siteUrl: env.CLIENT_ORIGIN,
+    siteUrl: env.SITE_URL,
   },
   log: logger,
 });
