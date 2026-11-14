@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
+import { cookieSecret } from "./config/secrets.ts";
 import { env } from "./config/env.ts";
 import { logger } from "./logger.ts";
 import { errorHandler } from "./middleware/errorHandler.ts";
@@ -42,7 +43,7 @@ export function createApp() {
       skip: (req) => req.path === "/health" || req.method === "OPTIONS",
     }),
   );
-  app.use(cookieParser());
+  app.use(cookieParser(cookieSecret));
   app.use("/api", checkOrigin(env.CLIENT_ORIGINS));
   app.use(express.json({ limit: "100kb" }));
   app.use("/api", detectLanguage);
