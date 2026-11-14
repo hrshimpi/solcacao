@@ -8,7 +8,10 @@ export interface FieldError {
     | "errors.minNumber"
     | "errors.maxNumber"
     | "errors.wholeNumber"
-    | "errors.phone";
+    | "errors.phone"
+    | "errors.password"
+    | "errors.passwordLong"
+    | "errors.postalCode";
   params?: Record<string, number>;
 }
 
@@ -21,6 +24,17 @@ export const email: Rule = (value) =>
 
 export const phone: Rule = (value) =>
   !value.trim() || /^[+()\d\s-]{7,20}$/.test(value.trim()) ? null : { key: "errors.phone" };
+
+// a new password: at least 10 characters with a letter and a number, and at most 72 bytes (what the server can keep).
+// An empty value is left to the required rule.
+export const newPassword: Rule = (value) => {
+  if (!value) return null;
+  if (new TextEncoder().encode(value).length > 72) return { key: "errors.passwordLong" };
+  return value.length >= 10 && /\p{L}/u.test(value) && /\p{N}/u.test(value) ? null : { key: "errors.password" };
+};
+
+// a zip code or postal code: letters, numbers, spaces and dashes, starting with a letter or a number
+export const postalCode: Rule = (value) => (!value.trim() || /^[A-Za-z0-9][A-Za-z0-9 -]*$/.test(value.trim()) ? null : { key: "errors.postalCode" });
 
 export const minLength =
   (count: number): Rule =>
