@@ -243,9 +243,9 @@ Every route of the API is in one of these groups. The test `backend/src/access.t
 |---|---|---|
 | Anyone | register, login, refresh, logout, forgot and reset password, `GET /api/products...`, `POST /api/inquiries`, the health checks | the limits on each route (see the tables above), and the checks on the body |
 | A visitor or a signed in person | the cart | no `Authorization` header is a visitor. A header with a token that is not good is `401`, never taken for a visitor |
-| A signed in person | `/api/users/me...`, a request for a quote, merging the cart | `401 UNAUTHENTICATED` without a good token, `401 TOKEN_EXPIRED` when it ran out. Records of somebody else are `404` |
+| A signed in person | `/api/users/me...`, the checkout and the orders, a request for a quote, merging the cart | `401 UNAUTHENTICATED` without a good token, `401 TOKEN_EXPIRED` when it ran out. Records of somebody else are `404` |
 | A business account | sending and listing quote requests, the business details | `403 FORBIDDEN` for a retail account |
-| An admin | the list of inquiries, the status of a quote request | `403 FORBIDDEN` for anybody else |
+| An admin | the dashboard and the orders of everybody (`/api/admin/...`), the list of inquiries, the status of a quote request | `403 FORBIDDEN` for anybody else |
 | The team (an admin, or the staff key) | `/api/staff/...` | the key is compared in constant time. With no key, an admin token is needed |
 
 Only the `Authorization: Bearer` header is a login. A token in a cookie or in the address is ignored, and the refresh cookie only reaches `/api/auth`. The role and the type of account are in the access token, so a change of role (an admin who is made a user) works when the token is renewed, at most 15 minutes later.
@@ -256,11 +256,12 @@ Every error has the shape `{ error: { code, message, details } }`, and the page 
 
 | Status | Codes |
 |---|---|
-| 400 | `VALIDATION_ERROR`, `INVALID_JSON`, `WRONG_PASSWORD`, `RESET_LINK_INVALID`, `INVALID_TRANSITION`, `INVALID_UPLOAD`, `INVALID_FILE_NAME`, `TOO_MANY_FILES`, `UNEXPECTED_FILE_FIELD` |
+| 400 | `VALIDATION_ERROR`, `CART_EMPTY`, `INVALID_JSON`, `WRONG_PASSWORD`, `RESET_LINK_INVALID`, `INVALID_TRANSITION`, `INVALID_UPLOAD`, `INVALID_FILE_NAME`, `TOO_MANY_FILES`, `UNEXPECTED_FILE_FIELD` |
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED` (renew it and try again), `SESSION_EXPIRED` (the refresh cookie is not good: sign in again), `INVALID_CREDENTIALS` |
+| 402 | `CARD_DECLINED`, `INSUFFICIENT_FUNDS` (the made up payment service refused the card) |
 | 403 | `FORBIDDEN` (also a change that came from another website) |
 | 404 | `NOT_FOUND`, `FILE_NOT_FOUND` |
-| 409 | `EMAIL_TAKEN`, `ADDRESS_LIMIT`, `SKU_TAKEN`, `SLUG_TAKEN`, `INSUFFICIENT_STOCK`, `CART_FULL`, `CART_BUSY`, `REQUEST_CHANGED` |
+| 409 | `EMAIL_TAKEN`, `ADDRESS_LIMIT`, `SKU_TAKEN`, `SLUG_TAKEN`, `INSUFFICIENT_STOCK`, `CART_FULL`, `CART_BUSY`, `CART_CHANGED`, `ORDER_CHANGED`, `REQUEST_CHANGED` |
 | 413 | `PAYLOAD_TOO_LARGE`, `FILE_TOO_LARGE` |
 | 429 | `RATE_LIMITED`, `TOO_MANY_ATTEMPTS` (a locked account) |
 | 500 | `INTERNAL_ERROR`: nothing else is said, the real error is in the log with the id of the request (`X-Request-Id`) |
@@ -324,6 +325,46 @@ The pages never show a product they do not have from the server, and never show 
 - **Sign in and out.** The cart is read again when somebody signs in or out. At a sign in the visitor's cart is added to the account's cart.
 - **Contact form and newsletter.** Both send an inquiry (`POST /api/inquiries`). The page says that the message was sent only when the server accepted it, keeps what was written when it did not, and shows a problem on the field that the server names.
 - **In the tests.** `src/test/fakeServer.ts` is a stand-in for the backend with the same paths, status codes and error codes (products, cart, inquiries and accounts), and every unit test talks to it unless the test says otherwise. The browser tests use the same stand-in through `mockShopApi` in `e2e/helpers.ts`.
+
+## Checkout and orders API
+
+A signed in person buys what is in the cart of their account. The page sends only an address, a way to ship and a card: the lines, the prices and the totals all come from the server, and a body that carries any of them is a `400`.
+
+| Request | What it does |
+|---|---|
+| `GET /api/checkout?shipping=standard` | `{ cart, shippingOptions, shipping, totals, ready }`: the cart as the server holds it, what each way to ship costs for it, and `totals: { subtotal, shipping, tax, total }` in cents. `ready` is false for an empty cart or one with a line that cannot be bought |
+| `POST /api/orders` | `{ addressId, shippingMethod: "standard" \| "express", payment: { cardNumber, expiry: "MM/YY", cvc, nameOnCard }, note? }`. Makes the order: `201 { order }` |
+| `GET /api/orders` | the orders of the person, newest first: `{ items, page, limit, total }` |
+| `GET /api/orders/:id` | one order. An order of somebody else is `404`, the same as one that does not exist |
+| `POST /api/orders/:id/cancel` | cancels an order that is still just paid (nobody started to pack it): the stock goes back and the payment is given back |
+
+What the server does when an order is placed, in this order, and each step only starts when the one before it worked:
+
+1. The address has to be one of the person's saved addresses (`404` otherwise), and the cart has to have something in it (`400 CART_EMPTY`) and nothing sold out or switched off (`409 CART_CHANGED`).
+2. The stock is taken out of the shop for all the lines at once. When one product has fewer than the cart needs, nothing is taken and the answer is `409 INSUFFICIENT_STOCK`. Two shoppers cannot get the last unit: the update only matches while there are enough.
+3. The card is charged by the payment service. When it says no the stock goes back (`402 CARD_DECLINED` or `402 INSUFFICIENT_FUNDS`, or `400` with the field `cardNumber`, `expiry` or `cvc` for a card that is not good).
+4. The order is saved with a copy of everything that mattered on the day (the names and prices of the lines, the address, the shipping, the last four digits of the card), and the cart is emptied. A later change of a price or of an address never changes an order that was paid.
+
+The same cart is one order. Two presses of the button at the same moment give the same order (the second answer is `200`) and charge once. A press after the order was made finds an empty cart (`400 CART_EMPTY`). Placing an order has a limit of 20 tries in 15 minutes for each person, and a try that fails counts, so the route cannot be used to test card numbers.
+
+What an order costs (`backend/src/services/pricing.ts`, the only place with these rules): standard shipping is $5.95 and free from $60.00 of products, express is $14.95, and the tax is 8.25% of the products. All money is in whole cents.
+
+**The payment is made up.** `backend/src/services/payment.service.ts` stands where a real payment service (Stripe, for example) would stand, and nobody is charged. It checks the card like a real one would (the number has to pass the Luhn check, the card must not be out of date, the security code has 3 digits or 4 for American Express). Test cards: `4242 4242 4242 4242` works, `4000 0000 0000 0002` is declined, `4000 0000 0000 9995` has not enough money. The number and the security code are never saved and never written to the log (the logger hides them): an order keeps only the brand, the last four digits and a reference. To use a real service, write another payment object with the same two calls (`charge` and `refund`) and give it to `createOrderService`.
+
+An order has a status: `paid` when it is made, then `processing`, `shipped` and `delivered`, one step at a time, set by the team. It can be `cancelled` until it is shipped. A cancelled order puts the stock back and marks the payment as `refunded`. The customer gets an email when the order is paid and another when it is shipped, in the language of the account (with `SMTP_HOST` empty they are only written to the log).
+
+## Admin API
+
+For admins only, with their access token (no staff key, because these answers show customers). Make an admin with `pnpm create-admin`.
+
+| Request | What it does |
+|---|---|
+| `GET /api/admin/stats` | `{ orders, revenue, averageOrder, byStatus, today: { orders, revenue }, customers, products, lowStock: [...], recentOrders: [...] }`. The revenue leaves out cancelled orders |
+| `GET /api/admin/orders?status=&q=&page=&limit=` | every order, newest first. `q` is a part of the number, the email or the name |
+| `GET /api/admin/orders/:id` | one order, with the customer |
+| `PATCH /api/admin/orders/:id` | `{ status }`. `400 INVALID_TRANSITION` for a step that is not allowed, `409 ORDER_CHANGED` when somebody else moved it first. Cancelling puts the stock back |
+
+The products and their stock are changed with the staff routes (`/api/staff/products`, which also take an admin token), the inquiries with `/api/inquiries` and the quote requests with `/api/b2b/requests`. The dashboard of the website uses them as they are.
 
 ## B2B quotes
 
