@@ -1,43 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { createMongoProfileLookup, profileFrom } from "./profile.service.ts";
+import { createMemoryB2BProfileStore } from "../test/memoryB2BProfileStore.ts";
+import { createMemoryUserStore } from "../test/memoryUserStore.ts";
+import { createMongoProfileLookup, createProfileLookup } from "./profile.service.ts";
 
-describe("profileFrom", () => {
-  it("reads the name, the company and the email", () => {
-    expect(profileFrom({ name: "Isabel Vasquez", companyName: "Hacienda Brands", email: "isabel@example.com" })).toEqual({
-      name: "Isabel Vasquez",
-      companyName: "Hacienda Brands",
-      email: "isabel@example.com",
+async function setup() {
+  const users = createMemoryUserStore();
+  const profiles = createMemoryB2BProfileStore();
+  const business = await users.create({ email: "isabel@hacienda.example", name: "Isabel Vasquez", passwordHash: "x", accountType: "b2b", preferredLanguage: "en" });
+  await profiles.save(business.id, { companyName: "Hacienda Brands" });
+  const retail = await users.create({ email: "marco@example.com", name: "Marco", passwordHash: "x", accountType: "retail", preferredLanguage: "es" });
+  return { lookup: createProfileLookup({ users, profiles }), business, retail };
+}
+
+describe("createProfileLookup", () => {
+  it("knows the name, the email and the company of a business account", async () => {
+    const { lookup, business } = await setup();
+
+    expect(await lookup(business.id)).toEqual({ email: "isabel@hacienda.example", name: "Isabel Vasquez", companyName: "Hacienda Brands" });
+  });
+
+  it("knows no company for a retail account", async () => {
+    const { lookup, retail } = await setup();
+
+    expect(await lookup(retail.id)).toEqual({ email: "marco@example.com", name: "Marco", companyName: undefined });
+  });
+
+  it("knows nothing about a user that is not there", async () => {
+    const { lookup } = await setup();
+
+    expect(await lookup("64b7f0c2a1b2c3d4e5f60718")).toEqual({ email: undefined, name: undefined, companyName: undefined });
+  });
+
+  it("answers with an empty profile instead of failing when a store fails", async () => {
+    const broken = createProfileLookup({
+      users: { ...createMemoryUserStore(), findById: async () => Promise.reject(new Error("database is down")) },
+      profiles: createMemoryB2BProfileStore(),
     });
-  });
 
-  it("puts a first and a last name together when there is no single name", () => {
-    expect(profileFrom({ firstName: "Isabel", lastName: "Vasquez" }).name).toBe("Isabel Vasquez");
-    expect(profileFrom({ firstName: "Isabel" }).name).toBe("Isabel");
-    expect(profileFrom({ lastName: "Vasquez" }).name).toBe("Vasquez");
-  });
-
-  it("prefers a single name over a first and a last name", () => {
-    expect(profileFrom({ name: "Isa", firstName: "Isabel", lastName: "Vasquez" }).name).toBe("Isa");
-  });
-
-  it("finds the company where a business profile keeps it", () => {
-    expect(profileFrom({ b2bProfile: { companyName: "Hacienda Brands" } }).companyName).toBe("Hacienda Brands");
-    expect(profileFrom({ company: "Hacienda Brands" }).companyName).toBe("Hacienda Brands");
-    expect(profileFrom({ companyName: "First", b2bProfile: { companyName: "Second" } }).companyName).toBe("First");
-  });
-
-  it("trims, and ignores empty and wrong kinds of values", () => {
-    expect(profileFrom({ name: "  Isabel  ", companyName: "   ", email: 42, b2bProfile: "text" })).toEqual({
-      name: "Isabel",
-      companyName: undefined,
-      email: undefined,
-    });
-  });
-
-  it("knows nothing about a user that is not there", () => {
-    expect(profileFrom(null)).toEqual({});
-    expect(profileFrom(undefined)).toEqual({});
-    expect(profileFrom({})).toEqual({ name: undefined, companyName: undefined, email: undefined });
+    expect(await broken("64b7f0c2a1b2c3d4e5f60718")).toEqual({});
   });
 });
 
