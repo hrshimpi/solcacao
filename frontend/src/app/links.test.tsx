@@ -1,39 +1,48 @@
-import { act, fireEvent, render } from "@testing-library/react";
-import { createMemoryRouter, matchRoutes, RouterProvider } from "react-router";
-import { products } from "../data/products";
+import { act, fireEvent } from "@testing-library/react";
+import { matchRoutes } from "react-router";
+import { getProducts } from "../data/products";
+import type { AccountType } from "../features/auth/components/AuthShell";
+import { renderAt } from "../test/renderAt";
 import { routes } from "./routes";
 
-const pages = [
-  "/",
-  "/shop",
-  `/shop/${products[0].slug}`,
-  "/wholesale",
-  "/wholesale/studio",
-  "/login",
-  "/register",
-  "/profile",
-  "/sampler",
+const products = getProducts("en");
+
+// the studio is only for business accounts, so it is opened as one, and again as a retail account to check its message
+const pages: [path: string, account?: AccountType][] = [
+  ["/en"],
+  ["/es"],
+  ["/en/shop"],
+  [`/en/shop/${products[0].slug}`],
+  ["/en/wholesale"],
+  ["/es/wholesale"],
+  ["/en/wholesale/studio", "business"],
+  ["/en/wholesale/studio", "retail"],
+  ["/es/wholesale/studio", "retail"],
+  ["/en/sampler"],
+  ["/en/contact"],
+  ["/en/account/login"],
+  ["/en/account/register"],
+  ["/en/profile"],
 ];
 
+const cases = pages.map(([path, account]) => [account ? `${path} (${account} account)` : path, path, account] as const);
+
+// a link is fine when it matches a page route (not the 404 route), starts with /en or /es and names a real product
 function isRealPage(pathname: string) {
   const matches = matchRoutes(routes, pathname);
   if (!matches) return false;
 
   const last = matches[matches.length - 1];
   if (last.route.path === "*") return false;
+  if (last.params.lang !== "en" && last.params.lang !== "es") return false;
 
   const slug = last.params.slug;
   return !slug || products.some((product) => product.slug === slug);
 }
 
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  return { router, ...render(<RouterProvider router={router} />) };
-}
-
 describe("links", () => {
-  it.each(pages)("every link on %s points to a real page", (path) => {
-    const { container } = renderAt(path);
+  it.each(cases)("every link on %s points to a real page", (_name, path, account) => {
+    const { container } = renderAt(path, { account });
 
     const hrefs = Array.from(container.querySelectorAll("a[href]"))
       .map((link) => link.getAttribute("href") ?? "")
@@ -45,13 +54,13 @@ describe("links", () => {
     }
   });
 
-  it.each(pages)("no button on %s sends you to a missing page", async (path) => {
-    const first = renderAt(path);
+  it.each(cases)("no button on %s sends you to a missing page", async (_name, path, account) => {
+    const first = renderAt(path, { account });
     const total = first.container.querySelectorAll("button").length;
     first.unmount();
 
     for (let i = 0; i < total; i++) {
-      const { router, container, unmount } = renderAt(path);
+      const { router, container, unmount } = renderAt(path, { account });
 
       await act(async () => {
         fireEvent.click(container.querySelectorAll("button")[i]);

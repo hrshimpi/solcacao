@@ -1,445 +1,234 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+// The Corporate Cacao Studio: a four step wizard (cacao profile, packaging, brand files, review).
+// What you typed is kept when you go back and in a draft that survives a refresh, each step is checked before
+// Continue, the browser asks before the tab is closed with something unsent, and the last step sends the request.
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useLang } from "../../i18n/LanguageContext";
+import { useBeforeUnload } from "../../lib/useBeforeUnload";
+import { useForm } from "../../lib/useForm";
+import { usePageTitle } from "../../lib/usePageTitle";
+import { useAnnounce } from "../../ui/LiveRegion";
+import LocaleLink from "../../ui/LocaleLink";
+import { useAuth } from "../auth/AuthContext";
+import SendFailure from "./components/SendFailure";
+import SendProgress from "./components/SendProgress";
+import SentScreen from "./components/SentScreen";
+import WizardSteps from "./components/WizardSteps";
+import { isReady } from "./quoteRequest";
+import AssetsStep from "./steps/AssetsStep";
+import PackagingStep from "./steps/PackagingStep";
+import ProfileStep from "./steps/ProfileStep";
+import ReviewStep from "./steps/ReviewStep";
+import { clearDraft, hasChanges, saveDraft, startingPoint, toDraft } from "./studioDraft";
+import type { PackagingId, ProfileId } from "./studioOptions";
+import { reviewRules, type ReviewField } from "./studioRules";
+import { useQuoteSubmit } from "./useQuoteSubmit";
 
-const ORIGINS = [
-  {
-    id: "ecu",
-    label: "Ecuador 72%",
-    sub: "Berry, jasmine (Esmeraldas Province)",
-    color: "#6B1F2E",
-  },
-  { id: "per", label: "Peru 68%", sub: "Almond, earth (Junín Region)", color: "#2B4531" },
-  { id: "ven", label: "Venezuela 76%", sub: "Violet, smoke (Barlovento)", color: "#1C1310" },
-  { id: "col", label: "Colombia 64%", sub: "Mango, macadamia (Tumaco)", color: "#4A2A1A" },
-  { id: "mad", label: "Madagascar 80%", sub: "Citrus, raspberry (Sambirano)", color: "#7A3B25" },
-  { id: "custom", label: "Custom blend", sub: "Multi-origin, specify on review", color: "#EFA836" },
-];
-
-const PACKAGING = [
-  { id: "foil", label: "Premium foil wrap", sub: "Matte or gloss, Pantone matched" },
-  { id: "rigid", label: "Rigid gift box", sub: "Magnetic closure, 4-6 bars" },
-  { id: "specimen", label: "Specimen card label", sub: "Kraft board + letterpress style" },
-  { id: "sleeve", label: "Paper sleeve", sub: "Recycled board, minimal print" },
-];
+const stepKeys = ["profile", "packaging", "assets", "review"] as const;
 
 export default function StudioPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(0);
-  const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
-  const [selectedPackaging, setSelectedPackaging] = useState<string | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [formData, setFormData] = useState({
-    company: "Hacienda Brands",
-    contact: "Isabel Vásquez",
-    quantity: "1000",
-    notes: "",
+  const { t } = useLang();
+  const { user } = useAuth();
+  const announce = useAnnounce();
+  usePageTitle(t("titles.studio"));
+
+  // read once when the page opens: the draft from before a refresh, and the names from the account
+  const owner = user?.email ?? "";
+  const [start] = useState(() => startingPoint(owner, user ?? {}));
+
+  const [step, setStep] = useState(start.step);
+  const [profile, setProfile] = useState<ProfileId | null>(start.profile);
+  const [packaging, setPackaging] = useState<PackagingId | null>(start.packaging);
+  const [files, setFiles] = useState<File[]>([]);
+  // the files of the draft were not kept by the refresh, so their names are shown until new files are added
+  const [lostFiles, setLostFiles] = useState(start.fileNames);
+  const [stepError, setStepError] = useState("");
+  const { status, progress, failure, reference, requestId, send, dismissFailure } = useQuoteSubmit();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
+  const firstRender = useRef(true);
+  const announcedRestore = useRef(false);
+
+  const form = useForm<ReviewField>({
+    initial: start.fields,
+    rules: reviewRules,
+    onSubmit: (values) => {
+      const state = { profile, packaging, files, ...values };
+      if (isReady(state)) void send(state);
+    },
   });
 
-  const steps = [
-    "Choose Your Cacao Profile",
-    "Select Packaging & Branding",
-    "Upload Your Brand Assets",
-    "Review & Submit",
-  ];
+  const dirty = hasChanges({ profile, packaging, files, ...form.values }, start.prefill);
+  useBeforeUnload(dirty && status !== "sent");
 
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = Array.from(e.dataTransfer.files).map((f) => f.name);
-    setUploadedFiles((prev) => [...prev, ...files]);
-  };
+  // keep the draft up to date, and drop it when there is nothing to keep or the request was sent
+  useEffect(() => {
+    if (status === "sent" || !dirty) {
+      clearDraft();
+      return;
+    }
+    saveDraft(owner, toDraft(step, { profile, packaging, files, ...form.values }, lostFiles));
+  }, [status, dirty, owner, step, profile, packaging, files, form.values, lostFiles]);
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files).map((f) => f.name);
-    setUploadedFiles((prev) => [...prev, ...files]);
-  };
+  useEffect(() => {
+    if (start.restored && !announcedRestore.current) {
+      announcedRestore.current = true;
+      announce(t("b2b.draft.restored"));
+    }
+  }, [start.restored, announce, t]);
 
-  if (submitted) {
-    return (
-      <div className="pt-14 min-h-screen bg-stone-paper flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center px-6">
-          <div className="border border-ink-cacao p-12 bg-clay-surface">
-            <p className="font-sans text-[10px] tracking-[0.2em] text-ink-cacao/40 uppercase mb-4">
-              Submission received
-            </p>
-            <h2 className="font-spectral text-3xl font-semibold text-ink-cacao mb-4">
-              We have your brief.
-            </h2>
-            <p className="font-spectral text-ink-cacao/70 leading-relaxed mb-8">
-              A quote for <strong>{formData.company}</strong> (
-              {selectedOrigin && ORIGINS.find((o) => o.id === selectedOrigin)?.label},{" "}
-              {formData.quantity} units) will be sent to you within two business days.
-            </p>
-            <button
-              onClick={() => navigate("/wholesale")}
-              className="font-sans text-sm font-medium border border-ink-cacao text-ink-cacao px-6 py-2.5 hover:bg-ink-cacao hover:text-stone-paper transition-colors"
-            >
-              Back to Wholesale
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  // move focus to the step heading when the step (or the confirmation) changes
+  const sent = status === "sent";
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+  }, [step, sent]);
+
+  // a request that could not be sent: focus goes to the message
+  useEffect(() => {
+    if (failure) alertRef.current?.focus();
+  }, [failure]);
+
+  function focusFirstChoice() {
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[role=radiogroup] input")?.focus());
   }
 
-  return (
-    <div className="pt-14 min-h-screen bg-stone-paper">
-      <div className="bg-stone-paper border-b border-ink-cacao">
-        <div className="max-w-4xl mx-auto px-6 py-10">
-          <p className="font-sans text-[10px] tracking-[0.2em] text-ink-cacao/40 uppercase mb-2">
-            B2B · Wholesale
-          </p>
-          <h1 className="font-spectral text-3xl font-semibold text-ink-cacao">
-            The Corporate Cacao Studio
-          </h1>
-        </div>
+  // a message belongs to the step it was shown on, so it does not follow the person to another step
+  function moveTo(target: number) {
+    setStepError("");
+    dismissFailure();
+    setStep(target);
+  }
 
-        <div className="max-w-4xl mx-auto px-6 pb-0">
-          <div className="flex">
-            {steps.map((label, i) => {
-              const isCompleted = i < step;
-              const isActive = i === step;
-              return (
-                <div key={label} className="flex items-stretch flex-1 min-w-0">
-                  <div
-                    className={`flex-1 px-4 py-4 border-t border-l border-b transition-colors cursor-pointer ${
-                      i === steps.length - 1 ? "border-r" : ""
-                    } ${
-                      isCompleted
-                        ? "bg-pod-wine border-pod-wine"
-                        : isActive
-                          ? "bg-stone-paper border-sun-gold border-2"
-                          : "bg-stone-paper border-ink-cacao/20"
-                    }`}
-                    onClick={() => {
-                      if (i <= step) setStep(i);
-                    }}
-                  >
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span
-                        className={`font-mono text-[9px] ${
-                          isCompleted
-                            ? "text-paper-text/70"
-                            : isActive
-                              ? "text-sun-gold"
-                              : "text-ink-cacao/30"
-                        }`}
-                      >
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      {isCompleted && (
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 12 12"
-                          fill="none"
-                          stroke="#F3ECDD"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        >
-                          <path d="M2 6 L5 9 L10 3" />
-                        </svg>
-                      )}
-                    </div>
-                    <p
-                      className={`font-sans text-[10px] leading-tight hidden sm:block ${
-                        isCompleted
-                          ? "text-paper-text/80"
-                          : isActive
-                            ? "text-ink-cacao font-medium"
-                            : "text-ink-cacao/35"
-                      }`}
-                    >
-                      {label}
-                    </p>
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div
-                      className={`w-0 border-r-0 relative flex items-center ${
-                        isCompleted ? "border-pod-wine" : "border-ink-cacao/15"
-                      }`}
-                    >
-                      <div
-                        className="absolute inset-y-0 w-px"
-                        style={{
-                          backgroundImage: `repeating-linear-gradient(to bottom, ${isCompleted ? "#6B1F2E" : "rgba(28,19,16,0.2)"} 0px, ${isCompleted ? "#6B1F2E" : "rgba(28,19,16,0.2)"} 4px, transparent 4px, transparent 8px)`,
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+  function goNext(event: FormEvent) {
+    event.preventDefault();
+    if (step === 0 && !profile) {
+      setStepError(t("studio.errorProfile"));
+      focusFirstChoice();
+      return;
+    }
+    if (step === 1 && !packaging) {
+      setStepError(t("studio.errorPackaging"));
+      focusFirstChoice();
+      return;
+    }
+    moveTo(step + 1);
+  }
+
+  const names = stepKeys.map((key) => t(`studio.steps.${key}`));
+  const shortNames = stepKeys.map((key) => t(`studio.shortSteps.${key}`));
+  const profileLabel = profile ? t(`studio.profiles.${profile}.label`) : t("studio.notChosen");
+  const packagingLabel = packaging ? t(`studio.packaging.${packaging}.label`) : t("studio.notChosen");
+
+  return (
+    <div className="bg-stone-paper">
+      <div className="border-b border-ink-cacao">
+        <div className="mx-auto max-w-4xl px-4 pt-10 sm:px-6">
+          <p className="mb-2 font-sans text-[11px] uppercase tracking-[0.2em] text-ink-cacao/70">{t("studio.eyebrow")}</p>
+          <h1 className="font-spectral text-3xl font-semibold text-ink-cacao">{t("studio.title")}</h1>
+          {status === "editing" && (
+            <WizardSteps names={names} shortNames={shortNames} current={step} onGoTo={moveTo} />
+          )}
+          {status !== "editing" && <div className="h-8" />}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {step === 0 && (
-          <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">Choose your cacao profile</p>
-            <p className="font-sans text-xs text-ink-cacao/50 mb-8">
-              Select a single origin or request a custom blend.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {ORIGINS.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setSelectedOrigin(o.id)}
-                  className={`border p-5 text-left transition-all ${
-                    selectedOrigin === o.id
-                      ? "border-pod-wine bg-clay-surface"
-                      : "border-ink-cacao/25 hover:border-ink-cacao bg-stone-paper"
-                  }`}
-                >
-                  <div
-                    className="w-full h-16 mb-4 border border-ink-cacao/10"
-                    style={{ backgroundColor: o.color, opacity: 0.85 }}
-                  />
-                  <p className="font-spectral text-sm font-semibold text-ink-cacao">{o.label}</p>
-                  <p className="font-sans text-[10px] text-ink-cacao/55 mt-1 leading-snug">
-                    {o.sub}
-                  </p>
-                  {selectedOrigin === o.id && (
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-pod-wine" />
-                      <span className="font-sans text-[9px] text-pod-wine font-medium">
-                        Selected
-                      </span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">Select packaging & branding</p>
-            <p className="font-sans text-xs text-ink-cacao/50 mb-8">
-              All formats available in white-label or co-branded configurations.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {PACKAGING.map((pkg) => (
-                <button
-                  key={pkg.id}
-                  onClick={() => setSelectedPackaging(pkg.id)}
-                  className={`border p-6 text-left flex items-start gap-4 transition-all ${
-                    selectedPackaging === pkg.id
-                      ? "border-pod-wine bg-clay-surface"
-                      : "border-ink-cacao/25 hover:border-ink-cacao bg-stone-paper"
-                  }`}
-                >
-                  <div
-                    className={`w-14 h-14 border shrink-0 flex items-center justify-center transition-colors ${
-                      selectedPackaging === pkg.id
-                        ? "border-pod-wine bg-pod-wine/10"
-                        : "border-ink-cacao/20 bg-clay-surface"
-                    }`}
-                  >
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1"
-                      strokeLinecap="round"
-                      className="text-ink-cacao/50"
-                    >
-                      <rect x="2" y="4" width="20" height="16" />
-                      <path d="M2 8h20" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-spectral text-sm font-semibold text-ink-cacao">
-                      {pkg.label}
-                    </p>
-                    <p className="font-sans text-[10px] text-ink-cacao/55 mt-1">{pkg.sub}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">Upload your brand assets</p>
-            <p className="font-sans text-xs text-ink-cacao/50 mb-8">
-              Accepted formats: PDF, AI, EPS, PNG. Max 50 MB per file.
-            </p>
-
-            <label
-              className={`block border-2 border-dashed p-12 text-center cursor-pointer transition-colors ${
-                dragOver
-                  ? "border-pod-wine bg-pod-wine/5"
-                  : "border-pod-wine/40 hover:border-pod-wine/70"
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleFileDrop}
-            >
-              <input
-                type="file"
-                className="sr-only"
-                multiple
-                accept=".pdf,.ai,.eps,.png"
-                onChange={handleFileInput}
-              />
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinecap="round"
-                className="text-ink-cacao/30 mx-auto mb-3"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" x2="12" y1="3" y2="15" />
-              </svg>
-              <p className="font-spectral text-sm text-ink-cacao/60">
-                Drag files here or click to browse
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-12">
+        {sent ? (
+          <SentScreen
+            headingRef={headingRef}
+            company={form.values.companyName}
+            profile={profileLabel}
+            units={form.values.units}
+            reference={reference}
+            requestId={requestId}
+          />
+        ) : (
+          <form ref={form.formRef} onSubmit={step === 3 ? form.handleSubmit : goNext} noValidate>
+            <h2 id="step-heading" ref={headingRef} tabIndex={-1} className="mb-2 font-spectral text-xl text-ink-cacao">
+              {t(`studio.headings.${stepKeys[step]}`)}
+            </h2>
+            <p className="mb-8 font-sans text-xs text-ink-cacao/70">{t(`studio.hints.${stepKeys[step]}`)}</p>
+            {lostFiles.length > 0 && files.length === 0 && step >= 2 && (
+              <p className="-mt-4 mb-8 border-l-2 border-gold-deep pl-3 font-sans text-sm text-ink-cacao">
+                {t("b2b.draft.filesLost", { names: lostFiles.join(", ") })}
               </p>
-              <p className="font-sans text-[10px] text-ink-cacao/35 mt-1.5">
-                PDF, AI, EPS, PNG · Max 50 MB
-              </p>
-            </label>
-
-            {uploadedFiles.length > 0 && (
-              <div className="mt-6 border-t border-ink-cacao/15 pt-4 space-y-2">
-                {uploadedFiles.map((f, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between py-2 border-b border-ink-cacao/10"
-                  >
-                    <p className="font-sans text-xs text-ink-cacao">{f}</p>
-                    <button
-                      onClick={() => setUploadedFiles((prev) => prev.filter((_, j) => j !== i))}
-                      className="font-sans text-[10px] text-ink-cacao/40 hover:text-ink-cacao transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
             )}
-          </div>
-        )}
 
-        {step === 3 && (
-          <div>
-            <p className="font-spectral text-xl text-ink-cacao mb-2">Review & submit</p>
-            <p className="font-sans text-xs text-ink-cacao/50 mb-8">
-              Edit any field before submitting. A quote will be returned within two business days.
-            </p>
+            {/* while the request is on its way nothing can be changed, because what is being sent was already read */}
+            <fieldset disabled={status === "sending"} className="m-0 min-w-0 border-0 p-0">
+              {step === 0 && (
+                <ProfileStep
+                  headingId="step-heading"
+                  value={profile}
+                  onChange={(id) => {
+                    setProfile(id);
+                    setStepError("");
+                  }}
+                  error={stepError}
+                />
+              )}
 
-            <div className="bg-clay-surface border border-ink-cacao p-8 mb-8">
-              <p className="font-sans text-[10px] tracking-[0.2em] text-ink-cacao/40 uppercase mb-5">
-                Order summary
-              </p>
-              <div className="space-y-4 mb-6">
-                {[
-                  {
-                    label: "Cacao profile",
-                    value: ORIGINS.find((o) => o.id === selectedOrigin)?.label || "Not chosen",
-                  },
-                  {
-                    label: "Packaging",
-                    value: PACKAGING.find((p) => p.id === selectedPackaging)?.label || "Not chosen",
-                  },
-                  {
-                    label: "Brand assets",
-                    value:
-                      uploadedFiles.length > 0
-                        ? `${uploadedFiles.length} file(s)`
-                        : "None uploaded",
-                  },
-                ].map(({ label, value }) => (
-                  <div
-                    key={label}
-                    className="flex items-baseline justify-between border-b border-ink-cacao/15 pb-3"
-                  >
-                    <span className="font-sans text-[10px] tracking-widest text-ink-cacao/40 uppercase">
-                      {label}
-                    </span>
-                    <span className="font-spectral text-sm text-ink-cacao">{value}</span>
-                  </div>
-                ))}
-              </div>
+              {step === 1 && (
+                <PackagingStep
+                  headingId="step-heading"
+                  value={packaging}
+                  onChange={(id) => {
+                    setPackaging(id);
+                    setStepError("");
+                  }}
+                  error={stepError}
+                />
+              )}
 
-              <div className="grid md:grid-cols-2 gap-4">
-                {[
-                  { key: "company", label: "Company name" },
-                  { key: "contact", label: "Contact name" },
-                  { key: "quantity", label: "Estimated units" },
-                ].map(({ key, label }) => (
-                  <div key={key}>
-                    <label className="font-sans text-[9px] tracking-widest text-ink-cacao/40 uppercase block mb-1">
-                      {label}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData[key as keyof typeof formData]}
-                      onChange={(e) => setFormData((d) => ({ ...d, [key]: e.target.value }))}
-                      className="w-full font-sans text-sm text-ink-cacao bg-stone-paper border border-ink-cacao/30 px-3 py-2 focus:outline-none focus:border-ink-cacao transition-colors"
-                    />
-                  </div>
-                ))}
-                <div className="md:col-span-2">
-                  <label className="font-sans text-[9px] tracking-widest text-ink-cacao/40 uppercase block mb-1">
-                    Additional notes
-                  </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData((d) => ({ ...d, notes: e.target.value }))}
-                    rows={3}
-                    placeholder="Any specific requirements, timeline, or questions..."
-                    className="w-full font-sans text-sm text-ink-cacao bg-stone-paper border border-ink-cacao/30 px-3 py-2 focus:outline-none focus:border-ink-cacao transition-colors resize-none placeholder-ink-cacao/30"
-                  />
-                </div>
-              </div>
+              {step === 2 && (
+                <AssetsStep
+                  files={files}
+                  onChange={(next) => {
+                    setFiles(next);
+                    setLostFiles([]);
+                  }}
+                />
+              )}
+
+              {step === 3 && (
+                <ReviewStep summary={{ profile: profileLabel, packaging: packagingLabel, files }} field={form.field} />
+              )}
+            </fieldset>
+
+            {status === "sending" && <SendProgress progress={progress} />}
+            {failure && <SendFailure detail={failure.detail} alertRef={alertRef} />}
+
+            <div className="mt-12 flex flex-col-reverse gap-3 border-t border-ink-cacao/15 pt-8 sm:flex-row sm:items-center sm:justify-between">
+              {step === 0 ? (
+                <LocaleLink
+                  to="/wholesale"
+                  className="inline-flex min-h-11 w-full items-center justify-center font-sans text-sm text-ink-cacao underline underline-offset-4 sm:w-auto"
+                >
+                  {t("studio.backToWholesale")}
+                </LocaleLink>
+              ) : (
+                <button
+                  type="button"
+                  disabled={status === "sending"}
+                  onClick={() => moveTo(step - 1)}
+                  className="min-h-11 w-full font-sans text-sm text-ink-cacao underline underline-offset-4 disabled:opacity-70 sm:w-auto"
+                >
+                  {t("studio.previous")}
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={status === "sending"}
+                className="min-h-11 w-full bg-ink-cacao px-8 py-3 font-sans text-sm font-medium text-stone-paper hover:bg-pod-wine disabled:opacity-70 sm:w-auto"
+              >
+                {step < 3 ? t("studio.continue") : status === "sending" ? t("studio.sending") : t("studio.submit")}
+              </button>
             </div>
-
-            <button
-              onClick={() => setSubmitted(true)}
-              className="font-sans text-sm font-medium bg-sun-gold text-ink-cacao px-10 py-3.5 hover:bg-sun-gold/90 transition-colors"
-            >
-              Submit for quote
-            </button>
-          </div>
+          </form>
         )}
-
-        <div className="flex items-center justify-between mt-12 pt-8 border-t border-ink-cacao/15">
-          <button
-            onClick={() => {
-              if (step > 0) setStep(step - 1);
-              else navigate("/wholesale");
-            }}
-            className="font-sans text-xs text-ink-cacao/50 hover:text-ink-cacao transition-colors"
-          >
-            ← {step === 0 ? "Back to Wholesale" : "Previous step"}
-          </button>
-          {step < 3 && (
-            <button
-              onClick={() => setStep(step + 1)}
-              disabled={(step === 0 && !selectedOrigin) || (step === 1 && !selectedPackaging)}
-              className="font-sans text-sm font-medium bg-ink-cacao text-stone-paper px-8 py-3 hover:bg-pod-wine transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              Continue →
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );

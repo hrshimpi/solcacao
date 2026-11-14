@@ -1,215 +1,128 @@
+// The site header: logo, main navigation, language toggle and the search, account and cart buttons.
+// Below the lg breakpoint the links move into a menu dialog.
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
+import { useLang } from "../../i18n/LanguageContext";
+import Drawer from "../../ui/Drawer";
+import { BagIcon, MenuIcon, SearchIcon, UserIcon } from "../../ui/Icons";
+import LocaleLink from "../../ui/LocaleLink";
+import { useCart } from "../cart/CartContext";
+import LanguageToggle from "./LanguageToggle";
 
 interface NavProps {
-  cartCount: number;
-  lang: "EN" | "ES";
-  setLang: (l: "EN" | "ES") => void;
-  onCartOpen: () => void;
+  onSearchOpen: () => void;
 }
 
-export default function Nav({ cartCount, lang, setLang, onCartOpen }: NavProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { pathname } = useLocation();
+const links = [
+  { key: "nav.shop", to: "/shop" },
+  { key: "nav.wholesale", to: "/wholesale" },
+  { key: "nav.origins", to: "/#origins" },
+  { key: "nav.sampler", to: "/sampler" },
+  { key: "nav.contact", to: "/contact" },
+] as const;
 
-  const links = [
-    { label: "Shop", to: "/shop", active: pathname === "/shop" },
-    { label: "Wholesale", to: "/wholesale", active: pathname === "/wholesale" },
-    { label: "Our Origins", to: "/shop/ecuador-72", active: pathname.startsWith("/shop/") },
-    { label: "Build a Sampler", to: "/sampler", active: pathname === "/sampler" },
-  ];
+const menuLinks = [
+  ...links,
+  { key: "nav.profile", to: "/profile" },
+  { key: "nav.signIn", to: "/account/login" },
+] as const;
+
+const iconButton = "flex h-11 w-11 items-center justify-center text-ink-cacao hover:text-pod-wine";
+
+export default function Nav({ onSearchOpen }: NavProps) {
+  const { t, path } = useLang();
+  const { count, open: openCart } = useCart();
+  const { pathname } = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const cartLabel = count > 0 ? t("cart.openLabel", { count }) : t("cart.openLabelEmpty");
+
+  function isCurrent(to: string) {
+    return !to.includes("#") && pathname === path(to);
+  }
+
+  function isInSection(to: string) {
+    return !to.includes("#") && pathname.startsWith(path(to));
+  }
 
   return (
-    <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-stone-paper border-b border-ink-cacao">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link
-            to="/"
-            className="font-spectral text-xl font-semibold text-ink-cacao tracking-tight shrink-0"
-          >
-            SolCacao
-          </Link>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-ink-cacao bg-stone-paper">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+        <LocaleLink to="/" className="font-spectral text-xl font-semibold tracking-tight text-ink-cacao">
+          {t("common.brand")}
+        </LocaleLink>
 
-          <div className="hidden md:flex items-center gap-8">
-            {links.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={`font-sans text-sm text-ink-cacao hover:text-pod-wine transition-colors pb-0.5 ${l.active ? "border-b border-ink-cacao" : ""}`}
-              >
-                {l.label}
-              </Link>
+        <nav aria-label={t("nav.mainLabel")} className="hidden lg:block">
+          <ul className="flex items-center gap-8">
+            {links.map((link) => (
+              <li key={link.to}>
+                <LocaleLink
+                  to={link.to}
+                  aria-current={isCurrent(link.to) ? "page" : undefined}
+                  className={`inline-flex min-h-11 items-center pb-0.5 font-sans text-sm text-ink-cacao hover:text-pod-wine ${
+                    isInSection(link.to) ? "underline decoration-1 underline-offset-8" : ""
+                  }`}
+                >
+                  {t(link.key)}
+                </LocaleLink>
+              </li>
             ))}
+          </ul>
+        </nav>
+
+        <div className="flex items-center">
+          <div className="hidden lg:block">
+            <LanguageToggle />
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-1 font-sans text-xs">
-              <button
-                onClick={() => setLang("EN")}
-                className={`px-1 transition-opacity ${lang === "EN" ? "font-semibold" : "opacity-40 hover:opacity-70"}`}
+          <button type="button" onClick={onSearchOpen} aria-label={t("nav.search")} aria-haspopup="dialog" className={iconButton}>
+            <SearchIcon size={18} />
+          </button>
+          <Link to={path("/profile")} aria-label={t("nav.account")} className={iconButton}>
+            <UserIcon size={18} />
+          </Link>
+          <button type="button" onClick={openCart} aria-label={cartLabel} aria-haspopup="dialog" className={`${iconButton} relative`}>
+            <BagIcon size={18} />
+            {count > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute right-0.5 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sun-gold px-1 font-sans text-[10px] font-semibold leading-none text-ink-cacao"
               >
-                EN
-              </button>
-              <span className="opacity-30">/</span>
-              <button
-                onClick={() => setLang("ES")}
-                className={`px-1 transition-opacity ${lang === "ES" ? "font-semibold" : "opacity-40 hover:opacity-70"}`}
-              >
-                ES
-              </button>
-            </div>
-
-            <button className="text-ink-cacao hover:text-pod-wine transition-colors">
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-            </button>
-
-            <Link
-              to="/profile"
-              aria-label="View profile"
-              className="hidden md:block text-ink-cacao hover:text-pod-wine transition-colors"
-            >
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              >
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-              </svg>
-            </Link>
-
-            <button
-              onClick={onCartOpen}
-              className="relative text-ink-cacao hover:text-pod-wine transition-colors"
-            >
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                <line x1="3" x2="21" y1="6" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-sun-gold text-ink-cacao text-[9px] font-sans font-semibold w-4 h-4 rounded-full flex items-center justify-center leading-none">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="md:hidden text-ink-cacao"
-              aria-label="Open menu"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              >
-                <line x1="4" x2="20" y1="6" y2="6" />
-                <line x1="4" x2="20" y1="12" y2="12" />
-                <line x1="4" x2="20" y1="18" y2="18" />
-              </svg>
-            </button>
-          </div>
+                {count}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label={t("nav.menu")}
+            aria-haspopup="dialog"
+            className={`${iconButton} lg:hidden`}
+          >
+            <MenuIcon size={20} />
+          </button>
         </div>
-      </nav>
+      </div>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-[60] flex justify-end">
-          <div className="absolute inset-0 bg-ink-cacao/50" onClick={() => setMobileOpen(false)} />
-          <div className="relative w-72 bg-ink-cacao h-full flex flex-col px-8 py-10 slide-in-right">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-5 right-6 text-paper-text/60 hover:text-paper-text transition-colors"
-              aria-label="Close menu"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              >
-                <line x1="18" x2="6" y1="6" y2="18" />
-                <line x1="6" x2="18" y1="6" y2="18" />
-              </svg>
-            </button>
-
-            <p className="font-spectral text-paper-text/40 text-sm mb-8">SolCacao</p>
-
-            <div className="flex flex-col gap-5">
-              {links.map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  onClick={() => setMobileOpen(false)}
-                  className="font-spectral text-3xl text-paper-text text-left hover:text-sun-gold transition-colors"
+      <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} title={t("nav.menu")}>
+        <nav aria-label={t("nav.menuLabel")} className="flex-1 px-6 py-6">
+          <ul className="flex flex-col gap-1">
+            {menuLinks.map((link) => (
+              <li key={link.to}>
+                <LocaleLink
+                  to={link.to}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-11 items-center font-spectral text-2xl hover:text-sun-gold"
                 >
-                  {l.label}
-                </Link>
-              ))}
-              <Link
-                to="/profile"
-                onClick={() => setMobileOpen(false)}
-                className="font-spectral text-3xl text-paper-text text-left hover:text-sun-gold transition-colors"
-              >
-                {lang === "EN" ? "My Profile" : "Mi perfil"}
-              </Link>
-            </div>
-
-            <div className="mt-auto">
-              <div className="border-t border-paper-text/10 pt-6 flex gap-3 font-sans text-sm text-paper-text/40">
-                <button
-                  onClick={() => setLang("EN")}
-                  className={
-                    lang === "EN" ? "text-paper-text font-medium" : "hover:text-paper-text/60"
-                  }
-                >
-                  English
-                </button>
-                <span>/</span>
-                <button
-                  onClick={() => setLang("ES")}
-                  className={
-                    lang === "ES" ? "text-paper-text font-medium" : "hover:text-paper-text/60"
-                  }
-                >
-                  Español
-                </button>
-              </div>
-            </div>
-          </div>
+                  {t(link.key)}
+                </LocaleLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="border-t border-paper-text/20 px-6 py-4">
+          <LanguageToggle />
         </div>
-      )}
-    </>
+      </Drawer>
+    </header>
   );
 }
