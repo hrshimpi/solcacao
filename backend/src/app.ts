@@ -40,7 +40,7 @@ export function createApp() {
       windowMs: env.RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
       message: "You are sending a lot of requests. Please slow down and try again in a few minutes.",
       countFailedRequests: true,
-      skip: (req) => req.path === "/health" || req.method === "OPTIONS",
+      skip: (req) => req.path === "/health" || req.path === "/health/ready" || req.method === "OPTIONS",
     }),
   );
   app.use(cookieParser(cookieSecret));
