@@ -1,5 +1,5 @@
 // One specimen you can pick for the sampler. It is a toggle button, and the tasting notes show on hover, focus or when picked.
-import type { Product } from "../../../data/products";
+import type { Product } from "../../../api/products";
 import { useLang } from "../../../i18n/LanguageContext";
 import { stockStatus } from "../../../lib/stock";
 import { CheckIcon } from "../../../ui/Icons";

@@ -1,11 +1,11 @@
 import { act, fireEvent } from "@testing-library/react";
 import { matchRoutes } from "react-router";
-import { getProducts } from "../data/products";
 import type { AccountType } from "../features/auth/components/AuthShell";
+import { productsFor } from "../test/productFixtures";
 import { renderAt } from "../test/renderAt";
 import { routes } from "./routes";
 
-const products = getProducts("en");
+const products = productsFor("en");
 
 // the studio is only for business accounts, so it is opened as one, and again as a retail account to check its message
 const pages: [path: string, account?: AccountType][] = [

@@ -1,14 +1,17 @@
 // All shop filters in one panel: cacao percentage, origin, category and the flavor compass.
 import { useId } from "react";
-import { categoryIds, getOriginIds, originName, type NoteId, type OriginId } from "../../../data/products";
+import { categoryIds, type NoteId } from "../../../api/products";
 import { useLang } from "../../../i18n/LanguageContext";
 import { CheckIcon } from "../../../ui/Icons";
 import type { Filters } from "../filters";
+import type { Origin } from "../ProductsContext";
 import CacaoRange from "./CacaoRange";
 import FlavorCompass from "./FlavorCompass";
 
 interface FilterPanelProps {
   filters: Filters;
+  // the countries the shop has, with their names in the language of the page
+  origins: Origin[];
   onChange: (next: Filters) => void;
 }
 
@@ -19,8 +22,8 @@ function toggle<T>(list: T[], item: T) {
   return list.includes(item) ? list.filter((entry) => entry !== item) : [...list, item];
 }
 
-export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
-  const { t, lang } = useLang();
+export default function FilterPanel({ filters, origins, onChange }: FilterPanelProps) {
+  const { t } = useLang();
   const ids = { percent: useId(), origin: useId(), category: useId(), compass: useId() };
   const categoryName = useId();
 
@@ -37,14 +40,14 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
         <p id={ids.origin} className={heading}>
           {t("filters.origin")}
         </p>
-        {getOriginIds().map((origin: OriginId) => {
-          const checked = filters.origins.includes(origin);
+        {origins.map((origin) => {
+          const checked = filters.origins.includes(origin.id);
           return (
-            <label key={origin} className="flex min-h-11 cursor-pointer items-center gap-3">
+            <label key={origin.id} className="flex min-h-11 cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
                 checked={checked}
-                onChange={() => onChange({ ...filters, origins: toggle(filters.origins, origin) })}
+                onChange={() => onChange({ ...filters, origins: toggle(filters.origins, origin.id) })}
                 className="peer sr-only"
               />
               <span
@@ -55,7 +58,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
               >
                 {checked && <CheckIcon size={14} />}
               </span>
-              <span className="font-sans text-sm text-ink-cacao">{originName(origin, lang)}</span>
+              <span className="font-sans text-sm text-ink-cacao">{origin.name}</span>
             </label>
           );
         })}

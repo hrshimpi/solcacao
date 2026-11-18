@@ -60,6 +60,8 @@ export interface UserStore {
   update(id: string, patch: UserPatch): Promise<StoredUser | null>;
   // takes an account away (a sign up that could not be finished, or an account that is closed)
   remove(id: string): Promise<void>;
+  // how many accounts there are, for the dashboard of the admin
+  count(): Promise<number>;
   // a new password also ends a lock and any reset link that is still open
   setPassword(id: string, passwordHash: string, now: Date): Promise<void>;
   setResetToken(id: string, tokenHash: string, expiresAt: Date): Promise<void>;
@@ -174,6 +176,11 @@ export function createMongoUserStore(): UserStore {
       requireDatabase();
       if (!objectIdPattern.test(id)) return;
       await User.deleteOne({ _id: id });
+    },
+
+    async count() {
+      requireDatabase();
+      return User.estimatedDocumentCount();
     },
 
     async setPassword(id, passwordHash, now) {

@@ -10,12 +10,35 @@ import { errorHandler } from "./middleware/errorHandler.ts";
 describe("api", () => {
   const app = createApp();
 
-  it("answers on /api/health", async () => {
+  it("answers on /api/health, and says that the database is not connected (there is none in this test)", async () => {
     const res = await request(app).get("/api/health");
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("ok");
     expect(typeof res.body.uptime).toBe("number");
+    expect(res.body.database).toBe("down");
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
+
+  it("answers 503 on /api/health/ready until the database is connected, in the standard error shape", async () => {
+    const res = await request(app).get("/api/health/ready");
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe("DATABASE_UNAVAILABLE");
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
+
+  it("does not keep the other answers out of the cache because of the health check", async () => {
+    const res = await request(app).get("/api/nothing-here");
+
+    expect(res.headers["cache-control"]).not.toBe("no-store");
+  });
+
+  it("does not count the health checks against the limit of requests, and counts the other requests", async () => {
+    for (const path of ["/api/health", "/api/health/ready"]) {
+      expect((await request(app).get(path)).headers["ratelimit"], path).toBeUndefined();
+    }
+    expect((await request(app).get("/api/nothing-here")).headers["ratelimit"]).toBeDefined();
   });
 
   it("uses the standard error shape for unknown endpoints", async () => {

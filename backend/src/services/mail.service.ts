@@ -10,12 +10,15 @@ import {
   inquiryEmail,
   isValidAddress,
   newsletterWelcomeEmail,
+  orderConfirmationEmail,
+  orderShippedEmail,
   passwordResetEmail,
   quoteReadyEmail,
   quoteRequestEmail,
   type InquiryMailData,
   type MailContent,
   type MailRecipient,
+  type OrderMailData,
   type QuoteReadyMailData,
   type QuoteRequestMailData,
 } from "./mail-templates.ts";
@@ -127,6 +130,22 @@ export function createMailService(options: { config: MailConfig; log: MailLogger
       );
     },
 
+    // to the customer, when an order was paid, in the language of their account
+    sendOrderConfirmation(order: OrderMailData, user: MailRecipient, lang: string): Promise<boolean> {
+      return deliver("order", () => {
+        if (!isValidAddress(user.email)) throw new Error("the user has no valid email address");
+        return { to: user.email, ...orderConfirmationEmail(order, user, lang, { siteUrl: config.siteUrl }) };
+      });
+    },
+
+    // to the customer, when the team has sent the order
+    sendOrderShipped(order: OrderMailData, user: MailRecipient, lang: string): Promise<boolean> {
+      return deliver("order-shipped", () => {
+        if (!isValidAddress(user.email)) throw new Error("the user has no valid email address");
+        return { to: user.email, ...orderShippedEmail(order, user, lang, { siteUrl: config.siteUrl }) };
+      });
+    },
+
     // to the person who just subscribed, in English or Spanish
     sendNewsletterWelcome(email: string, lang: string): Promise<boolean> {
       return deliver("newsletter", () => {
@@ -152,4 +171,4 @@ const mail = createMailService({
   log: logger,
 });
 
-export const { sendInquiryEmail, sendQuoteNotification, sendQuoteReady, sendNewsletterWelcome, sendPasswordReset } = mail;
+export const { sendInquiryEmail, sendQuoteNotification, sendQuoteReady, sendNewsletterWelcome, sendPasswordReset, sendOrderConfirmation, sendOrderShipped } = mail;

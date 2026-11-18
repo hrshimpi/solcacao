@@ -1,5 +1,5 @@
 // The batch passport card: batch code, harvest and roast dates, farm and cacao percentage.
-import type { Product } from "../../../data/products";
+import type { Product } from "../../../api/products";
 import { formatMonth } from "../../../i18n/format";
 import { useLang } from "../../../i18n/LanguageContext";
 

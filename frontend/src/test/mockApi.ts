@@ -116,8 +116,9 @@ export function mockRequestsApi(items: unknown[] = []) {
 
   server.fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    server.calls.push({ url, headers: { ...(init?.headers as Record<string, string> | undefined) } });
     const { pathname } = new URL(url, "http://localhost");
+    // every page reads its cart, which is not what the tests of the requests look at
+    if (!pathname.startsWith("/api/cart")) server.calls.push({ url, headers: { ...(init?.headers as Record<string, string> | undefined) } });
 
     if (pathname === "/api/b2b/requests") {
       if (server.list) return server.list();

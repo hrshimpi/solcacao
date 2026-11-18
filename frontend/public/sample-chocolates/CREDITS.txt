@@ -1,0 +1,16 @@
+Sample chocolate photos for demos. All are 960 x 1200 (4:5), the size the shop shows.
+
+The first seven are the photos of the seeded products. They come from Unsplash (free to use, see https://unsplash.com/license):
+  ecuador-72.jpg, peru-68.jpg, venezuela-76.jpg, colombia-64.jpg, madagascar-80.jpg, midnight-truffle.jpg, fleur-de-sel-bar.jpg
+
+The other four were cropped from photos on Wikimedia Commons that are free of copyright (CC0), so no credit is needed. The authors and sources are listed here anyway:
+  cacao-assortment-box.jpg  "Rocky Mountain chocolates" by Wilfredor, CC0
+                            https://commons.wikimedia.org/wiki/File:Rocky_Mountain_chocolates.jpg
+  roasted-cacao-nibs.jpg    "Cocoa Nibs in Bowl" by Ll1324, CC0
+                            https://commons.wikimedia.org/wiki/File:Cocoa_Nibs_in_Bowl.jpg
+  milk-almond-bar.jpg       "Milkchocolate with almonds, Aachen, Germany" by Jebulon, CC0
+                            https://commons.wikimedia.org/wiki/File:Milkchocolate_with_almonds,_Aachen,_Germany.jpg
+  raw-cacao-beans.jpg       "Cocoa-1580724" by radziomors, CC0
+                            https://commons.wikimedia.org/wiki/File:Cocoa-1580724.jpg
+
+In the website a photo in this folder has the address /sample-chocolates/<file name>, for example /sample-chocolates/milk-almond-bar.jpg

@@ -14,9 +14,9 @@ describe("pages", () => {
     ["/en/contact", /Get in touch/],
     ["/en/account/login", /Sign in/],
     ["/en/account/register", /Create account/],
-    ["/en/profile", /Your profile/],
+    ["/en/profile", /Your profile/, "retail"],
     ["/es/shop", /La colección/],
-    ["/es/profile", /Tu perfil/],
+    ["/es/profile", /Tu perfil/, "retail"],
   ];
 
   it.each(pages)("%s shows its heading", async (path, heading, account) => {

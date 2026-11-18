@@ -5,6 +5,8 @@
 //   requireAuth:              401 without a good token (TOKEN_EXPIRED when it was good but ran out, so a client knows to refresh)
 //   requireAccountType(type): 403 for a signed in user whose account is another type (use it after requireAuth)
 //   requireAdmin:             401 without a good token, 403 for someone who is not an admin
+//   authIfPresent:            no Authorization header means nobody (the visitor), but a header with a token that is not good is refused,
+//                             so a person whose session ran out is told so and not quietly treated as a visitor
 //   requireStaff:             an admin's token, or the staff key in the X-Staff-Key header (for the team's own tools)
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { RequestHandler, Request } from "express";
@@ -83,6 +85,11 @@ export const optionalAuth: RequestHandler = async (req, _res, next) => {
 
 export const requireAuth: RequestHandler = async (req, _res, next) => {
   req.user = await mustBeSignedIn(req);
+  next();
+};
+
+export const authIfPresent: RequestHandler = async (req, _res, next) => {
+  req.user = req.headers.authorization === undefined ? undefined : await mustBeSignedIn(req);
   next();
 };
 

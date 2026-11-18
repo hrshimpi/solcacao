@@ -1,7 +1,7 @@
 // The first screen of the home page: headline, two buttons and a strip of featured origins.
-import { getProducts } from "../../../data/products";
 import { useLang } from "../../../i18n/LanguageContext";
 import LocaleLink from "../../../ui/LocaleLink";
+import { useProducts } from "../../catalog/ProductsContext";
 
 const stripSlugs = ["ecuador-72", "peru-68", "venezuela-76", "madagascar-80"];
 
@@ -13,8 +13,10 @@ const heroUrl = (width: number) => `${heroPhoto}?w=${width}&h=${Math.round((widt
 const heroSrcSet = heroWidths.map((width) => `${heroUrl(width)} ${width}w`).join(", ");
 
 export default function HomeHero() {
-  const { t, lang } = useLang();
-  const strip = getProducts(lang).filter((product) => stripSlugs.includes(product.slug));
+  const { t } = useLang();
+  const { products } = useProducts();
+  // empty until the products are there, and the strip simply has no names for a moment
+  const strip = products.filter((product) => stripSlugs.includes(product.slug));
 
   return (
     <section className="on-dark relative flex min-h-[calc(100dvh-3.5rem)] items-end overflow-hidden bg-ink-cacao pb-28 pt-16">

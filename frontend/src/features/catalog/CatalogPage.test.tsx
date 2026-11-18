@@ -1,5 +1,6 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { installFakeServer } from "../../test/fakeServer";
 import { renderAt } from "../../test/renderAt";
 
 describe("shop page", () => {
@@ -61,5 +62,50 @@ describe("shop page", () => {
     await screen.findByRole("heading", { level: 1 });
     expect(screen.getAllByRole("spinbutton").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByRole("slider").length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("shop page, while the products are on their way", () => {
+  it("says that the collection is loading, then lists it", async () => {
+    // the server answers for the products when the test lets it
+    const server = installFakeServer();
+    let letItAnswer = () => {};
+    const gate = new Promise<void>((resolve) => (letItAnswer = resolve));
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith("/api/products")) await gate;
+      return server.handle(input, init);
+    }));
+    renderAt("/en/shop?min=55", { productsFromServer: true });
+
+    expect(await screen.findByRole("heading", { level: 1, name: "The collection" })).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByRole("status")).toHaveTextContent("Loading the collection...");
+    expect(screen.queryByText("No specimens match these filters.")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
+
+    letItAnswer();
+
+    await waitFor(() => expect(screen.getAllByRole("article").length).toBeGreaterThan(3));
+    expect(within(screen.getByRole("main")).getByRole("status")).toHaveTextContent(/specimens/);
+  });
+
+  it("says that the collection could not be loaded, and lists it after a second try", async () => {
+    const user = userEvent.setup();
+    const server = installFakeServer();
+    server.override = (call) => (call.path.startsWith("/api/products") ? new Response(JSON.stringify({ error: { code: "INTERNAL_ERROR", message: "Down.", details: [] } }), { status: 500 }) : undefined);
+    renderAt("/en/shop?min=55", { productsFromServer: true });
+
+    expect(await screen.findByText("We couldn't load the collection.")).toBeInTheDocument();
+    expect(screen.queryByText("No specimens match these filters.")).not.toBeInTheDocument();
+
+    server.override = null;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() => expect(screen.getAllByRole("article").length).toBeGreaterThan(3));
+  });
+
+  it("ignores an origin in the address that the shop does not have", async () => {
+    renderAt("/en/shop?min=55&origin=mars", { productsFromServer: true });
+
+    await waitFor(() => expect(screen.getAllByRole("article").length).toBeGreaterThan(3));
   });
 });

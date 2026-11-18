@@ -1,5 +1,5 @@
 // A responsive grid of product cards: 1 column on phones, 2 from sm, 3 from lg, 4 from xl.
-import type { Product } from "../../../data/products";
+import type { Product } from "../../../api/products";
 import ProductCard from "./ProductCard";
 
 interface ProductGridProps {

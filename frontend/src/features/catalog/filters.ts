@@ -1,5 +1,5 @@
 // Shop filters: reading them from the address (?min=60&origin=peru...), writing them back, and applying them.
-import { categoryIds, getOriginIds, noteIds, type Category, type NoteId, type OriginId, type Product } from "../../data/products";
+import { categoryIds, noteIds, type Category, type NoteId, type Product } from "../../api/products";
 
 export const PCT_MIN = 55;
 export const PCT_MAX = 85;
@@ -8,7 +8,7 @@ export const PCT_GAP = 2;
 export interface Filters {
   min: number;
   max: number;
-  origins: OriginId[];
+  origins: string[];
   category: Category | "all";
   notes: NoteId[];
 }
@@ -23,7 +23,8 @@ function readList<T extends string>(value: string | null, allowed: T[]): T[] {
   return (value ?? "").split(",").filter((item): item is T => allowed.includes(item as T));
 }
 
-export function filtersFromParams(params: URLSearchParams): Filters {
+// origins are the ones the shop has: an origin in the address that the shop does not have is left out
+export function filtersFromParams(params: URLSearchParams, origins: string[]): Filters {
   const min = Number(params.get("min"));
   const max = Number(params.get("max"));
   const safeMin = params.has("min") && Number.isFinite(min) ? clamp(Math.round(min), PCT_MIN, PCT_MAX - PCT_GAP) : defaultFilters.min;
@@ -33,7 +34,7 @@ export function filtersFromParams(params: URLSearchParams): Filters {
   return {
     min: safeMin,
     max: Math.max(safeMax, safeMin + PCT_GAP),
-    origins: readList(params.get("origin"), getOriginIds()),
+    origins: readList(params.get("origin"), origins),
     category: categoryIds.includes(category as Category) ? (category as Category) : "all",
     notes: readList(params.get("notes"), noteIds),
   };

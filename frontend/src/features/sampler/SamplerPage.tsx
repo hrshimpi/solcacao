@@ -1,10 +1,10 @@
 // Build your own sampler: pick 4 to 6 specimens, then add them to the cart as one item.
 import { useState } from "react";
-import { getProducts } from "../../data/products";
 import { useLang } from "../../i18n/LanguageContext";
 import { usePageTitle } from "../../lib/usePageTitle";
 import { useAnnounce } from "../../ui/LiveRegion";
 import { useCart } from "../cart/CartContext";
+import { useProducts } from "../catalog/ProductsContext";
 import SamplerTile from "./components/SamplerTile";
 import SamplerTray from "./components/SamplerTray";
 
@@ -12,20 +12,20 @@ const MIN_PIECES = 4;
 const MAX_PIECES = 6;
 
 export default function SamplerPage() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const { addSampler } = useCart();
+  const { status, products, reload } = useProducts();
   const announce = useAnnounce();
   usePageTitle(t("titles.sampler"));
 
-  const products = getProducts(lang);
-  const [chosenIds, setChosenIds] = useState<number[]>([]);
+  const [chosenIds, setChosenIds] = useState<string[]>([]);
 
   // keep the tray in the order the specimens were picked
   const selected = chosenIds.flatMap((id) => products.find((product) => product.id === id) ?? []);
   const full = chosenIds.length >= MAX_PIECES;
   const missing = MIN_PIECES - chosenIds.length;
 
-  function toggle(id: number) {
+  function toggle(id: string) {
     const product = products.find((item) => item.id === id);
     if (!product) return;
     const picked = chosenIds.includes(id);
@@ -35,7 +35,7 @@ export default function SamplerPage() {
   }
 
   // after a Remove button disappears, focus goes back to the matching tile so keyboard users keep their place
-  function remove(id: number) {
+  function remove(id: string) {
     toggle(id);
     requestAnimationFrame(() => document.getElementById(`sampler-tile-${id}`)?.focus());
   }
@@ -55,6 +55,19 @@ export default function SamplerPage() {
             {t("sampler.pickHeading")}
           </h2>
           <p className="mb-6 font-sans text-sm font-medium text-ink-cacao">{t("sampler.chosen", { count: chosenIds.length, max: MAX_PIECES })}</p>
+          {status === "loading" && products.length === 0 && (
+            <p role="status" className="font-spectral text-sm text-ink-cacao/70">
+              {t("sampler.loading")}
+            </p>
+          )}
+          {status === "failed" && products.length === 0 && (
+            <div role="alert" className="font-spectral text-sm text-ink-cacao">
+              <p>{t("sampler.loadError")}</p>
+              <button type="button" onClick={reload} className="mt-3 inline-flex min-h-11 items-center border border-ink-cacao px-5 font-sans text-sm hover:bg-ink-cacao hover:text-stone-paper">
+                {t("common.retry")}
+              </button>
+            </div>
+          )}
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {products.map((product) => (
               <SamplerTile
@@ -85,7 +98,7 @@ export default function SamplerPage() {
             type="button"
             disabled={missing > 0}
             aria-describedby={missing > 0 ? "sampler-need" : undefined}
-            onClick={() => addSampler(chosenIds)}
+            onClick={() => void addSampler(chosenIds)}
             className="min-h-11 w-full bg-sun-gold py-3.5 font-sans text-sm font-medium text-ink-cacao hover:bg-sun-gold/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {t("sampler.add")}

@@ -113,6 +113,10 @@ export function createMemoryUserStore() {
       if (index >= 0) records.splice(index, 1);
     },
 
+    async count() {
+      return records.length;
+    },
+
     async setPassword(id, passwordHash) {
       const found = byId(id);
       if (!found) return;

@@ -1,5 +1,5 @@
 // The flavor compass: five tasting notes arranged in a circle. Each note is a real toggle button.
-import { noteIds, type NoteId } from "../../../data/products";
+import { noteIds, type NoteId } from "../../../api/products";
 import { useLang } from "../../../i18n/LanguageContext";
 
 interface FlavorCompassProps {

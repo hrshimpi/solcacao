@@ -2,6 +2,9 @@ import { createApp } from "./app.ts";
 import { connectDbWithRetry, disconnectDb } from "./config/db.ts";
 import { env } from "./config/env.ts";
 import { logger } from "./logger.ts";
+import { stopOnUncaughtErrors } from "./processErrors.ts";
+
+stopOnUncaughtErrors(logger);
 
 const app = createApp();
 
@@ -14,6 +17,8 @@ const server = app.listen(env.PORT, () => {
 
 function shutdown(signal: string) {
   logger.info(`${signal} received, shutting down`);
+  // a connection that stays open must not keep the server from stopping
+  setTimeout(() => process.exit(1), 10_000).unref();
   server.close(() => {
     disconnectDb().finally(() => process.exit(0));
   });

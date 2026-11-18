@@ -1,10 +1,11 @@
 // The search box that opens from the header. It lists products whose name or origin country matches.
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { originName, searchProducts } from "../../data/products";
 import { useLang } from "../../i18n/LanguageContext";
 import Drawer from "../../ui/Drawer";
 import LocaleLink from "../../ui/LocaleLink";
+import { useProducts } from "../catalog/ProductsContext";
+import { searchProducts } from "../catalog/search";
 
 interface SearchDialogProps {
   open: boolean;
@@ -12,10 +13,20 @@ interface SearchDialogProps {
 }
 
 export default function SearchDialog({ open, onClose }: SearchDialogProps) {
-  const { t, lang, path } = useLang();
+  const { t, path } = useLang();
+  const { status, products } = useProducts();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const results = searchProducts(query, lang);
+  const results = searchProducts(products, query);
+
+  // what the line under the box says: the products are still on their way, they could not be loaded, or the result
+  const message = !query.trim()
+    ? t("search.hint")
+    : status === "loading" && products.length === 0
+      ? t("search.loading")
+      : status === "failed"
+        ? t("search.unavailable")
+        : t("search.results", { count: results.length });
 
   function close() {
     setQuery("");
@@ -47,7 +58,7 @@ export default function SearchDialog({ open, onClose }: SearchDialogProps) {
           className="mt-1 block w-full border-b border-ink-cacao/60 bg-transparent py-2 font-spectral text-xl text-ink-cacao placeholder:text-ink-cacao/70"
         />
         <p role="status" className="mt-3 font-sans text-sm text-ink-cacao/70">
-          {query.trim() ? t("search.results", { count: results.length }) : t("search.hint")}
+          {message}
         </p>
         {results.length > 0 && (
           <ul className="mt-2 divide-y divide-ink-cacao/15">
@@ -59,7 +70,7 @@ export default function SearchDialog({ open, onClose }: SearchDialogProps) {
                   className="flex min-h-11 items-center justify-between gap-4 py-2 hover:text-pod-wine"
                 >
                   <span className="font-spectral text-base font-semibold">{product.name}</span>
-                  <span className="font-sans text-xs text-ink-cacao/70">{originName(product.origin, lang)}</span>
+                  <span className="font-sans text-xs text-ink-cacao/70">{product.originName}</span>
                 </LocaleLink>
               </li>
             ))}

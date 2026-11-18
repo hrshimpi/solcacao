@@ -1,12 +1,12 @@
 // The tray preview and the list of chosen specimens, each with a Remove button.
-import type { Product } from "../../../data/products";
+import type { Product } from "../../../api/products";
 import { formatPrice } from "../../../i18n/format";
 import { useLang } from "../../../i18n/LanguageContext";
 
 interface SamplerTrayProps {
   selected: Product[];
   slots: number;
-  onRemove: (id: number) => void;
+  onRemove: (id: string) => void;
 }
 
 export default function SamplerTray({ selected, slots, onRemove }: SamplerTrayProps) {
