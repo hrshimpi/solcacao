@@ -31,6 +31,9 @@ export interface QuoteRequest {
   quoteAmount: number | null;
   quoteNote: string;
   createdAt: string;
+  // how to reach the customer, only in the list of the dashboard
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface RequestList {
@@ -63,6 +66,7 @@ function readRequest(value: unknown): QuoteRequest | null {
     quoteAmount: typeof value.quoteAmount === "number" && Number.isFinite(value.quoteAmount) ? value.quoteAmount : null,
     quoteNote: text(value.quoteNote),
     createdAt: text(value.createdAt),
+    ...(isObject(value.contact) ? { contactEmail: text(value.contact.email), contactPhone: text(value.contact.phone) } : {}),
   };
 }
 

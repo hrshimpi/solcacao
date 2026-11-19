@@ -81,6 +81,21 @@ export function createB2BService({ store, storage, mail, profiles }: Dependencie
       return { items, page, limit, total, totalPages: Math.ceil(total / limit) };
     },
 
+    // the requests of everybody, newest first, for an admin
+    async listAll({ page, limit }: B2BListQuery) {
+      const { items, total } = await store.listAll({ page, limit });
+      // how to reach each customer, so the team can contact them (a customer we know nothing about just has no contact)
+      const contacts = new Map<string, UserProfile>();
+      for (const userId of new Set(items.map((item) => item.userId))) {
+        contacts.set(userId, await profiles(userId).catch((): UserProfile => ({})));
+      }
+      const withContact = items.map((item) => {
+        const { email, phone } = contacts.get(item.userId) ?? {};
+        return { ...item, contact: { email: email ?? "", phone: phone ?? "" } };
+      });
+      return { items: withContact, page, limit, total, totalPages: Math.ceil(total / limit) };
+    },
+
     get,
 
     // a brand file of a request, for the owner or an admin. A file name that is not one of the request's own
@@ -90,6 +105,19 @@ export function createB2BService({ store, storage, mail, profiles }: Dependencie
       const asset = request.brandAssets.find((candidate) => candidate.storedName === storedName);
       if (!asset) throw fileNotFound();
       return { asset, content: await storage.stream(asset.storedName) };
+    },
+
+    // the owner of a quoted request accepts the quote (approved) or declines it (rejected)
+    async answerQuote(id: string, decision: "accept" | "decline", viewer: Viewer): Promise<StoredB2BRequest> {
+      const current = await get(id, viewer);
+      // an admin can open any request, but only the business that asked can answer its quote
+      if (current.userId !== viewer.id.toLowerCase()) throw requestNotFound();
+      const status = decision === "accept" ? "approved" : "rejected";
+      if (!canChange(current.status, status)) throw invalidTransition(current.status, status);
+
+      const updated = await store.transition(id, current.status, { status });
+      if (!updated) throw new AppError("REQUEST_CHANGED", 409, "Someone just changed this request. Please reload it and try again.");
+      return updated;
     },
 
     async changeStatus(id: string, change: StatusChangeInput): Promise<StoredB2BRequest> {

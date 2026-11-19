@@ -44,6 +44,11 @@ export function createMemoryB2BStore() {
       return { items: structuredClone(own.slice((page - 1) * limit, page * limit)), total: own.length };
     },
 
+    async listAll({ page, limit }) {
+      const all = [...records].reverse();
+      return { items: structuredClone(all.slice((page - 1) * limit, page * limit)), total: all.length };
+    },
+
     async transition(id, from, change) {
       const found = records.find((record) => record.id === id.toLowerCase());
       if (!found || found.status !== from) return null;

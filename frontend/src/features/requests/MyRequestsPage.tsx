@@ -116,7 +116,7 @@ export default function MyRequestsPage() {
 
             <div>
               {selected ? (
-                <RequestDetails request={selected} headingRef={detailsHeading} />
+                <RequestDetails request={selected} headingRef={detailsHeading} onAnswered={() => void refresh()} />
               ) : (
                 <p className="font-spectral text-ink-cacao/70">{selectedId ? t("b2b.requests.notFoundSelected") : t("b2b.requests.choose")}</p>
               )}

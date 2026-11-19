@@ -1,6 +1,7 @@
 // Every address in the app. All pages live under /en or /es.
 import type { RouteObject } from "react-router";
 import AdminInquiriesPage from "../features/admin/AdminInquiriesPage";
+import AdminRequestsPage from "../features/admin/AdminRequestsPage";
 import AdminLayout from "../features/admin/AdminLayout";
 import AdminOrderPage from "../features/admin/AdminOrderPage";
 import AdminOrdersPage from "../features/admin/AdminOrdersPage";
@@ -84,6 +85,7 @@ export const routes: RouteObject[] = [
               { path: "products", element: <AdminProductsPage /> },
               { path: "products/new", element: <NewProductPage /> },
               { path: "inquiries", element: <AdminInquiriesPage /> },
+              { path: "requests", element: <AdminRequestsPage /> },
             ],
           },
           {

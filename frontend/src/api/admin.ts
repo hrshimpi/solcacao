@@ -3,6 +3,7 @@
 import type { Lang } from "../i18n";
 import { api } from "../lib/api";
 import { ApiError } from "../lib/apiFetch";
+import { parseRequestList, type QuoteRequest } from "../features/requests/requestTypes";
 import { orderStatuses, readOrder, readOrderAnswer, readOrderPage, type Order, type OrderPage, type OrderStatus } from "./orders";
 
 type Options = { lang: Lang; signal?: AbortSignal };
@@ -201,4 +202,19 @@ export async function setInquiryStatus(id: string, status: InquiryStatus, { lang
   const inquiry = readInquiry(await api.patch<unknown>(`/inquiries/${id}`, { lang, json: { status } }));
   if (!inquiry) throw new ApiError("The answer was not an inquiry.");
   return inquiry;
+}
+
+// the quote requests of every business account, newest first
+export async function fetchAdminRequests({ page, limit = 15, lang, signal }: Options & { page: number; limit?: number }): Promise<{ items: QuoteRequest[]; total: number }> {
+  const list = parseRequestList(await api.get<unknown>("/b2b/admin/requests", { lang, signal, query: { page, limit } }));
+  if (!list) throw new ApiError("The answer was not a list of requests.");
+  return list;
+}
+
+// quotes a request (the amount is in whole cents) or rejects it
+export async function changeRequest(id: string, change: { status: string; quoteAmount?: number }, { lang }: Options): Promise<QuoteRequest> {
+  const answer = await api.patch<{ request?: unknown }>(`/b2b/requests/${id}`, { lang, json: change });
+  const request = parseRequestList({ items: [answer?.request] })?.items[0];
+  if (!request) throw new ApiError("The answer was not a request.");
+  return request;
 }

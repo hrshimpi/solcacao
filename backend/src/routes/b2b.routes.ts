@@ -2,9 +2,11 @@
 //   POST  /quote                  business accounts only: a quote request as a multipart form, with up to 5 brand
 //                                 files in the field "brandAssets". 10 requests per hour for each user.
 //   GET   /requests               business accounts only: their own requests, newest first, one page at a time
+//   GET   /admin/requests         admin only: the requests of everybody, newest first, one page at a time
 //   GET   /requests/:id           the owner of the request, or an admin
 //   GET   /requests/:id/assets/:storedName
 //                                 one brand file of the request, as a download (the owner or an admin)
+//   POST  /requests/:id/respond   business accounts only: { decision: "accept" | "decline" } for their own quoted request
 //   PATCH /requests/:id           admin only: the status, and with a quote its amount in cents and a note
 // For the quote the order matters: sign in and account type first, then the limit, and only then are the files read.
 import { Router, type RequestHandler } from "express";
@@ -26,9 +28,13 @@ export function createB2BRouter({ service, upload, limiter }: { service: B2BServ
 
   // a request is only ever found for its owner or an admin, so these need no account type: anybody else gets a 404
   router.get("/requests", requireAuth, requireAccountType("b2b"), controller.list);
+  // every request, for the dashboard of the team
+  router.get("/admin/requests", requireAdmin, controller.listAll);
   router.get("/requests/:id", requireAuth, controller.get);
   router.get("/requests/:id/assets/:storedName", requireAuth, controller.downloadAsset);
   router.patch("/requests/:id", requireAdmin, controller.updateStatus);
+  // the business accepts or declines the quote it got
+  router.post("/requests/:id/respond", requireAuth, requireAccountType("b2b"), controller.answerQuote);
 
   return router;
 }

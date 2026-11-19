@@ -62,6 +62,8 @@ export interface B2BRequestStore {
   findById(id: string): Promise<StoredB2BRequest | null>;
   // the requests of one user, newest first
   listForUser(userId: string, query: B2BListQuery): Promise<{ items: StoredB2BRequest[]; total: number }>;
+  // the requests of everybody, newest first (for the dashboard of the team)
+  listAll(query: B2BListQuery): Promise<{ items: StoredB2BRequest[]; total: number }>;
   // changes the status only if the request still has the status `from`, so two admins cannot both win.
   // null when there is no such request (or it has another status by now).
   transition(id: string, from: RequestStatus, change: StatusChange): Promise<StoredB2BRequest | null>;
@@ -120,6 +122,18 @@ export function createMongoB2BRequestStore(): B2BRequestStore {
           .skip((page - 1) * limit)
           .limit(limit),
         B2BRequest.countDocuments({ userId }),
+      ]);
+      return { items: docs.map(toStored), total };
+    },
+
+    async listAll({ page, limit }) {
+      requireDatabase();
+      const [docs, total] = await Promise.all([
+        B2BRequest.find({})
+          .sort({ createdAt: -1, _id: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit),
+        B2BRequest.countDocuments({}),
       ]);
       return { items: docs.map(toStored), total };
     },

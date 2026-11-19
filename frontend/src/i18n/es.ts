@@ -424,6 +424,13 @@ export const es: typeof en = {
         approved: "Aprobada",
         rejected: "Rechazada",
       },
+      respond: {
+        question: "¿Está de acuerdo con la cotización? Acéptela para iniciar su pedido, o recházela.",
+        accept: "Aceptar la cotización",
+        decline: "Rechazar",
+        error: "No pudimos enviar su respuesta. Inténtelo de nuevo.",
+        afterAccept: "Gracias. Nuestro equipo se pondrá en contacto para acordar el pago y la entrega de su pedido personalizado.",
+      },
       statusHelp: {
         submitted: "La recibimos. Una cotización suele llegar en dos días hábiles.",
         quoted: "Su cotización está lista. Revise el monto y la nota a continuación.",
@@ -622,6 +629,7 @@ export const es: typeof en = {
       orders: "Pedidos",
       products: "Productos",
       inquiries: "Consultas",
+      requests: "Solicitudes de cotización",
     },
     noAccess: {
       title: "Esta página es para el equipo",
@@ -760,6 +768,21 @@ export const es: typeof en = {
         earthy: "Terroso",
         smoky: "Ahumado",
       },
+    },
+    requests: {
+      count_one: "{{count}} solicitud de cotización",
+      count_other: "{{count}} solicitudes de cotización",
+      empty: "Todavía no hay solicitudes de cotización.",
+      units: "{{units}} unidades",
+      quoted: "Cotizado: {{amount}}",
+      amountLabel: "Importe de la cotización (USD)",
+      sendQuote: "Enviar cotización",
+      emailCustomer: "Escribir al cliente",
+      mailSubject: "Su solicitud de cotización de SolCacao, {{company}}",
+      reject: "Rechazar",
+      invalidAmount: "Introduce un importe mayor que cero.",
+      changeError: "No pudimos cambiar eso. Inténtalo de nuevo.",
+      more: "Mostrar más",
     },
     inquiries: {
       count_one: "{{count}} consulta",

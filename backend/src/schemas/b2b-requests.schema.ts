@@ -10,6 +10,9 @@ const MAX_CENTS = 10_000_000_000;
 
 export const requestListQuerySchema = z.object({ ...pageFields });
 
+// what the owner of a quoted request answers: accept the quote or decline it
+export const quoteAnswerSchema = z.object({ decision: z.enum(["accept", "decline"], { error: "decision must be accept or decline." }) });
+
 export const requestIdSchema = z.string().regex(/^[0-9a-f]{24}$/i, "That isn't a valid request id.");
 
 const quoteAmountMessage = "quoteAmount must be a whole number of cents.";
