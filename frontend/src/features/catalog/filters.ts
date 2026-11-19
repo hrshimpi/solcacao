@@ -1,8 +1,9 @@
 // Shop filters: reading them from the address (?min=60&origin=peru...), writing them back, and applying them.
 import { categoryIds, noteIds, type Category, type NoteId, type Product } from "../../api/products";
 
-export const PCT_MIN = 55;
-export const PCT_MAX = 85;
+// the whole range a product can have (the dashboard accepts 1 to 100), so no product is hidden when no filter is set
+export const PCT_MIN = 30;
+export const PCT_MAX = 100;
 export const PCT_GAP = 2;
 
 export interface Filters {
@@ -13,7 +14,7 @@ export interface Filters {
   notes: NoteId[];
 }
 
-export const defaultFilters: Filters = { min: 60, max: 85, origins: [], category: "all", notes: [] };
+export const defaultFilters: Filters = { min: PCT_MIN, max: PCT_MAX, origins: [], category: "all", notes: [] };
 
 function clamp(value: number, low: number, high: number) {
   return Math.min(high, Math.max(low, value));

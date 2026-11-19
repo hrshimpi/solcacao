@@ -381,7 +381,7 @@ describe("without an SMTP server", () => {
     expect(log.error).not.toHaveBeenCalled();
     expect(log.info).toHaveBeenCalledTimes(1);
     const [fields, message] = log.info.mock.calls[0];
-    expect(message).toBe("email not sent, SMTP_HOST is empty");
+    expect(message).toBe("email not sent, MAIL_MODE is off or SMTP_HOST is empty");
     expect(fields).toMatchObject({ kind: "inquiry", to: "wholesale@solcacao.example", subject: "New wholesale inquiry from Isabel Vasquez" });
     expect(fields.text).toContain("Do you ship the Ecuador bar to Canada?");
   });

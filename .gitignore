@@ -10,3 +10,7 @@ uploads/
 .idea/
 playwright-report/
 test-results/
+
+# files made while deploying (the packed API and the zip of the website)
+*.tar.gz
+*.zip

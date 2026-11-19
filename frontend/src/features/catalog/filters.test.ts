@@ -35,9 +35,9 @@ describe("shop filters in the address", () => {
   it("keeps the range inside the slider and keeps the two handles apart", () => {
     const filters = filtersFromParams(new URLSearchParams("min=90&max=10"), origins);
 
-    expect(filters.min).toBeLessThanOrEqual(83);
+    expect(filters.min).toBeLessThanOrEqual(98);
     expect(filters.max - filters.min).toBeGreaterThanOrEqual(2);
-    expect(filters.max).toBeLessThanOrEqual(85);
+    expect(filters.max).toBeLessThanOrEqual(100);
   });
 
   it("writes only the values that differ from the defaults", () => {

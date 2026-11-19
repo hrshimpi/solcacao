@@ -8,7 +8,7 @@ import { AppError } from "../errors/AppError.ts";
 import { parseOrThrow } from "../errors/validationError.ts";
 import type { AuthUser } from "../middleware/auth.ts";
 import { uploadsFrom } from "../middleware/upload.ts";
-import { requestIdSchema, requestListQuerySchema, statusChangeSchema } from "../schemas/b2b-requests.schema.ts";
+import { quoteAnswerSchema, requestIdSchema, requestListQuerySchema, statusChangeSchema } from "../schemas/b2b-requests.schema.ts";
 import { quoteRequestSchema } from "../schemas/b2b.schema.ts";
 import type { B2BService } from "../services/b2b.service.ts";
 import type { UserProfile } from "../services/profile.service.ts";
@@ -65,6 +65,12 @@ export function createB2BController(service: B2BService) {
     res.json(await service.listFor(user.id, query));
   };
 
+  // the dashboard: every request, not only the ones of the signed in user
+  const listAll: RequestHandler = async (req, res) => {
+    const query = parseOrThrow(requestListQuerySchema, req.query);
+    res.json(await service.listAll(query));
+  };
+
   const get: RequestHandler = async (req, res) => {
     const user = signedInUser(req);
     const id = parseOrThrow(requestIdSchema, req.params.id);
@@ -104,11 +110,19 @@ export function createB2BController(service: B2BService) {
     }
   };
 
+  // the business answers its own quote
+  const answerQuote: RequestHandler = async (req, res) => {
+    const user = signedInUser(req);
+    const id = parseOrThrow(requestIdSchema, req.params.id);
+    const { decision } = parseOrThrow(quoteAnswerSchema, req.body ?? {});
+    res.json({ request: await service.answerQuote(id, decision, user) });
+  };
+
   const updateStatus: RequestHandler = async (req, res) => {
     const id = parseOrThrow(requestIdSchema, req.params.id);
     const change = parseOrThrow(statusChangeSchema, req.body ?? {});
     res.json({ request: await service.changeStatus(id, change) });
   };
 
-  return { createQuote, list, get, downloadAsset, updateStatus };
+  return { createQuote, list, listAll, answerQuote, get, downloadAsset, updateStatus };
 }

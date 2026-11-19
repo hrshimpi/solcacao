@@ -225,7 +225,7 @@ What protects every request:
 - Answers that belong to one person are sent with `Cache-Control: no-store`.
 - Passwords, tokens and cookies are never written to the log: the logger hides them even if a line of code puts them in, and a request is logged without its headers.
 - An error that nothing catches (a timer, a callback that fails on its own) is written to the log and stops the server, so the host starts a clean one. A stop that is asked for (`SIGTERM`) waits for the open requests, and forces the end after 10 seconds.
-- `GET /api/health` says that the server is running and whether the database is connected (`database: "up"` or `"down"`). `GET /api/health/ready` answers `503 DATABASE_UNAVAILABLE` until it is, for a host that waits for it before it sends visitors. Neither is counted by the limit on requests, and neither is kept by a cache.
+- `GET /api/health` says that the server is running and whether the database is connected (`{ "status": "ok", "db": "connected" }` or `"disconnected"`). `GET /api/health/ready` answers `503 DATABASE_UNAVAILABLE` until it is, for a host that waits for it before it sends visitors. Neither is counted by the limit on requests, and neither is kept by a cache.
 
 Making an admin (the sign up route can only make people and businesses):
 
@@ -533,3 +533,7 @@ curl -OJ -H "Authorization: Bearer <business token>" http://localhost:4000/api/b
 ```
 
 The last one saves the file under its original name (`-OJ` reads it from the header). There is no email to the customer yet when a request is quoted.
+
+## Deployment
+
+The website runs on AWS Amplify Hosting, the API on one Lightsail instance behind Nginx with HTTPS, and the database on MongoDB Atlas. The steps, the settings and a table of problems and fixes are in [docs/deploy-aws.md](docs/deploy-aws.md). The Nginx and PM2 templates are in the `deploy` folder, and every setting of the API is listed in `backend/.env.example`.

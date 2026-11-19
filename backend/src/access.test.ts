@@ -28,8 +28,10 @@ const table: { file: string; method: Method; path: string; guard: Guard }[] = [
 
   { file: "b2b.routes.ts", method: "post", path: "/api/b2b/quote", guard: "business" },
   { file: "b2b.routes.ts", method: "get", path: "/api/b2b/requests", guard: "business" },
+  { file: "b2b.routes.ts", method: "get", path: "/api/b2b/admin/requests", guard: "admin" },
   { file: "b2b.routes.ts", method: "get", path: `/api/b2b/requests/${id}`, guard: "user" },
   { file: "b2b.routes.ts", method: "get", path: `/api/b2b/requests/${id}/assets/file.pdf`, guard: "user" },
+  { file: "b2b.routes.ts", method: "post", path: `/api/b2b/requests/${id}/respond`, guard: "business" },
   { file: "b2b.routes.ts", method: "patch", path: `/api/b2b/requests/${id}`, guard: "admin" },
 
   { file: "cart.routes.ts", method: "get", path: "/api/cart", guard: "visitor" },

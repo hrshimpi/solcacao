@@ -10,6 +10,7 @@ const sections = [
   { to: "/admin/orders", key: "admin.nav.orders" },
   { to: "/admin/products", key: "admin.nav.products" },
   { to: "/admin/inquiries", key: "admin.nav.inquiries" },
+  { to: "/admin/requests", key: "admin.nav.requests" },
 ] as const;
 
 export default function AdminLayout() {

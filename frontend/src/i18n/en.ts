@@ -421,6 +421,13 @@ export const en = {
         approved: "Approved",
         rejected: "Rejected",
       },
+      respond: {
+        question: "Happy with this quote? Accept it to start your order, or decline it.",
+        accept: "Accept the quote",
+        decline: "Decline",
+        error: "We couldn't send your answer. Please try again.",
+        afterAccept: "Thank you. Our team will contact you to arrange payment and delivery of your custom order.",
+      },
       statusHelp: {
         submitted: "We have it. A quote usually comes within two business days.",
         quoted: "Your quote is ready. Check the amount and the note below.",
@@ -619,6 +626,7 @@ export const en = {
       orders: "Orders",
       products: "Products",
       inquiries: "Inquiries",
+      requests: "Quote requests",
     },
     noAccess: {
       title: "This page is for the team",
@@ -757,6 +765,21 @@ export const en = {
         earthy: "Earthy",
         smoky: "Smoky",
       },
+    },
+    requests: {
+      count_one: "{{count}} quote request",
+      count_other: "{{count}} quote requests",
+      empty: "There are no quote requests yet.",
+      units: "{{units}} units",
+      quoted: "Quoted: {{amount}}",
+      amountLabel: "Quote amount (USD)",
+      sendQuote: "Send quote",
+      emailCustomer: "Email the customer",
+      mailSubject: "Your SolCacao quote request, {{company}}",
+      reject: "Reject",
+      invalidAmount: "Enter an amount above zero.",
+      changeError: "We couldn't change that. Please try again.",
+      more: "Show more",
     },
     inquiries: {
       count_one: "{{count}} inquiry",

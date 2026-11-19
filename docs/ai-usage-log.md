@@ -1,11 +1,11 @@
-# SolCacao — Generative AI Usage & Engineering Verification Log
+# SolCacao: Generative AI Usage & Engineering Verification Log
 
 **Course:** CSE 5335: Web Data Management (Fall 2026)  
 **Project:** SolCacao Platform  
 **Phase:** Phase 2 (Front-End Architecture & Interface Implementation)  
 **Team Members:**  
 * Himanshu Shimpi (1002304702)  
-* Pritesh Das (1002333230) — Student 1 (Auth & Account Interfaces)  
+* Pritesh Das (1002333230), Student 1 (Auth & Account Interfaces)  
 * Amogh Dhole (1002055522)  
 * Pavan Kolluru (69420)  
 
@@ -24,6 +24,7 @@ Generative AI tools (ChatGPT, Gemini) were utilized during Phase 2 as engineerin
 | **2** | Oct 27, 2026 | Gemini | WCAG 2.1/2.2 AA Contrast Audit | "Verify contrast compliance for `#1C1310` on `#F0EDE4` and `#6B1F2E` on white per WCAG Level AA." | Calculated contrast ratios (14.8:1 and 8.2:1) and confirmed compliance for standard/large text. | **Manual Verification:** Inspected responsive mobile/desktop layouts; confirmed error states (`#FEF2F2` background with dark red text) maintain minimum 4.5:1 ratio. |
 | **3** | Oct 27, 2026 | Gemini | Git Version Control & Conflict Resolution | "Debug merge conflict between `pd-auth-frontend` and `dev` across AuthContext, ProfilePage, and test files." | Provided command-line strategy (`git checkout --theirs`) and conflict marker triage. | **Manual Resolution:** Selected incoming team implementation for profile routing and tests (`renderAt`), while preserving Student 1 auth form validation and state logic. |
 | **4** | Oct 27, 2026 | Gemini | Accessibility Standards (`role="alert"`) | "How to announce client-side validation errors to screen readers dynamically on login failure?" | Suggested `<div role="alert" aria-live="polite">` pattern for dynamic feedback. | **Manual Validation:** Verified in browser that inline errors display without jarring page jumps and announce accurately on form submission failure. |
+| **5** |  |  | Deployment on AWS (`backend/src/config/env.ts`, `server.ts`, seed, `deploy/`, `docs/deploy-aws.md`) | AWS deploy prompt: make the API and the client ready for Amplify, Lightsail with Nginx and Atlas, test them here and write the steps. | Production rules for the settings (database, secret, website address, port 25), listen on 127.0.0.1, health answer, MAIL_MODE, a seed with an admin, Nginx and PM2 templates, the deploy guide. | Ran the backend typecheck, build and tests (1626 passed), and checked a production start with curl against a temporary local MongoDB. Not tested: Atlas, Amplify, Lightsail, Nginx, SMTP. |
 
 ---
 

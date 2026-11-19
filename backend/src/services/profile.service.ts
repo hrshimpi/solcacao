@@ -9,6 +9,8 @@ export interface UserProfile {
   // the person's own name
   name?: string;
   companyName?: string;
+  // the phone number from the account, when the person gave one
+  phone?: string;
 }
 
 export type ProfileLookup = (userId: string) => Promise<UserProfile>;
@@ -17,7 +19,7 @@ export function createProfileLookup({ users, profiles }: { users: UserStore; pro
   return async (userId) => {
     try {
       const [user, business] = await Promise.all([users.findById(userId), profiles.findByUserId(userId)]);
-      return { email: user?.email, name: user?.name, companyName: business?.companyName };
+      return { email: user?.email, name: user?.name, companyName: business?.companyName, phone: user?.phone };
     } catch {
       return {};
     }
