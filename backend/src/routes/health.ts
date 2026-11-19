@@ -10,7 +10,7 @@ import { noStore } from "../middleware/security.ts";
 export const healthRouter = Router();
 
 healthRouter.get("/health", noStore, (_req, res) => {
-  res.json({ status: "ok", uptime: Math.round(process.uptime()), database: isDatabaseReady() ? "up" : "down" });
+  res.json({ status: "ok", db: isDatabaseReady() ? "connected" : "disconnected" });
 });
 
 healthRouter.get("/health/ready", noStore, (_req, res) => {

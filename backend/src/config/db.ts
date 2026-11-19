@@ -17,8 +17,15 @@ export function requireDatabase(): void {
   }
 }
 
+// the database the app and the seed use when the address has no name in it (mongodb+srv://host/NAME?options)
+export const defaultDatabaseName = "solcacao";
+
+export function hasDatabaseName(uri: string): boolean {
+  return /^mongodb(\+srv)?:\/\/[^/?]+\/[^/?]+/.test(uri);
+}
+
 export async function connectDb(uri: string): Promise<void> {
-  await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000, ...(hasDatabaseName(uri) ? {} : { dbName: defaultDatabaseName }) });
 }
 
 export function connectDbWithRetry(uri: string, log: { info(message: string): void; error(fields: object, message: string): void }, retryAfterMs = 10_000) {

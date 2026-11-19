@@ -1,7 +1,7 @@
 // Sends the emails of the site with Nodemailer. Every function returns true or false and never throws,
 // so a broken mail server can slow nothing down more than the timeouts below and can never fail a request.
 //
-// With SMTP_HOST empty (development and tests) nothing is sent: Nodemailer's JSON transport only builds
+// With MAIL_MODE=off, or SMTP_HOST empty (development and tests), nothing is sent: Nodemailer's JSON transport only builds
 // the message, and we log who it was for, the subject and the text, so you can see what would go out.
 import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "../config/env.ts";
@@ -78,7 +78,7 @@ export function createMailService(options: { config: MailConfig; log: MailLogger
       if (onlyLogging) {
         log.info(
           { kind, to: message.to, subject: message.subject, ...(options.secret && !config.logSecrets ? {} : { text: message.text }) },
-          "email not sent, SMTP_HOST is empty",
+          "email not sent, MAIL_MODE is off or SMTP_HOST is empty",
         );
       }
       return true;
@@ -158,7 +158,8 @@ export function createMailService(options: { config: MailConfig; log: MailLogger
 
 const mail = createMailService({
   config: {
-    host: env.SMTP_HOST,
+    // MAIL_MODE=off works like an empty host: the message is only logged
+    host: env.MAIL_MODE === "off" ? "" : env.SMTP_HOST,
     port: env.SMTP_PORT,
     user: env.SMTP_USER,
     pass: env.SMTP_PASS,

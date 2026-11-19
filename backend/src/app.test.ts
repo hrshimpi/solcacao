@@ -15,8 +15,7 @@ describe("api", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("ok");
-    expect(typeof res.body.uptime).toBe("number");
-    expect(res.body.database).toBe("down");
+    expect(res.body).toEqual({ status: "ok", db: "disconnected" });
     expect(res.headers["cache-control"]).toBe("no-store");
   });
 
